@@ -4,7 +4,8 @@
   <title>Masuk · CashierStore</title>
   @include('partials.head')
 </head>
-<body class="min-h-screen grid place-items-center p-4 bg-gradient-to-br from-canvas to-brand-50">
+<body class="min-h-screen grid place-items-center p-4 bg-linear-to-br from-canvas to-brand-50">
+<div class="fixed top-4 right-4 z-50">@include('partials.theme-toggle')</div>
 @php
   $tab = session('tab', $errors->has('pin') ? 'pin' : 'admin');
   $todayOrders = \App\Models\Order::paid()->whereDate('paid_at', today());
@@ -59,7 +60,7 @@
     <div class="flex items-center gap-2 text-xs text-slate-500 mt-10"><span class="material-symbols-outlined text-emerald-600" style="font-size:16px">verified_user</span> Percobaan login dibatasi demi keamanan</div>
   </div>
 
-  <div class="hidden lg:flex flex-col justify-center gap-4 p-10 bg-gradient-to-br from-brand-50 to-blue-100/60">
+  <div class="hidden lg:flex flex-col justify-center gap-4 p-10 bg-linear-to-br from-brand-50 to-blue-100/60">
     <div class="card p-4 flex items-center justify-between">
       <div><div class="font-bold">{{ config('pos.store_name') }}</div><div class="text-xs text-slate-500">{{ config('pos.store_address') }}</div></div>
       <span class="pill pill-green">● Live</span>

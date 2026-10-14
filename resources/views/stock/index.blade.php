@@ -31,11 +31,11 @@
 
   <div class="lg:col-span-2 card overflow-hidden">
     <form method="GET" class="flex flex-wrap gap-3 p-4 border-b border-slate-100">
-      <select name="product" class="input !w-auto min-w-[180px]" onchange="this.form.submit()">
+      <select name="product" class="input w-auto! min-w-45" onchange="this.form.submit()">
         <option value="">Semua produk</option>
         @foreach ($products as $p)<option value="{{ $p->id }}" @selected(request('product') == $p->id)>{{ $p->name }}</option>@endforeach
       </select>
-      <select name="type" class="input !w-auto" onchange="this.form.submit()">
+      <select name="type" class="input w-auto!" onchange="this.form.submit()">
         <option value="">Semua jenis</option>
         @foreach (\App\Models\StockMovement::TYPES as $k => $v)<option value="{{ $k }}" @selected(request('type') === $k)>{{ $v }}</option>@endforeach
       </select>
