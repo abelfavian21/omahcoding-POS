@@ -253,6 +253,139 @@ $('charge').addEventListener('click', async () => {
 });
 $('doneNew').addEventListener('click', () => { location.href = @json(route('pos')); }); // muat ulang: stok & nomor invoice segar
 
+/* ---------- Perintah suara (kasir) ---------- */
+if (window.Voice) {
+  const V = Voice;
+  const FILL = new Set(['tolong','ya','mas','mbak','kak','dong','deh','aja','saja','nya','yang','itu','ini','tambah','tambahkan','tambahin','pesan','pesankan','pesen','order','beli','minta','mau','porsi','gelas','cup','buah','biji','pcs','piring','mangkok','untuk','buat','hapus','buang','batalkan','batal','kurangi','kurangin','kurang','keluarkan','ubah','ganti','jadikan','jadi','set','cancel']);
+  const METHOD_NAME = { cash: 'tunai', qris: 'QRIS', card: 'kartu' };
+  const sayTotal = () => { const t = totals(); return { show: 'Total ' + rp(t.total), say: 'Total ' + V.spokenRp(t.total) }; };
+  const touch = () => { $('err').classList.add('hidden'); refresh(); };
+
+  function itemCommand(t) {
+    const removing = /\b(hapus|buang|batalkan|batal|kurangi|kurangin|kurang|keluarkan|cancel)\b/.test(t);
+    const setting = /\b(ubah|ganti|jadikan)\b/.test(t) && /\bjadi\b/.test(t);
+    const segs = t.split(/\b(?:dan|sama|lalu|terus|kemudian|juga)\b/).map(x => x.trim()).filter(Boolean);
+    const done = [], problems = []; let matched = 0;
+    for (const seg of segs) {
+      const toks = V.tokens(seg), runs = V.numbers(toks);
+      const rest = toks.filter((_, i) => !runs.some(r => i >= r.start && i < r.end) && !FILL.has(toks[i]));
+      if (!rest.length) continue;
+      const m = V.matchProduct(rest, PRODUCTS);
+      if (!m) continue;
+      matched++;
+      if (m.ambiguous) { problems.push('Maksudnya ' + m.ambiguous.map(p => p.name).join(' atau ') + '?'); continue; }
+      const p = m.product, have = cart[p.id] || 0;
+      const qty = runs.length ? Math.min(Math.max(runs[runs.length - (setting ? 1 : runs.length)].value, 0), 99) : 1;
+      if (setting) {
+        if (qty <= 0) { delete cart[p.id]; done.push(p.name + ' dihapus'); }
+        else if (qty > p.stock) { cart[p.id] = p.stock; problems.push('Stok ' + p.name + ' hanya ' + p.stock); }
+        else { cart[p.id] = qty; done.push(p.name + ' jadi ' + qty); }
+      } else if (removing) {
+        if (!have) { problems.push(p.name + ' belum ada di keranjang'); continue; }
+        const hapusSemua = /\b(hapus|buang|batalkan|batal|keluarkan|cancel)\b/.test(t) && !runs.length;
+        const left = hapusSemua ? 0 : have - qty;
+        if (left <= 0) delete cart[p.id]; else cart[p.id] = left;
+        done.push(p.name + ' dikurangi');
+      } else {
+        if (p.stock <= 0) { problems.push(p.name + ' habis'); continue; }
+        const add = Math.min(qty || 1, p.stock - have);
+        if (add <= 0) { problems.push('Stok ' + p.name + ' sudah maksimal'); continue; }
+        cart[p.id] = have + add; done.push(add + ' ' + p.name);
+      }
+    }
+    if (!matched) return false;
+    touch();
+    const tot = sayTotal();
+    const lines = [];
+    if (done.length) lines.push((removing || setting ? 'Diubah: ' : 'Ditambahkan: ') + done.join(', ') + '. ' + tot.show);
+    if (problems.length) lines.push(problems.join('. '));
+    V.say(lines.join(' · '), (done.length ? (removing || setting ? 'Diubah. ' : 'Ditambahkan. ') + done.join(', ') + '. ' + tot.say + '. ' : '') + problems.join('. '));
+    return true;
+  }
+
+  V.register((t) => {
+    // Setelah pembayaran berhasil
+    if (!$('doneModal').classList.contains('hidden')) {
+      if (/\b(pesanan baru|order baru|transaksi baru|lanjut|tutup)\b/.test(t)) { V.say('Pesanan baru'); $('doneNew').click(); return true; }
+      if (/\b(struk|cetak)\b/.test(t)) { $('doneView').click(); return true; }
+      return false;
+    }
+    if ($('custModal') && !$('custModal').classList.contains('hidden')) return false;
+
+    if (/\b(kosongkan|bersihkan|reset)\b|\b(hapus|batalkan|batal) (semua|keranjang|pesanan)\b/.test(t)) {
+      cart = {}; $('discount').value = 0; $('paid').value = ''; touch(); V.say('Keranjang dikosongkan'); return true;
+    }
+    if (/\b(takeaway|take away|bawa pulang|dibungkus)\b/.test(t)) { orderType = 'takeaway'; renderMeta(); V.say('Takeaway'); return true; }
+    if (/\b(dine in|dinein|makan (di )?sini|makan (di )?tempat)\b/.test(t)) { orderType = 'dine_in'; renderMeta(); V.say('Dine in'); return true; }
+    const mejaM = t.match(/\bmeja(?: nomor)?\s+(.+)$/);
+    if (mejaM) {
+      const tk = V.tokens(mejaM[1]), nr = V.numbers(tk);
+      const val = nr.length && nr[0].start === 0 ? String(nr[0].value) : (tk[0] || '').toUpperCase();
+      if (val) { orderType = 'dine_in'; $('table').value = val; renderMeta(); V.say('Meja ' + val); return true; }
+    }
+    if (/\b(diskon|potongan|discount)\b/.test(t)) {
+      const nr = V.numbers(V.tokens(t)), v = /\b(tanpa|hapus|nol)\b/.test(t) ? 0 : (nr.length ? nr[nr.length - 1].value : null);
+      if (v === null) { V.say('Sebutkan nominal diskon, misalnya diskon lima ribu'); return true; }
+      $('discount').value = v; renderCart(); V.say('Diskon ' + rp(v), 'Diskon ' + V.spokenRp(v)); return true;
+    }
+    const mm = t.match(/\b(tunai|cash|qris|kartu|debit|kredit)\b/);
+    if (mm) {
+      method = mm[1] === 'qris' ? 'qris' : (/kartu|debit|kredit/.test(mm[1]) ? 'card' : 'cash'); renderMeta(); renderCart();
+      const nr = V.numbers(V.tokens(t)), amt = nr.length ? nr[nr.length - 1].value : 0;
+      if (method === 'cash' && amt >= 1000) { $('paid').value = amt; renderCart(); V.say('Tunai, uang diterima ' + rp(amt), 'Tunai, uang diterima ' + V.spokenRp(amt)); }
+      else V.say('Metode ' + METHOD_NAME[method]);
+      return true;
+    }
+    if (/\buang pas\b|^pas$/.test(t)) { method = 'cash'; $('paid').value = totals().total; renderMeta(); renderCart(); V.say('Uang pas'); return true; }
+    if (/\b(diterima|terima|dibayar|dibayarkan|bayar|uang|cash)\b/.test(t)) {
+      const nr = V.numbers(V.tokens(t)), amt = nr.length ? nr[nr.length - 1].value : 0;
+      if (amt >= 1000) { method = 'cash'; $('paid').value = amt; renderMeta(); renderCart(); const ch = Math.max(0, amt - totals().total);
+        V.say('Uang diterima ' + rp(amt) + (ch ? ' · kembalian ' + rp(ch) : ''), 'Uang diterima ' + V.spokenRp(amt) + (ch ? '. Kembalian ' + V.spokenRp(ch) : '')); return true; }
+    }
+    if (/\b(tanpa pelanggan|walk in|walkin|pelanggan umum)\b/.test(t)) { pick(null); V.say('Walk in'); return true; }
+    const cm = t.match(/\b(?:pelanggan|member|customer|atas nama)\s+(.+)$/);
+    if (cm) {
+      const name = cm[1].replace(/\b(bernama|nama)\b/g, '').trim();
+      fetch(URLS.customers + '?q=' + encodeURIComponent(name), { headers: { Accept: 'application/json' } }).then(r => r.json()).then(list => {
+        if (!list.length) return V.say('Pelanggan ' + name + ' tidak ditemukan');
+        const exact = list.find(c => V.norm(c.name) === name) || list[0]; pick(exact); V.say('Pelanggan ' + exact.name);
+      }).catch(() => V.say('Gagal mencari pelanggan'));
+      return true;
+    }
+    if (/\b(total|kembalian|berapa)\b/.test(t)) {
+      const tt = totals(), paid = +$('paid').value || 0;
+      if (!Object.keys(cart).length) { V.say('Keranjang masih kosong'); return true; }
+      const ch = method === 'cash' && paid >= tt.total ? paid - tt.total : null;
+      V.say('Total ' + rp(tt.total) + (ch !== null ? ' · kembalian ' + rp(ch) : ''), 'Total ' + V.spokenRp(tt.total) + (ch !== null ? '. Kembalian ' + V.spokenRp(ch) : '')); return true;
+    }
+    if (/\b(bayar|selesai|selesaikan|proses|checkout|lunas|charge)\b/.test(t)) {
+      const tt = totals();
+      if (!Object.keys(cart).length) { V.say('Keranjang masih kosong'); return true; }
+      if (method === 'cash' && (+$('paid').value || 0) < tt.total) { V.say('Uang diterima kurang. Sebutkan uang diterima, atau katakan uang pas.'); return true; }
+      V.confirm('Bayar ' + rp(tt.total) + ' dengan ' + METHOD_NAME[method] + '? Ucapkan ya atau batal.', () => {
+        $('charge').click();
+        setTimeout(() => {
+          if (!$('doneModal').classList.contains('hidden')) {
+            const ch = $('doneChange').textContent; V.say('Pembayaran berhasil. ' + ch, 'Pembayaran berhasil');
+          } else V.say($('err').textContent || 'Pembayaran belum berhasil');
+        }, 1800);
+      }, 'Bayar ' + V.spokenRp(tt.total) + ' dengan ' + METHOD_NAME[method] + '? Ucapkan ya atau batal.');
+      return true;
+    }
+    if (/\b(tampilkan semua|semua menu|reset pencarian|hapus pencarian)\b/.test(t)) { q = ''; $('search').value = ''; cat = 0; renderCats(); renderGrid(); V.say('Menampilkan semua menu'); return true; }
+    const km = t.match(/\bkategori\s+(.+)$/);
+    if (km) {
+      const m = V.matchProduct(V.tokens(km[1]), CATEGORIES);
+      const c = m && (m.product || (m.ambiguous && m.ambiguous[0]));
+      if (c) { cat = c.id; renderCats(); renderGrid(); V.say('Kategori ' + c.name); } else V.say('Kategori tidak ditemukan');
+      return true;
+    }
+    const sm = t.match(/\bcari(?: menu)?\s+(.+)$/);
+    if (sm) { q = sm[1]; $('search').value = sm[1]; renderGrid(); V.say('Mencari ' + sm[1]); return true; }
+    return itemCommand(t);
+  });
+}
+
 renderCats(); refresh();
 </script>
 @endpush

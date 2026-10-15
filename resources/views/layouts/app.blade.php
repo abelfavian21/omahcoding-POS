@@ -87,6 +87,7 @@
   document.getElementById('menuBtn')?.addEventListener('click', toggle);
   bd.addEventListener('click', toggle);
 </script>
+@include('partials.voice')
 @stack('scripts')
 </body>
 </html>
