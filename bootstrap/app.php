@@ -11,12 +11,22 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        // user yang sudah login & membuka halaman tamu -> langsung ke dashboard
-        $middleware->redirectUsersTo(fn () => route('dashboard'));
+        // user yang sudah login & membuka halaman tamu -> admin ke dashboard, kasir ke POS
+        $middleware->redirectUsersTo(fn () => auth()->user()?->isAdmin() ? route('dashboard') : route('pos'));
+
+        // ganti password / nonaktifkan akun -> sesi di perangkat lain ikut tidak berlaku
+        $middleware->authenticateSessions();
+
+        // header keamanan di semua respons web
+        $middleware->web(append: [\App\Http\Middleware\SecurityHeaders::class]);
 
         $middleware->alias([
             'role' => \App\Http\Middleware\RoleMiddleware::class,
+            'account' => \App\Http\Middleware\EnsureAccountActive::class,
         ]);
+
+        // Di belakang Nginx/Cloudflare/load balancer: percayai proxy supaya IP asli (rate limit)
+        // dan skema https (cookie secure, HSTS) terbaca benar. Lihat catatan di SECURITY_REVIEW.md.
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

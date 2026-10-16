@@ -1,6 +1,12 @@
 @extends('layouts.app')
 @section('title', 'Order Line')
 @section('content')
+@if (! $shiftOpen && config('pos.require_shift'))
+  <div class="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 text-sm font-semibold">
+    <span>Shift kasir belum dibuka — pembayaran akan ditolak sampai shift dibuka.</span>
+    <a href="{{ route('shifts.index') }}" class="btn-secondary !h-9 !px-3 text-xs">Buka shift</a>
+  </div>
+@endif
 <div class="grid xl:grid-cols-[1fr_390px] gap-5 items-start">
 
   {{-- ============ MENU ============ --}}
@@ -118,6 +124,8 @@ const rp = n => 'Rp ' + Math.round(n).toLocaleString('id-ID');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 let cart = {};            // product_id -> qty
+let idemKey = null;       // kunci anti-dobel: dipakai ulang HANYA bila respons server tidak sempat diterima
+const uuid = () => ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
 let cat = 0, q = '';
 let customer = @json($customer);
 let orderType = 'dine_in', method = 'cash';
@@ -237,13 +245,16 @@ $('charge').addEventListener('click', async () => {
     const r = await fetch(URLS.checkout, {
       method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': CSRF },
       body: JSON.stringify({
+        idempotency_key: (idemKey ??= uuid()),
         items: Object.entries(cart).map(([id, qty]) => ({ product_id: +id, qty })),
         customer_id: customer?.id ?? null, order_type: orderType, table_no: $('table').value || null,
         discount: t.disc, payment_method: method, paid_amount: method === 'cash' ? (+$('paid').value || 0) : t.total,
       }),
     });
     const d = await r.json();
+    if (!r.ok) { idemKey = null; }   // server menolak -> percobaan berikutnya adalah transaksi baru
     if (!r.ok) throw new Error(d.errors ? Object.values(d.errors)[0][0] : (d.message || 'Transaksi gagal'));
+    idemKey = null;
     $('doneInv').textContent = d.invoice_no; $('doneTotal').textContent = rp(d.total);
     $('doneChange').textContent = d.change > 0 ? 'Kembalian ' + rp(d.change) : '';
     $('doneView').href = d.receipt_url; $('doneDl').href = d.download_url;

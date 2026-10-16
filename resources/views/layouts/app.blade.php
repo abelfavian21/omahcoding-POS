@@ -8,13 +8,16 @@
 @php
   $u = auth()->user();
   $nav = [
-    ['route' => 'dashboard', 'match' => 'dashboard', 'icon' => 'dashboard', 'label' => 'Dashboard', 'admin' => false],
+    ['route' => 'dashboard', 'match' => 'dashboard', 'icon' => 'dashboard', 'label' => 'Dashboard', 'admin' => true],
     ['route' => 'pos', 'match' => 'pos', 'icon' => 'point_of_sale', 'label' => 'Order Line', 'admin' => false],
     ['route' => 'reports.index', 'match' => 'reports.*', 'icon' => 'bar_chart', 'label' => 'Laporan Penjualan', 'admin' => true],
     ['route' => 'products.index', 'match' => 'products.*', 'icon' => 'inventory_2', 'label' => 'Produk', 'admin' => false],
     ['route' => 'stock.index', 'match' => 'stock.*', 'icon' => 'warehouse', 'label' => 'Stok Barang', 'admin' => true],
     ['route' => 'customers.index', 'match' => 'customers.*', 'icon' => 'groups', 'label' => 'Pelanggan', 'admin' => false],
     ['route' => 'staff.index', 'match' => 'staff.*', 'icon' => 'badge', 'label' => 'Staff', 'admin' => true],
+    ['route' => 'shifts.index', 'match' => 'shifts.*', 'icon' => 'payments', 'label' => 'Shift Kasir', 'admin' => false],
+    ['route' => 'settings.edit', 'match' => 'settings.*', 'icon' => 'settings', 'label' => 'Pengaturan', 'admin' => true],
+    ['route' => 'audit.index', 'match' => 'audit.*', 'icon' => 'policy', 'label' => 'Audit Log', 'admin' => true],
     ['route' => 'office', 'match' => 'office', 'icon' => 'apartment', 'label' => 'Kantor Virtual', 'admin' => false],
   ];
 @endphp

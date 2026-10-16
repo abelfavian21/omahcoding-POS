@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use App\Models\Business;
 use App\Models\BusinessCategory;
 use App\Models\Category;
@@ -9,6 +10,8 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Rules\StrongPassword;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class RegisterController extends Controller
@@ -18,12 +21,14 @@ class RegisterController extends Controller
     /** Registrasi bisnis: pemilik + usaha + kategori -> akun aktif -> masuk dashboard */
     public function store(Request $request)
     {
+        $request->merge(['email' => Str::lower(trim((string) $request->input('email')))]);
+
         $data = $request->validate([
             'owner_name' => ['required', 'string', 'max:120'],
             'business_name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'phone' => ['required', 'string', 'min:8', 'max:30'],
-            'password' => ['required', 'string', 'min:8', 'max:100'],
+            'password' => ['required', 'string', 'max:100', new StrongPassword($request->input('email'), $request->input('owner_name'))],
             'category' => ['required', Rule::exists('business_categories', 'slug')->where('is_active', true)],
             'outlet_count' => ['required', Rule::in(self::OUTLETS)],
             'location' => ['required', 'string', 'max:120'],
@@ -33,7 +38,6 @@ class RegisterController extends Controller
             'category.required' => 'Pilih kategori usaha terlebih dahulu.',
             'category.exists' => 'Kategori usaha ini belum tersedia.',
             'agree.accepted' => 'Centang persetujuan ketentuan layanan terlebih dahulu.',
-            'password.min' => 'Kata sandi minimal 8 karakter.',
         ]);
 
         $category = BusinessCategory::where('slug', $data['category'])->firstOrFail();
@@ -67,6 +71,8 @@ class RegisterController extends Controller
             foreach (($category->preset ?? []) as $i => [$name, $emoji]) {
                 Category::create(['name' => $name, 'emoji' => $emoji, 'sort_order' => $i]);
             }
+
+            AuditLog::record('business.registered', $business->code, ['email' => $owner->email]);
 
             return $owner;
         });

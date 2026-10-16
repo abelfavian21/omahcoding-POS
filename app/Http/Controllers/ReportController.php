@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exports\SalesReportExport;
+use App\Models\AuditLog;
 use App\Models\Order;
 use App\Services\SalesReport;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -19,7 +20,7 @@ class ReportController extends Controller
         $orders = $report->query()->with(['customer', 'cashier'])->latest('paid_at')->paginate(15)->withQueryString();
 
         // transaksi void pada periode (ditampilkan terpisah agar jelas)
-        $voids = Order::where('status', 'void')->whereBetween('updated_at', [$report->from, $report->to])->latest('updated_at')->limit(5)->get();
+        $voids = Order::voidedBetween($report->from, $report->to)->with('voider')->latest('updated_at')->limit(5)->get();
 
         return view('reports.index', [
             'report' => $report,
@@ -37,6 +38,7 @@ class ReportController extends Controller
     public function pdf(Request $request)
     {
         $report = SalesReport::fromRequest($request);
+        AuditLog::record('report.export', 'pdf', ['period' => $report->periodLabel()]);
 
         $pdf = Pdf::loadView('pdf.report', [
             'report' => $report,
@@ -52,6 +54,7 @@ class ReportController extends Controller
     public function excel(Request $request)
     {
         $report = SalesReport::fromRequest($request);
+        AuditLog::record('report.export', 'excel', ['period' => $report->periodLabel()]);
 
         return Excel::download(
             new SalesReportExport($report),

@@ -9,6 +9,8 @@ use Illuminate\Http\Request;
 
 class SalesReport
 {
+    public const MAX_DAYS = 366;
+
     public function __construct(
         public Carbon $from,
         public Carbon $to,
@@ -17,9 +19,19 @@ class SalesReport
 
     public static function fromRequest(Request $r): static
     {
-        $from = $r->date('from') ?? now()->startOfMonth();
-        $to = $r->date('to') ?? now();
+        try {
+            $from = $r->date('from') ?? now()->startOfMonth();
+            $to = $r->date('to') ?? now();
+        } catch (\Throwable $e) {   // tanggal ngawur -> pakai default, bukan error 500
+            $from = now()->startOfMonth();
+            $to = now();
+        }
         if ($from->gt($to)) [$from, $to] = [$to, $from];
+
+        // batasi rentang (mencegah laporan/ekspor raksasa yang menghabiskan memori server)
+        if ($from->diffInDays($to) > self::MAX_DAYS) {
+            $from = $to->copy()->subDays(self::MAX_DAYS);
+        }
 
         $method = in_array($r->input('method'), array_keys(Order::PAYMENTS), true) ? $r->input('method') : null;
 
@@ -68,7 +80,7 @@ class SalesReport
             'items' => (int) $i->qty,
             // laba kotor = penjualan item - HPP - diskon (pajak bukan pendapatan toko)
             'profit' => (float) $i->rev - (float) $i->cogs - (float) $o->discount,
-            'voided' => Order::where('status', 'void')->whereBetween('updated_at', [$this->from, $this->to])->count(),
+            'voided' => Order::voidedBetween($this->from, $this->to)->count(),
         ];
     }
 

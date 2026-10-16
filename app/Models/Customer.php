@@ -26,11 +26,19 @@ class Customer extends Model
     private const TIER_RANK = ['bronze' => 0, 'silver' => 1, 'gold' => 2, 'vip' => 3];
     public const POINT_PER = 10000; // 1 poin tiap belanja Rp 10.000
 
-    public function applyPurchase(float $total, $at = null): void
+    /** Nilai rupiah 1 poin saat ditukar. */
+    public static function pointValue(): int
     {
+        return max(1, (int) config('pos.point_value', 100));
+    }
+
+    /** @return int poin yang didapat dari transaksi ini */
+    public function applyPurchase(float $total, $at = null): int
+    {
+        $earned = (int) floor($total / self::POINT_PER);
         $this->visits = $this->visits + 1;
         $this->total_spent = (float) $this->total_spent + $total;
-        $this->points = $this->points + (int) floor($total / self::POINT_PER);
+        $this->points = $this->points + $earned;
         $this->last_visit_at = $at ?? now();
 
         foreach (self::TIER_THRESHOLDS as $tier => $min) {
@@ -40,13 +48,16 @@ class Customer extends Model
             }
         }
         $this->save();
+
+        return $earned;
     }
 
-    public function revertPurchase(float $total): void
+    public function revertPurchase(float $total, ?int $pointsEarned = null, int $pointsRedeemed = 0): void
     {
         $this->visits = max(0, $this->visits - 1);
         $this->total_spent = max(0, (float) $this->total_spent - $total);
-        $this->points = max(0, $this->points - (int) floor($total / self::POINT_PER));
+        $earned = $pointsEarned ?: (int) floor($total / self::POINT_PER);
+        $this->points = max(0, $this->points - $earned) + $pointsRedeemed;   // poin yang dipakai dikembalikan
         $this->last_visit_at = $this->orders()->paid()->max('paid_at');
         $this->save();
     }

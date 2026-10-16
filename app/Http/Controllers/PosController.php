@@ -7,7 +7,9 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use App\Models\CashShift;
+use App\Services\CheckoutService;
+use Illuminate\Validation\Rule;
 use RuntimeException;
 
 class PosController extends Controller
@@ -30,8 +32,9 @@ class PosController extends Controller
             'products' => $products,
             'categories' => Category::orderBy('sort_order')->get(['id', 'name', 'emoji']),
             'customer' => $customer ? $this->customerJson($customer) : null,
-            'taxRate' => (float) config('pos.tax_rate'),
-            'taxLabel' => config('pos.tax_label'),
+            'taxRate' => (float) ($request->user()->business?->taxRate() ?? config('pos.tax_rate')),
+            'taxLabel' => $request->user()->business?->tax_label ?? config('pos.tax_label'),
+            'shiftOpen' => (bool) CashShift::currentFor($request->user()),
             'nextInvoice' => Order::nextInvoiceNo(),
         ]);
     }
@@ -56,71 +59,27 @@ class PosController extends Controller
         return response()->json($this->customerJson(Customer::create($data)), 201);
     }
 
-    public function checkout(Request $request)
+    public function checkout(Request $request, CheckoutService $checkout)
     {
+        $bid = $request->user()->business_id;
+
         $data = $request->validate([
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.product_id' => ['required', 'integer', \Illuminate\Validation\Rule::exists('products', 'id')->where('business_id', auth()->user()->business_id)],
+            'idempotency_key' => ['required', 'uuid'],
+            'items' => ['required', 'array', 'min:1', 'max:100'],
+            'items.*.product_id' => ['required', 'integer', Rule::exists('products', 'id')->where('business_id', $bid)],
             'items.*.qty' => ['required', 'integer', 'min:1', 'max:999'],
-            'customer_id' => ['nullable', \Illuminate\Validation\Rule::exists('customers', 'id')->where('business_id', auth()->user()->business_id)],
+            'customer_id' => ['nullable', Rule::exists('customers', 'id')->where('business_id', $bid)],
             'order_type' => ['required', 'in:dine_in,takeaway'],
             'table_no' => ['nullable', 'string', 'max:10'],
-            'discount' => ['nullable', 'numeric', 'min:0'],
+            'discount' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
             'payment_method' => ['required', 'in:cash,qris,card'],
-            'paid_amount' => ['nullable', 'numeric', 'min:0'],
+            'payment_ref' => ['nullable', 'string', 'max:60'],
+            'paid_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999'],
             'note' => ['nullable', 'string', 'max:255'],
         ]);
 
         try {
-            $order = DB::transaction(function () use ($data, $request) {
-                // gabungkan baris produk yang sama; HARGA SELALU diambil dari database, bukan dari browser
-                $lines = collect($data['items'])->groupBy('product_id')->map(fn ($g) => (int) $g->sum('qty'));
-                $products = Product::whereIn('id', $lines->keys())->get()->keyBy('id');
-
-                $subtotal = 0;
-                $rows = [];
-                foreach ($lines as $pid => $qty) {
-                    $p = $products[$pid];
-                    if (! $p->is_active) throw new RuntimeException("{$p->name} sedang tidak dijual.");
-                    $rows[] = [
-                        'product' => $p, 'qty' => $qty,
-                        'data' => ['product_id' => $p->id, 'product_name' => $p->name, 'price' => $p->price,
-                                   'cost_price' => $p->cost_price, 'qty' => $qty, 'subtotal' => $p->price * $qty],
-                    ];
-                    $subtotal += $p->price * $qty;
-                }
-
-                $discount = (float) ($data['discount'] ?? 0);
-                if ($discount > $subtotal) throw new RuntimeException('Diskon tidak boleh melebihi subtotal.');
-
-                $tax = round(($subtotal - $discount) * config('pos.tax_rate'));
-                $total = $subtotal - $discount + $tax;
-
-                $method = $data['payment_method'];
-                $paid = $method === 'cash' ? (float) ($data['paid_amount'] ?? 0) : $total;
-                if ($paid < $total) throw new RuntimeException('Uang diterima kurang dari total tagihan.');
-
-                $order = Order::create([
-                    'invoice_no' => Order::nextInvoiceNo(),
-                    'user_id' => $request->user()->id,
-                    'customer_id' => $data['customer_id'] ?? null,
-                    'order_type' => $data['order_type'],
-                    'table_no' => $data['order_type'] === 'dine_in' ? ($data['table_no'] ?? null) : null,
-                    'subtotal' => $subtotal, 'discount' => $discount, 'tax' => $tax, 'total' => $total,
-                    'payment_method' => $method, 'paid_amount' => $paid, 'change_amount' => $paid - $total,
-                    'status' => 'paid', 'note' => $data['note'] ?? null, 'paid_at' => now(),
-                ]);
-
-                foreach ($rows as $r) {
-                    $order->items()->create($r['data']);
-                    // melempar RuntimeException bila stok kurang -> seluruh transaksi di-rollback
-                    $r['product']->adjustStock(-$r['qty'], 'sale', $order->invoice_no, $request->user()->id, $order->id);
-                }
-
-                $order->customer?->applyPurchase($total, $order->paid_at);
-
-                return $order;
-            });
+            $order = $checkout->checkout($request->user(), $data);
         } catch (RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }

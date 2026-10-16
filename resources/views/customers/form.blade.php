@@ -20,8 +20,10 @@
       <div><label class="label">Email</label>
         <input name="email" type="email" class="input" value="{{ old('email', $customer->email) }}">
         @error('email')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror</div>
+      @if (auth()->user()->isAdmin())
       <div><label class="label">Tier member</label>
         <select name="tier" class="input">@foreach (\App\Models\Customer::TIERS as $k => $v)<option value="{{ $k }}" @selected(old('tier', $customer->tier) === $k)>{{ $v }}</option>@endforeach</select></div>
+      @endif
       <div><label class="label">Tanggal lahir</label>
         <input name="birthday" type="date" class="input" value="{{ old('birthday', $customer->birthday?->format('Y-m-d')) }}">
         @error('birthday')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror</div>
