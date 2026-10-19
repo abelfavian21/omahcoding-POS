@@ -9,6 +9,7 @@ use App\Models\Product;
 use Illuminate\Http\Request;
 use App\Models\CashShift;
 use App\Services\CheckoutService;
+use App\Services\MidtransClient;
 use Illuminate\Validation\Rule;
 use RuntimeException;
 
@@ -36,6 +37,7 @@ class PosController extends Controller
             'taxLabel' => $request->user()->business?->tax_label ?? config('pos.tax_label'),
             'shiftOpen' => (bool) CashShift::currentFor($request->user()),
             'nextInvoice' => Order::nextInvoiceNo(),
+            'qrisDynamic' => app(MidtransClient::class)->enabled(),
         ]);
     }
 

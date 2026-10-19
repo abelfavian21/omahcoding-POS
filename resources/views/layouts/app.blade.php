@@ -4,79 +4,106 @@
   <title>@yield('title', 'Dashboard') · CashierStore</title>
   @include('partials.head')
 </head>
-<body>
+<body class="min-h-screen">
 @php
   $u = auth()->user();
+  // 'group' hanya dipakai untuk tampilan sidebar; key lain tetap sama seperti sebelumnya (dipakai juga oleh partials.voice)
   $nav = [
-    ['route' => 'dashboard', 'match' => 'dashboard', 'icon' => 'dashboard', 'label' => 'Dashboard', 'admin' => true],
-    ['route' => 'pos', 'match' => 'pos', 'icon' => 'point_of_sale', 'label' => 'Order Line', 'admin' => false],
-    ['route' => 'reports.index', 'match' => 'reports.*', 'icon' => 'bar_chart', 'label' => 'Laporan Penjualan', 'admin' => true],
-    ['route' => 'products.index', 'match' => 'products.*', 'icon' => 'inventory_2', 'label' => 'Produk', 'admin' => false],
-    ['route' => 'stock.index', 'match' => 'stock.*', 'icon' => 'warehouse', 'label' => 'Stok Barang', 'admin' => true],
-    ['route' => 'customers.index', 'match' => 'customers.*', 'icon' => 'groups', 'label' => 'Pelanggan', 'admin' => false],
-    ['route' => 'staff.index', 'match' => 'staff.*', 'icon' => 'badge', 'label' => 'Staff', 'admin' => true],
-    ['route' => 'shifts.index', 'match' => 'shifts.*', 'icon' => 'payments', 'label' => 'Shift Kasir', 'admin' => false],
-    ['route' => 'settings.edit', 'match' => 'settings.*', 'icon' => 'settings', 'label' => 'Pengaturan', 'admin' => true],
-    ['route' => 'audit.index', 'match' => 'audit.*', 'icon' => 'policy', 'label' => 'Audit Log', 'admin' => true],
-    ['route' => 'office', 'match' => 'office', 'icon' => 'apartment', 'label' => 'Kantor Virtual', 'admin' => false],
+    ['route' => 'dashboard', 'match' => 'dashboard', 'icon' => 'grid_view', 'label' => 'Dashboard', 'admin' => true, 'group' => 'Overview'],
+    ['route' => 'pos', 'match' => 'pos', 'icon' => 'receipt_long', 'label' => 'Order Line', 'admin' => false, 'group' => 'Overview'],
+    ['route' => 'reports.index', 'match' => 'reports.*', 'icon' => 'query_stats', 'label' => 'Laporan Penjualan', 'admin' => true, 'group' => 'Overview'],
+    ['route' => 'shifts.index', 'match' => 'shifts.*', 'icon' => 'payments', 'label' => 'Shift Kasir', 'admin' => false, 'group' => 'Overview'],
+    ['route' => 'products.index', 'match' => 'products.*', 'icon' => 'lunch_dining', 'label' => 'Produk', 'admin' => false, 'group' => 'Management'],
+    ['route' => 'stock.index', 'match' => 'stock.*', 'icon' => 'warehouse', 'label' => 'Stok Barang', 'admin' => true, 'group' => 'Management'],
+    ['route' => 'customers.index', 'match' => 'customers.*', 'icon' => 'group', 'label' => 'Pelanggan', 'admin' => false, 'group' => 'Management'],
+    ['route' => 'staff.index', 'match' => 'staff.*', 'icon' => 'badge', 'label' => 'Staff', 'admin' => true, 'group' => 'Management'],
+    ['route' => 'settings.edit', 'match' => 'settings.*', 'icon' => 'settings', 'label' => 'Pengaturan', 'admin' => true, 'group' => 'Management'],
+    ['route' => 'audit.index', 'match' => 'audit.*', 'icon' => 'policy', 'label' => 'Audit Log', 'admin' => true, 'group' => 'Management'],
+    ['route' => 'office', 'match' => 'office', 'icon' => 'apartment', 'label' => 'Kantor Virtual', 'admin' => false, 'group' => 'Management'],
   ];
+  $visible = collect($nav)->reject(fn ($n) => $n['admin'] && ! $u->isAdmin());
+  $groups = $visible->groupBy('group');
+
+  // Bottom nav mobile: 4 menu utama + tombol "Menu". Disembunyikan di kasir karena halaman itu punya bar keranjang sendiri.
+  $bottomShort = ['dashboard' => 'Dashboard', 'pos' => 'Order', 'products.index' => 'Produk', 'customers.index' => 'Pelanggan', 'shifts.index' => 'Shift'];
+  $bottom = $visible->filter(fn ($n) => isset($bottomShort[$n['route']]))
+      ->sortBy(fn ($n) => array_search($n['route'], array_keys($bottomShort)))->take(4)->values();
+  $showBottomNav = ! request()->routeIs('pos');
 @endphp
 
-<div class="min-h-screen lg:flex">
-  <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 -translate-x-full lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen lg:flex flex-col shrink-0 bg-slate-900 dark:bg-slate-950 border-r border-slate-800 text-slate-300 transition-transform">
-    <div class="flex items-center gap-3 px-5 h-20">
-      <div class="w-10 h-10 rounded-xl bg-brand-600 text-white grid place-items-center shadow-lg shadow-brand-600/30"><span class="material-symbols-outlined">shopping_cart</span></div>
-      <div class="leading-tight">
-        <div class="font-extrabold text-lg text-white">Cashier<span class="text-blue-400">store</span></div>
-        <div class="text-[11px] text-slate-400">{{ (auth()->user()?->business?->name ?? config('pos.store_name')) }} POS</div>
+<div class="min-h-screen md:flex">
+  {{-- ========== SIDEBAR: drawer (mobile) · icon rail (tablet) · penuh (desktop) ========== --}}
+  <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-[280px] -translate-x-full md:translate-x-0 md:sticky md:top-0 md:h-screen md:w-20 xl:w-[260px] flex flex-col shrink-0 bg-sidebar-bg text-slate-300 border-r border-slate-800/60 shadow-2xl md:shadow-none transition-transform duration-300 overflow-y-auto no-scrollbar">
+    <div class="flex items-center gap-3 px-5 md:px-0 md:justify-center xl:justify-start xl:px-5 h-20 shrink-0">
+      <div class="w-10 h-10 rounded-2xl bg-lime-accent text-slate-950 grid place-items-center shadow-lime shrink-0"><span class="material-symbols-outlined fill-1" style="font-size:24px">storefront</span></div>
+      <div class="leading-tight min-w-0 md:hidden xl:block">
+        <div class="font-extrabold text-lg text-white tracking-tight">Cashier<span class="text-lime-accent">.</span>store</div>
+        <div class="text-[10px] font-bold text-slate-400 tracking-wider uppercase truncate">{{ auth()->user()?->business?->name ?? config('pos.store_name') }} POS</div>
       </div>
+      <button type="button" id="closeMenu" class="ml-auto p-2 -mr-2 text-slate-400 hover:text-white md:hidden" aria-label="Tutup menu"><span class="material-symbols-outlined">close</span></button>
     </div>
-    <nav class="flex-1 px-3 space-y-1 overflow-y-auto">
-      @foreach ($nav as $n)
-        @continue($n['admin'] && ! $u->isAdmin())
-        <a href="{{ route($n['route']) }}"
-           class="flex items-center gap-3 h-11 px-4 rounded-xl text-sm font-semibold transition
-                  {{ request()->routeIs($n['match']) ? 'bg-brand-600 text-white shadow-md shadow-brand-600/30' : 'text-slate-300 hover:bg-white/10 hover:text-white' }}">
-          <span class="material-symbols-outlined">{{ $n['icon'] }}</span> {{ $n['label'] }}
-        </a>
+
+    <nav class="flex-1 px-3 xl:px-4 pb-4 space-y-5">
+      @foreach ($groups as $gname => $items)
+        <div>
+          <span class="px-3 text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-2 block md:hidden xl:block">{{ $gname }}</span>
+          @if (! $loop->first)<div class="hidden md:block xl:hidden h-px bg-white/10 mx-3 mb-3"></div>@endif
+          <div class="space-y-1.5">
+            @foreach ($items as $n)
+              @php $on = request()->routeIs($n['match']); @endphp
+              <a href="{{ route($n['route']) }}" title="{{ $n['label'] }}" @if ($on) aria-current="page" @endif
+                 class="flex items-center gap-3.5 h-11 px-4 md:px-0 md:justify-center xl:justify-start xl:px-4 rounded-2xl text-sm transition-all
+                        {{ $on ? 'bg-lime-accent text-slate-950 font-bold shadow-md' : 'text-slate-400 font-medium hover:text-white hover:bg-white/5' }}">
+                <span class="material-symbols-outlined {{ $on ? 'fill-1' : '' }}">{{ $n['icon'] }}</span>
+                <span class="truncate md:hidden xl:inline">{{ $n['label'] }}</span>
+              </a>
+            @endforeach
+          </div>
+        </div>
       @endforeach
     </nav>
-    <div class="px-3 pb-2">
-      <button type="button" onclick="toggleTheme()" class="w-full flex items-center gap-3 h-11 px-4 rounded-xl text-sm font-semibold text-slate-300 hover:bg-white/10 hover:text-white transition">
+
+    <div class="px-3 xl:px-4 pb-2 shrink-0">
+      <button type="button" onclick="toggleTheme()" title="Ganti tema"
+              class="w-full flex items-center gap-3.5 h-11 px-4 md:px-0 md:justify-center xl:justify-start xl:px-4 rounded-2xl text-sm font-medium text-slate-400 hover:text-white hover:bg-white/5 transition">
         <span class="material-symbols-outlined dark:hidden">dark_mode</span>
         <span class="material-symbols-outlined hidden dark:inline">light_mode</span>
-        <span class="dark:hidden">Mode Gelap</span>
-        <span class="hidden dark:inline">Mode Terang</span>
+        <span class="md:hidden xl:inline dark:hidden">Mode Gelap</span>
+        <span class="hidden md:hidden dark:inline dark:md:hidden dark:xl:inline">Mode Terang</span>
       </button>
     </div>
-    <div class="p-3 border-t border-slate-800">
-      <form method="POST" action="{{ route('logout') }}" class="flex items-center gap-3 px-2">
+    <div class="p-3 xl:p-4 border-t border-slate-800/80 shrink-0">
+      <form method="POST" action="{{ route('logout') }}" class="flex items-center gap-3 px-1 md:flex-col md:px-0 xl:flex-row xl:px-1">
         @csrf
-        <div class="w-10 h-10 rounded-full bg-amber-400 text-slate-900 grid place-items-center text-sm font-bold">{{ $u->initials }}</div>
-        <div class="flex-1 min-w-0 leading-tight">
+        <div class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 text-lime-accent grid place-items-center text-sm font-bold shrink-0" title="{{ $u->name }}">{{ $u->initials }}</div>
+        <div class="flex-1 min-w-0 leading-tight md:hidden xl:block">
           <div class="text-sm font-bold truncate text-white">{{ $u->name }}</div>
           <div class="text-xs text-slate-400 capitalize">{{ $u->role }}</div>
         </div>
-        <button class="p-2 rounded-lg text-slate-400 hover:bg-white/10 hover:text-white" title="Keluar"><span class="material-symbols-outlined">logout</span></button>
+        <button class="p-2 rounded-xl text-slate-400 hover:bg-white/10 hover:text-white" title="Keluar" aria-label="Keluar"><span class="material-symbols-outlined">logout</span></button>
       </form>
     </div>
   </aside>
-  <div id="backdrop" class="hidden fixed inset-0 z-30 bg-slate-950/50 lg:hidden"></div>
+  <div id="backdrop" class="hidden fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-sm md:hidden"></div>
 
-  <main class="flex-1 min-w-0">
-    <div class="lg:hidden flex items-center justify-between px-4 h-14 bg-white border-b border-slate-100">
-      <button id="menuBtn" class="p-2 -ml-2"><span class="material-symbols-outlined">menu</span></button>
-      <span class="font-extrabold">Cashier<span class="text-brand-600">store</span></span>
-      <button type="button" onclick="toggleTheme()" class="p-2 -mr-2" title="Ganti tema">
+  {{-- ========== KONTEN ========== --}}
+  <main class="flex-1 min-w-0 {{ $showBottomNav ? 'pb-24' : 'pb-6' }} md:pb-0">
+    <div class="md:hidden sticky top-0 z-30 flex items-center justify-between px-4 h-14 bg-white/90 backdrop-blur border-b border-card-border">
+      <button id="menuBtn" class="p-2 -ml-2 rounded-xl" aria-label="Buka menu"><span class="material-symbols-outlined">menu</span></button>
+      <span class="font-extrabold tracking-tight flex items-center gap-1.5">
+        <span class="w-6 h-6 rounded-lg bg-lime-accent text-slate-950 grid place-items-center"><span class="material-symbols-outlined fill-1" style="font-size:16px">storefront</span></span>
+        Cashier<span class="text-brand-600">.</span>store
+      </span>
+      <button type="button" onclick="toggleTheme()" class="p-2 -mr-2 rounded-xl" title="Ganti tema" aria-label="Ganti tema">
         <span class="material-symbols-outlined dark:hidden">dark_mode</span>
         <span class="material-symbols-outlined hidden dark:inline">light_mode</span>
       </button>
     </div>
 
-    <div class="p-4 md:p-7 max-w-[1500px] mx-auto">
+    <div class="p-4 sm:p-6 xl:p-8 max-w-[1500px] mx-auto">
       @if (session('success'))
-        <div class="mb-5 flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 text-sm font-semibold">
-          <span class="material-symbols-outlined">check_circle</span> {{ session('success') }}
+        <div class="mb-5 flex items-center gap-2.5 rounded-2xl bg-lime-subtle border border-lime-accent/60 text-lime-900 dark:bg-lime-accent/10 dark:border-lime-accent/30 dark:text-lime-accent px-4 py-3 text-sm font-semibold">
+          <span class="material-symbols-outlined fill-1">check_circle</span> {{ session('success') }}
         </div>
       @endif
       @yield('content')
@@ -84,11 +111,37 @@
   </main>
 </div>
 
+{{-- ========== BOTTOM NAV (mobile) ========== --}}
+@if ($showBottomNav)
+  <nav class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/90 backdrop-blur border-t border-card-border safe-b" aria-label="Navigasi utama">
+    <div class="grid grid-cols-5 gap-1 px-2 pt-2 pb-2">
+      @foreach ($bottom as $n)
+        @php $on = request()->routeIs($n['match']); @endphp
+        <a href="{{ route($n['route']) }}" @if ($on) aria-current="page" @endif class="flex flex-col items-center gap-1 text-[10px] font-bold {{ $on ? 'text-slate-900' : 'text-slate-400' }}">
+          <span class="h-8 w-14 rounded-full grid place-items-center transition {{ $on ? 'bg-lime-accent text-slate-950' : '' }}"><span class="material-symbols-outlined {{ $on ? 'fill-1' : '' }}">{{ $n['icon'] }}</span></span>
+          {{ $bottomShort[$n['route']] }}
+        </a>
+      @endforeach
+      <button type="button" id="menuBtn2" class="flex flex-col items-center gap-1 text-[10px] font-bold text-slate-400">
+        <span class="h-8 w-14 rounded-full grid place-items-center"><span class="material-symbols-outlined">apps</span></span>
+        Menu
+      </button>
+    </div>
+  </nav>
+@endif
+
 <script>
   const sb = document.getElementById('sidebar'), bd = document.getElementById('backdrop');
-  const toggle = () => { sb.classList.toggle('-translate-x-full'); bd.classList.toggle('hidden'); };
-  document.getElementById('menuBtn')?.addEventListener('click', toggle);
-  bd.addEventListener('click', toggle);
+  const isOpen = () => !sb.classList.contains('-translate-x-full');
+  const setMenu = (open) => {
+    sb.classList.toggle('-translate-x-full', !open);
+    bd.classList.toggle('hidden', !open);
+    document.body.style.overflow = open ? 'hidden' : '';
+  };
+  ['menuBtn', 'menuBtn2'].forEach((id) => document.getElementById(id)?.addEventListener('click', () => setMenu(!isOpen())));
+  document.getElementById('closeMenu')?.addEventListener('click', () => setMenu(false));
+  bd.addEventListener('click', () => setMenu(false));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && isOpen()) setMenu(false); });
 </script>
 @include('partials.voice')
 @stack('scripts')

@@ -3,10 +3,10 @@
 @section('content')
 @php $editing = $customer->exists; @endphp
 <div class="max-w-2xl">
-  <a href="{{ route('customers.index') }}" class="text-sm font-semibold text-brand-600">← Kembali ke pelanggan</a>
-  <h1 class="text-3xl font-extrabold tracking-tight mt-2 mb-6">{{ $editing ? 'Edit Pelanggan' : 'Tambah Pelanggan Baru' }}</h1>
+  <a href="{{ route('customers.index') }}" class="inline-flex items-center gap-1 h-9 px-3 -ml-3 rounded-full text-sm font-semibold text-slate-500 hover:bg-white hover:text-slate-900 transition"><span class="material-symbols-outlined" style="font-size:18px">arrow_back</span> Kembali ke pelanggan</a>
+  <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight mt-2 mb-6">{{ $editing ? 'Edit Pelanggan' : 'Tambah Pelanggan Baru' }}</h1>
 
-  <form method="POST" class="card p-6 space-y-4" action="{{ $editing ? route('customers.update', $customer) : route('customers.store') }}">
+  <form method="POST" class="card p-5 sm:p-6 space-y-4" action="{{ $editing ? route('customers.update', $customer) : route('customers.store') }}">
     @csrf @if ($editing) @method('PUT') @endif
     <input type="hidden" name="return_to" value="{{ request('return_to') }}">
 
@@ -33,7 +33,7 @@
         <textarea name="notes" rows="3" class="input" placeholder="mis. Suka meja dekat jendela, oat milk">{{ old('notes', $customer->notes) }}</textarea></div>
     </div>
 
-    <div class="flex gap-3 pt-2"><button class="btn-primary">Simpan</button><a href="{{ route('customers.index') }}" class="btn-ghost">Batal</a></div>
+    <div class="flex flex-col-reverse sm:flex-row gap-3 pt-2"><button class="btn-primary">Simpan</button><a href="{{ route('customers.index') }}" class="btn-ghost">Batal</a></div>
   </form>
 </div>
 @endsection

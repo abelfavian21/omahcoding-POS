@@ -17,6 +17,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // ganti password / nonaktifkan akun -> sesi di perangkat lain ikut tidak berlaku
         $middleware->authenticateSessions();
 
+        // Webhook Midtrans dipanggil server-ke-server (tanpa cookie/CSRF); keamanannya = verifikasi signature_key.
+        $middleware->validateCsrfTokens(except: ['payments/midtrans/notify']);
+
         // header keamanan di semua respons web
         $middleware->web(append: [\App\Http\Middleware\SecurityHeaders::class]);
 

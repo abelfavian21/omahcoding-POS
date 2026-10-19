@@ -2,86 +2,89 @@
 @section('title', 'Order Line')
 @section('content')
 @if (! $shiftOpen && config('pos.require_shift'))
-  <div class="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 text-sm font-semibold">
+  <div class="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 text-sm font-semibold">
     <span>Shift kasir belum dibuka — pembayaran akan ditolak sampai shift dibuka.</span>
-    <a href="{{ route('shifts.index') }}" class="btn-secondary !h-9 !px-3 text-xs">Buka shift</a>
+    <a href="{{ route('shifts.index') }}" class="btn-dark !h-9 !px-4 text-xs text-lime-accent">Buka shift</a>
   </div>
 @endif
 <div class="grid xl:grid-cols-[1fr_390px] gap-5 items-start">
 
   {{-- ============ MENU ============ --}}
   <div>
-    <div class="text-xs text-slate-500 mb-1">Order Line › <span class="text-brand-600 font-semibold">Pilih Menu</span></div>
-    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-      <h1 class="text-3xl font-extrabold tracking-tight">{{ (auth()->user()?->business?->name ?? config('pos.store_name')) }} Menu</h1>
-      <input id="search" class="input !w-full sm:!w-72" placeholder="Cari menu…" autocomplete="off">
+    <div class="text-xs text-slate-400 font-semibold mb-1">Order Line › <span class="text-slate-700">Pilih Menu</span></div>
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+      <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">{{ (auth()->user()?->business?->name ?? config('pos.store_name')) }} Menu</h1>
+      <div class="relative w-full sm:w-72">
+        <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" style="font-size:19px">search</span>
+        <input id="search" class="input input-pill" placeholder="Cari menu…" autocomplete="off">
+      </div>
     </div>
-    <div id="cats" class="flex gap-2 overflow-x-auto pb-2 mb-4"></div>
-    <div id="grid" class="grid grid-cols-2 md:grid-cols-3 gap-4"></div>
+    <div id="cats" class="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-4 -mx-4 px-4 sm:mx-0 sm:px-0"></div>
+    <div id="grid" class="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4"></div>
     <p id="empty" class="hidden text-center text-slate-500 py-16">Menu tidak ditemukan.</p>
   </div>
 
   {{-- ============ KERANJANG ============ --}}
-  <aside id="cartPanel" class="card xl:sticky xl:top-6 flex flex-col overflow-hidden xl:max-h-[calc(100vh-3rem)]">
-    <div class="p-5 border-b border-slate-100">
-      <div class="flex items-center justify-between">
+  <aside id="cartPanel" class="card scroll-mt-20 xl:sticky xl:top-6 flex flex-col overflow-hidden xl:max-h-[calc(100vh-3rem)]">
+    <div class="p-4 sm:p-5 border-b border-slate-100">
+      <div class="flex items-center justify-between gap-2">
         <div>
           <div class="text-lg font-extrabold" id="custName">Walk-in Customer</div>
           <div class="text-xs text-slate-500" id="custMeta">Belum memilih pelanggan</div>
         </div>
         <div class="flex gap-1">
-          <button id="custBtn" class="btn-secondary !h-9 !px-3 text-xs"><span class="material-symbols-outlined">person_search</span> Pelanggan</button>
+          <button id="custBtn" class="btn-secondary !h-10 !px-4 text-xs"><span class="material-symbols-outlined">person_search</span> Pelanggan</button>
         </div>
       </div>
-      <div id="allergy" class="hidden mt-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold px-3 py-2"></div>
+      <div id="allergy" class="hidden mt-3 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold px-3 py-2"></div>
 
       <div class="grid grid-cols-2 gap-2 mt-4">
-        <div class="inline-flex p-1 rounded-xl bg-brand-50 col-span-2" id="typeTabs">
-          <button data-t="dine_in" class="flex-1 h-9 rounded-lg text-sm font-semibold">Dine-in</button>
-          <button data-t="takeaway" class="flex-1 h-9 rounded-lg text-sm font-semibold">Takeaway</button>
+        <div class="inline-flex p-1 rounded-full bg-slate-100 col-span-2" id="typeTabs">
+          <button data-t="dine_in" class="flex-1 h-9 rounded-full text-sm font-semibold">Dine-in</button>
+          <button data-t="takeaway" class="flex-1 h-9 rounded-full text-sm font-semibold">Takeaway</button>
         </div>
         <input id="table" class="input col-span-2" placeholder="Nomor meja (mis. 4)">
       </div>
     </div>
 
-    <div class="flex-1 overflow-y-auto p-5 min-h-[120px]">
-      <div class="text-xs font-bold text-slate-500 mb-3">Pesanan <span class="text-brand-600">{{ $nextInvoice }}</span></div>
+    <div class="flex-1 overflow-y-auto p-4 sm:p-5 min-h-[120px]">
+      <div class="text-xs font-bold text-slate-500 mb-3">Pesanan <span class="text-slate-900">{{ $nextInvoice }}</span></div>
       <div id="lines" class="space-y-3"></div>
       <p id="noLines" class="text-sm text-slate-400 text-center py-8">Keranjang kosong.<br>Ketuk menu untuk menambah.</p>
     </div>
 
-    <div class="p-5 border-t border-slate-100 space-y-3 text-sm">
+    <div class="p-4 sm:p-5 border-t border-slate-100 space-y-3 text-sm">
       <div class="font-bold">Ringkasan Pembayaran</div>
       <div class="flex justify-between text-slate-600"><span>Subtotal</span><span id="sSub">Rp 0</span></div>
       <div class="flex justify-between items-center text-slate-600"><span>Diskon (Rp)</span>
         <input id="discount" type="number" min="0" step="1000" value="0" class="input !h-9 !w-28 text-right"></div>
       <div class="flex justify-between text-slate-600"><span>{{ $taxLabel }} ({{ rtrim(rtrim(number_format($taxRate * 100, 1), '0'), '.') }}%)</span><span id="sTax">Rp 0</span></div>
-      <div class="flex justify-between items-end border-t border-dashed border-slate-200 pt-3"><span class="font-bold">Total</span><span class="text-2xl font-extrabold" id="sTotal">Rp 0</span></div>
+      <div class="flex justify-between items-end border-t border-dashed border-slate-200 pt-3"><span class="font-bold">Total</span><span class="text-[28px] leading-[34px] tracking-[-0.03em] font-extrabold" id="sTotal">Rp 0</span></div>
 
       <div class="grid grid-cols-3 gap-2" id="payTabs">
-        <button data-m="cash" class="h-10 rounded-xl text-sm font-semibold">Tunai</button>
-        <button data-m="qris" class="h-10 rounded-xl text-sm font-semibold">QRIS</button>
-        <button data-m="card" class="h-10 rounded-xl text-sm font-semibold">Kartu</button>
+        <button data-m="cash" class="h-10 rounded-2xl text-sm font-semibold">Tunai</button>
+        <button data-m="qris" class="h-10 rounded-2xl text-sm font-semibold">QRIS</button>
+        <button data-m="card" class="h-10 rounded-2xl text-sm font-semibold">Kartu</button>
       </div>
       <div id="cashBox">
-        <input id="paid" type="number" min="0" class="input" placeholder="Uang diterima">
+        <input id="paid" type="number" min="0" inputmode="numeric" class="input" placeholder="Uang diterima">
         <div class="flex flex-wrap gap-2 mt-2" id="quick"></div>
         <div class="flex justify-between mt-2"><span class="text-slate-600">Kembalian</span><b id="sChange">Rp 0</b></div>
       </div>
 
       <p id="err" class="hidden text-xs font-semibold text-red-600"></p>
-      <button id="charge" class="btn-primary w-full !h-12 !rounded-full text-base" disabled>Bayar Rp 0</button>
+      <button id="charge" class="btn-primary w-full !h-12 text-base disabled:opacity-50 disabled:cursor-not-allowed" disabled>Bayar Rp 0</button>
       <button id="clear" class="btn-ghost w-full !h-9 text-xs">Kosongkan keranjang</button>
     </div>
   </aside>
 </div>
 
 {{-- Tombol keranjang untuk layar kecil --}}
-<button id="jump" class="xl:hidden fixed bottom-4 left-4 right-4 z-30 btn-primary !h-12 shadow-xl">Lihat keranjang · <span id="jumpTotal">Rp 0</span></button>
+<button id="jump" class="xl:hidden fixed left-4 right-4 z-30 btn-dark !h-14 shadow-2xl text-lime-accent" style="bottom: calc(1rem + env(safe-area-inset-bottom, 0px))"><span class="material-symbols-outlined">shopping_bag</span> Lihat keranjang · <span id="jumpTotal">Rp 0</span></button>
 
 {{-- Modal pilih pelanggan --}}
-<div id="custModal" class="hidden fixed inset-0 z-50 bg-slate-900/40 grid place-items-center p-4">
-  <div class="card w-full max-w-md p-5">
+<div id="custModal" class="hidden fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm grid items-end sm:place-items-center sm:p-4">
+  <div class="card w-full max-w-md p-5 !rounded-b-none sm:!rounded-3xl max-h-[92vh] overflow-y-auto">
     <div class="flex justify-between items-center mb-3"><h3 class="font-bold text-lg">Pilih Pelanggan</h3><button data-close class="p-1"><span class="material-symbols-outlined">close</span></button></div>
     <input id="custSearch" class="input" placeholder="Cari nama / telepon / kode…" autocomplete="off">
     <div id="custResults" class="mt-3 space-y-1 max-h-60 overflow-y-auto"></div>
@@ -96,12 +99,12 @@
 </div>
 
 {{-- Modal sukses --}}
-<div id="doneModal" class="hidden fixed inset-0 z-50 bg-slate-900/40 grid place-items-center p-4">
-  <div class="card w-full max-w-sm p-6 text-center">
-    <div class="w-14 h-14 mx-auto rounded-full bg-emerald-50 text-emerald-600 grid place-items-center mb-3"><span class="material-symbols-outlined" style="font-size:32px">check_circle</span></div>
+<div id="doneModal" class="hidden fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm grid items-end sm:place-items-center sm:p-4">
+  <div class="card w-full max-w-sm p-6 text-center !rounded-b-none sm:!rounded-3xl" style="padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px))">
+    <div class="w-14 h-14 mx-auto rounded-full bg-lime-accent text-slate-950 grid place-items-center mb-3"><span class="material-symbols-outlined fill-1" style="font-size:32px">check_circle</span></div>
     <h3 class="text-xl font-extrabold">Pembayaran Berhasil</h3>
     <div class="text-sm text-slate-500 mt-1" id="doneInv"></div>
-    <div class="text-3xl font-extrabold mt-3" id="doneTotal"></div>
+    <div class="text-[32px] tracking-[-0.03em] font-extrabold mt-3" id="doneTotal"></div>
     <div class="text-sm text-slate-600 mt-1" id="doneChange"></div>
     <div class="grid gap-2 mt-5">
       <a id="doneView" target="_blank" class="btn-secondary"><span class="material-symbols-outlined">receipt_long</span> Lihat / Cetak Struk</a>
@@ -111,12 +114,42 @@
   </div>
 </div>
 
+{{-- Modal QRIS dinamis (Midtrans) --}}
+<div id="qrisModal" class="hidden fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm grid items-end sm:place-items-center sm:p-4">
+  <div class="card w-full max-w-sm p-5 sm:p-6 text-center !rounded-b-none sm:!rounded-3xl max-h-[94vh] overflow-y-auto" style="padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px))">
+    <div class="flex items-center justify-between gap-2">
+      <h3 class="font-extrabold text-lg">Bayar dengan QRIS</h3>
+      <span id="qrisBadge" class="pill pill-amber">Menunggu</span>
+    </div>
+    <div class="text-[32px] tracking-[-0.03em] font-extrabold mt-2" id="qrisTotal">Rp 0</div>
+    <div class="relative mx-auto mt-3 w-60 h-60 rounded-2xl border border-slate-200 overflow-hidden grid place-items-center" style="background:#fff">
+      <img id="qrisImg" alt="Kode QRIS" class="w-full h-full object-contain p-2" style="background:#fff">
+      <div id="qrisOverlay" class="hidden absolute inset-0 grid place-items-center text-sm font-extrabold px-4" style="background:rgba(255,255,255,.92);color:#181829"></div>
+    </div>
+    <div id="qrisTimer" class="mt-3 text-sm font-bold text-slate-500">Menyiapkan QR…</div>
+    <p id="qrisMsg" class="text-xs text-slate-500 mt-1">Minta pelanggan scan dengan aplikasi e-wallet atau m-banking apa pun. Halaman ini otomatis berubah saat pembayaran diterima.</p>
+    <div id="qrisSandbox" class="hidden mt-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 text-left text-xs px-3 py-2.5">
+      <b>Mode sandbox.</b> Tidak ada uang sungguhan. Simulasikan pembayaran di
+      <a href="https://simulator.sandbox.midtrans.com/qris/index" target="_blank" rel="noopener" class="underline font-bold">simulator Midtrans</a>
+      dengan URL QR ini:
+      <div class="mt-1.5 flex items-center gap-2"><code id="qrisGwUrl" class="flex-1 min-w-0 truncate rounded-lg bg-white/60 px-2 py-1 text-[11px]"></code>
+      <button type="button" id="qrisCopy" class="shrink-0 rounded-lg bg-white/70 px-2.5 py-1 font-bold">Salin</button></div>
+    </div>
+    <div class="grid gap-2 mt-4">
+      <button id="qrisRegen" class="btn-primary hidden">Buat ulang QR</button>
+      <button id="qrisCancel" class="btn-secondary">Batalkan pembayaran</button>
+      <button id="qrisClose" class="btn-secondary hidden">Tutup</button>
+    </div>
+  </div>
+</div>
+
 @push('scripts')
 <script>
 const PRODUCTS = @json($products);
 const CATEGORIES = @json($categories);
 const TAX_RATE = {{ $taxRate }};
-const URLS = { customers: @json(route('pos.customers')), newCustomer: @json(route('pos.customers.store')), checkout: @json(route('pos.checkout')) };
+const URLS = { customers: @json(route('pos.customers')), newCustomer: @json(route('pos.customers.store')), checkout: @json(route('pos.checkout')), qris: @json(route('pos.qris.store')) };
+const QRIS_DYNAMIC = @json($qrisDynamic ?? false);   // true bila MIDTRANS_SERVER_KEY terisi; false = QRIS manual seperti sebelumnya
 const CSRF = document.querySelector('meta[name=csrf-token]').content;
 
 const $ = id => document.getElementById(id);
@@ -134,24 +167,24 @@ const byId = Object.fromEntries(PRODUCTS.map(p => [p.id, p]));
 /* ---------- Menu ---------- */
 function renderCats() {
   const all = [{id: 0, name: 'Semua Menu', emoji: '🍽️'}, ...CATEGORIES];
-  $('cats').innerHTML = all.map(c => `<button data-c="${c.id}" class="shrink-0 px-4 h-10 rounded-full text-sm font-semibold border ${cat === c.id ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}">${esc(c.name)} ${esc(c.emoji)}</button>`).join('');
+  $('cats').innerHTML = all.map(c => `<button data-c="${c.id}" class="chip shrink-0 ${cat === c.id ? 'chip-on' : ''}">${esc(c.name)} ${esc(c.emoji)}</button>`).join('');
 }
 function renderGrid() {
   const list = PRODUCTS.filter(p => (!cat || p.category_id === cat) && p.name.toLowerCase().includes(q));
   $('empty').classList.toggle('hidden', list.length > 0);
   $('grid').innerHTML = list.map(p => {
     const n = cart[p.id] || 0, out = p.stock <= 0, max = n >= p.stock;
-    const media = p.image ? `<img src="${esc(p.image)}" class="w-full h-full object-cover" alt="">` : `<span class="text-6xl">${esc(p.emoji)}</span>`;
-    return `<div class="card p-3 ${out ? 'opacity-60' : ''}">
-      <div class="aspect-square rounded-xl bg-gradient-to-b from-amber-50 to-orange-50 grid place-items-center overflow-hidden relative">${media}
+    const media = p.image ? `<img src="${esc(p.image)}" class="w-full h-full object-cover" alt="">` : `<span class="text-5xl sm:text-6xl">${esc(p.emoji)}</span>`;
+    return `<div class="card p-2.5 sm:p-3 ${out ? 'opacity-60' : ''}">
+      <div class="aspect-square rounded-2xl bg-slate-100 grid place-items-center overflow-hidden relative">${media}
         ${out ? '<span class="absolute top-2 left-2 pill pill-red">Habis</span>' : (p.stock <= 5 ? `<span class="absolute top-2 left-2 pill pill-amber">Sisa ${p.stock}</span>` : '')}</div>
-      <div class="font-bold mt-3 leading-tight min-h-[2.5rem]">${esc(p.name)}</div>
-      <div class="flex items-center justify-between mt-2 pt-2 border-t border-slate-100">
-        <b>${rp(p.price)}</b>
-        <div class="inline-flex items-center gap-2 rounded-full bg-slate-50 border border-slate-200 px-1 h-9">
-          <button data-dec="${p.id}" class="w-7 h-7 rounded-full text-slate-500" ${n ? '' : 'disabled'}>−</button>
+      <div class="font-bold text-sm sm:text-base mt-3 leading-tight min-h-[2.5rem]">${esc(p.name)}</div>
+      <div class="mt-2 pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+        <b class="text-sm sm:text-base">${rp(p.price)}</b>
+        <div class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-1 h-10 sm:h-9">
+          <button data-dec="${p.id}" class="w-8 h-8 sm:w-7 sm:h-7 rounded-full text-slate-500 disabled:opacity-40" ${n ? '' : 'disabled'}>−</button>
           <span class="w-5 text-center text-sm font-bold">${n}</span>
-          <button data-inc="${p.id}" class="w-7 h-7 rounded-full bg-brand-600 text-white disabled:opacity-40" ${out || max ? 'disabled' : ''}>+</button>
+          <button data-inc="${p.id}" class="w-8 h-8 sm:w-7 sm:h-7 rounded-full bg-lime-accent text-slate-950 font-bold disabled:opacity-40" ${out || max ? 'disabled' : ''}>+</button>
         </div></div></div>`;
   }).join('');
 }
@@ -169,7 +202,7 @@ function renderCart() {
   $('lines').innerHTML = ids.map(id => {
     const p = byId[id], n = cart[id];
     return `<div class="flex items-center gap-3">
-      <div class="w-11 h-11 rounded-xl bg-amber-50 grid place-items-center text-xl overflow-hidden shrink-0">${p.image ? `<img src="${esc(p.image)}" class="w-full h-full object-cover">` : esc(p.emoji)}</div>
+      <div class="w-11 h-11 rounded-xl bg-slate-100 grid place-items-center text-xl overflow-hidden shrink-0">${p.image ? `<img src="${esc(p.image)}" class="w-full h-full object-cover">` : esc(p.emoji)}</div>
       <div class="flex-1 min-w-0"><div class="font-semibold text-sm truncate">${esc(p.name)}</div><div class="text-xs text-slate-500">${n} × ${rp(p.price)}</div></div>
       <div class="font-bold text-sm">${rp(p.price * n)}</div></div>`;
   }).join('');
@@ -180,7 +213,7 @@ function renderCart() {
 
   const paid = +$('paid').value || 0;
   $('sChange').textContent = rp(Math.max(0, paid - t.total));
-  $('quick').innerHTML = t.total > 0 ? [t.total, ...[20000, 50000, 100000].filter(v => v > t.total)].map((v, i) => `<button data-q="${v}" class="px-3 h-8 rounded-lg bg-brand-50 text-brand-700 text-xs font-semibold">${i === 0 ? 'Uang pas' : rp(v)}</button>`).join('') : '';
+  $('quick').innerHTML = t.total > 0 ? [t.total, ...[20000, 50000, 100000].filter(v => v > t.total)].map((v, i) => `<button data-q="${v}" class="px-3 h-9 rounded-full bg-slate-100 text-slate-700 hover:bg-lime-accent hover:text-slate-950 text-xs font-bold transition">${i === 0 ? 'Uang pas' : rp(v)}</button>`).join('') : '';
 
   const ok = t.total > 0 && (method !== 'cash' || paid >= t.total);
   $('charge').disabled = !ok;
@@ -190,8 +223,8 @@ function renderMeta() {
   $('custMeta').textContent = customer ? `${customer.code} · ${customer.tier.toUpperCase()} · ${customer.points} poin` : 'Belum memilih pelanggan';
   const a = $('allergy'); a.classList.toggle('hidden', !(customer && customer.allergy));
   if (customer && customer.allergy) a.textContent = '⚠ ' + customer.allergy;
-  document.querySelectorAll('#typeTabs button').forEach(b => { const on = b.dataset.t === orderType; b.className = `flex-1 h-9 rounded-lg text-sm font-semibold ${on ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500'}`; });
-  document.querySelectorAll('#payTabs button').forEach(b => { const on = b.dataset.m === method; b.className = `h-10 rounded-xl text-sm font-semibold border ${on ? 'bg-brand-600 text-white border-brand-600' : 'bg-white text-slate-700 border-slate-200'}`; });
+  document.querySelectorAll('#typeTabs button').forEach(b => { const on = b.dataset.t === orderType; b.className = `flex-1 h-9 rounded-full text-sm font-semibold ${on ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`; });
+  document.querySelectorAll('#payTabs button').forEach(b => { const on = b.dataset.m === method; b.className = `h-10 rounded-2xl text-sm font-bold border ${on ? 'chip-on' : 'bg-white text-slate-700 border-slate-200'}`; });
   $('table').classList.toggle('hidden', orderType !== 'dine_in');
   $('cashBox').classList.toggle('hidden', method !== 'cash');
 }
@@ -220,7 +253,7 @@ let timer;
 async function searchCustomers() {
   const r = await fetch(URLS.customers + '?q=' + encodeURIComponent($('custSearch').value), { headers: { Accept: 'application/json' } });
   const list = await r.json();
-  $('custResults').innerHTML = list.length ? list.map(c => `<button data-pick='${esc(JSON.stringify(c))}' class="w-full text-left px-3 py-2 rounded-xl hover:bg-brand-50"><b>${esc(c.name)}</b> <span class="pill pill-slate !py-0 !text-[10px]">${esc(c.tier)}</span><div class="text-xs text-slate-500">${esc(c.phone || '-')} · ${esc(c.code)}</div></button>`).join('') : '<p class="text-sm text-slate-500 px-3 py-2">Tidak ada hasil.</p>';
+  $('custResults').innerHTML = list.length ? list.map(c => `<button data-pick='${esc(JSON.stringify(c))}' class="w-full text-left px-3 py-2.5 rounded-2xl hover:bg-slate-50"><b>${esc(c.name)}</b> <span class="pill pill-slate !py-0 !text-[10px]">${esc(c.tier)}</span><div class="text-xs text-slate-500">${esc(c.phone || '-')} · ${esc(c.code)}</div></button>`).join('') : '<p class="text-sm text-slate-500 px-3 py-2">Tidak ada hasil.</p>';
 }
 const pick = c => { customer = c; modal.classList.add('hidden'); renderMeta(); };
 $('custBtn').addEventListener('click', () => { modal.classList.remove('hidden'); $('custSearch').value = ''; searchCustomers(); $('custSearch').focus(); });
@@ -238,6 +271,7 @@ $('newBtn').addEventListener('click', async () => {
 
 /* ---------- Checkout ---------- */
 $('charge').addEventListener('click', async () => {
+  if (method === 'qris' && QRIS_DYNAMIC) return startQris();
   const btn = $('charge'), err = $('err'); err.classList.add('hidden');
   btn.disabled = true; btn.textContent = 'Memproses…';
   const t = totals();
@@ -262,6 +296,93 @@ $('charge').addEventListener('click', async () => {
   } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
   renderCart();
 });
+/* ---------- QRIS dinamis (Midtrans) ---------- */
+let qris = null, qrisPoll = null, qrisTick = null, qrisLeft = 0, qrisImgFor = null;
+const JSON_HEADERS = { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': CSRF };
+const stopQris = () => { clearInterval(qrisPoll); clearInterval(qrisTick); qrisPoll = qrisTick = null; };
+const qrisClock = s => String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+
+async function startQris() {
+  const btn = $('charge'), err = $('err'); err.classList.add('hidden');
+  btn.disabled = true; btn.textContent = 'Membuat QRIS…';
+  const t = totals();
+  try {
+    const r = await fetch(URLS.qris, { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({
+      idempotency_key: (idemKey ??= uuid()),
+      items: Object.entries(cart).map(([id, qty]) => ({ product_id: +id, qty })),
+      customer_id: customer?.id ?? null, order_type: orderType, table_no: $('table').value || null, discount: t.disc,
+    }) });
+    const d = await r.json();
+    if (!r.ok) { idemKey = null; throw new Error(d.errors ? Object.values(d.errors)[0][0] : (d.message || 'Gagal membuat QRIS')); }
+    renderQris(d);
+  } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
+  renderCart();
+}
+
+function renderQris(d) {
+  qris = d;
+  if (d.status === 'settled' && d.order) { finishQris(d.order); return; }
+  const st = d.status, pending = st === 'pending';
+  $('qrisModal').classList.remove('hidden');
+  $('qrisTotal').textContent = rp(d.total);
+  if (d.qr && qrisImgFor !== d.id) { $('qrisImg').src = d.qr; qrisImgFor = d.id; }
+
+  const BADGE = { pending: ['pill-amber', 'Menunggu'], expired: ['pill-red', 'Kedaluwarsa'], cancelled: ['pill-slate', 'Dibatalkan'], failed: ['pill-red', 'Gagal'], review: ['pill-red', 'Perlu dicek admin'] }[st] || ['pill-slate', st];
+  $('qrisBadge').className = 'pill ' + BADGE[0]; $('qrisBadge').textContent = BADGE[1];
+
+  qrisLeft = d.seconds_left;
+  const over = $('qrisOverlay');
+  over.classList.toggle('hidden', pending && qrisLeft > 0);
+  over.textContent = { expired: 'QR kedaluwarsa', cancelled: 'Dibatalkan', failed: 'Pembayaran gagal', review: 'Perlu dicek admin' }[st] || (pending ? 'QR kedaluwarsa' : '');
+  $('qrisMsg').textContent = st === 'review' ? (d.message || 'Pembayaran diterima tetapi pesanan belum bisa diproses.') + ' Jangan minta pelanggan membayar lagi; hubungi admin (lihat Audit Log).'
+    : st === 'failed' ? (d.message || 'Pembayaran ditolak.') : st === 'cancelled' ? 'Pembayaran dibatalkan.' : st === 'expired' ? 'Waktu habis. Buat QR baru untuk melanjutkan.'
+    : 'Minta pelanggan scan dengan aplikasi e-wallet atau m-banking apa pun. Halaman ini otomatis berubah saat pembayaran diterima.';
+
+  const expiredNow = pending && qrisLeft <= 0;
+  $('qrisRegen').classList.toggle('hidden', !(st === 'expired' || st === 'failed' || expiredNow));
+  $('qrisCancel').classList.toggle('hidden', !pending);
+  $('qrisClose').classList.toggle('hidden', pending);
+  $('qrisSandbox').classList.toggle('hidden', !(d.sandbox && d.gateway_qr_url && pending && qrisLeft > 0));
+  $('qrisGwUrl').textContent = d.gateway_qr_url || '';
+
+  if (!pending) { stopQris(); $('qrisTimer').textContent = ''; return; }
+  const paintClock = () => { $('qrisTimer').textContent = qrisLeft > 0 ? 'Berlaku ' + qrisClock(qrisLeft) : 'Waktu habis, menunggu konfirmasi gateway…'; };
+  paintClock();
+  if (!qrisTick) qrisTick = setInterval(() => { if (qrisLeft > 0) { qrisLeft--; paintClock(); if (qrisLeft === 0) renderQris({ ...qris, seconds_left: 0 }); } }, 1000);
+  if (!qrisPoll) qrisPoll = setInterval(pollQris, 3000);
+}
+
+async function pollQris() {
+  if (!qris) return;
+  try {
+    const r = await fetch(qris.urls.show, { headers: { Accept: 'application/json' } });
+    if (r.ok) renderQris(await r.json());
+  } catch (e) { /* jaringan putus sesaat: coba lagi di putaran berikutnya */ }
+}
+
+function finishQris(o) {
+  stopQris(); qris = null; idemKey = null; qrisImgFor = null;
+  $('qrisModal').classList.add('hidden');
+  $('doneInv').textContent = o.invoice_no; $('doneTotal').textContent = rp(o.total); $('doneChange').textContent = '';
+  $('doneView').href = o.receipt_url; $('doneDl').href = o.download_url;
+  $('doneModal').classList.remove('hidden');
+  if (window.Voice) Voice.say('Pembayaran QRIS berhasil');
+}
+
+$('qrisCancel').addEventListener('click', async () => {
+  if (!qris) return;
+  $('qrisCancel').disabled = true;
+  try {
+    const r = await fetch(qris.urls.cancel, { method: 'POST', headers: JSON_HEADERS });
+    const d = await r.json();
+    if (r.ok) { renderQris(d); if (d.status === 'cancelled') { stopQris(); $('qrisModal').classList.add('hidden'); } }
+  } catch (e) { /* biarkan modal terbuka; kasir bisa mencoba lagi */ }
+  $('qrisCancel').disabled = false;
+});
+$('qrisRegen').addEventListener('click', () => { stopQris(); $('qrisModal').classList.add('hidden'); startQris(); });
+$('qrisClose').addEventListener('click', () => { stopQris(); qris = null; $('qrisModal').classList.add('hidden'); });
+$('qrisCopy').addEventListener('click', () => { navigator.clipboard?.writeText($('qrisGwUrl').textContent).then(() => { $('qrisCopy').textContent = 'Tersalin'; setTimeout(() => $('qrisCopy').textContent = 'Salin', 1500); }); });
+
 $('doneNew').addEventListener('click', () => { location.href = @json(route('pos')); }); // muat ulang: stok & nomor invoice segar
 
 /* ---------- Perintah suara (kasir) ---------- */
@@ -322,6 +443,7 @@ if (window.Voice) {
       return false;
     }
     if ($('custModal') && !$('custModal').classList.contains('hidden')) return false;
+    if (!$('qrisModal').classList.contains('hidden')) return false;
 
     if (/\b(kosongkan|bersihkan|reset)\b|\b(hapus|batalkan|batal) (semua|keranjang|pesanan)\b/.test(t)) {
       cart = {}; $('discount').value = 0; $('paid').value = ''; touch(); V.say('Keranjang dikosongkan'); return true;
@@ -378,7 +500,8 @@ if (window.Voice) {
         setTimeout(() => {
           if (!$('doneModal').classList.contains('hidden')) {
             const ch = $('doneChange').textContent; V.say('Pembayaran berhasil. ' + ch, 'Pembayaran berhasil');
-          } else V.say($('err').textContent || 'Pembayaran belum berhasil');
+          } else if (!$('qrisModal').classList.contains('hidden')) V.say('Kode QRIS tampil. Minta pelanggan untuk scan.');
+          else V.say($('err').textContent || 'Pembayaran belum berhasil');
         }, 1800);
       }, 'Bayar ' + V.spokenRp(tt.total) + ' dengan ' + METHOD_NAME[method] + '? Ucapkan ya atau batal.');
       return true;

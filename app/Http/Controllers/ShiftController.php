@@ -54,6 +54,10 @@ class ShiftController extends Controller
             return back()->withErrors(['closing_cash' => 'Shift ini sudah ditutup.']);
         }
 
+        if (\App\Models\QrisPayment::pendingFor($shift->user_id)->exists()) {
+            return back()->withErrors(['closing_cash' => 'Masih ada pembayaran QRIS yang menunggu. Selesaikan atau batalkan dulu sebelum menutup shift.']);
+        }
+
         $expected = $shift->expectedAtClose();
         $closing = (float) $data['closing_cash'];
 

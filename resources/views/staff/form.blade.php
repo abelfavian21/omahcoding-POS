@@ -3,9 +3,9 @@
 @section('content')
 @php $editing = $user->exists; @endphp
 <div class="max-w-2xl">
-  <a href="{{ route('staff.index') }}" class="text-sm font-semibold text-brand-600">← Kembali ke staff</a>
-  <h1 class="text-3xl font-extrabold tracking-tight mt-2 mb-6">{{ $editing ? 'Edit Staff' : 'Tambah Staff' }}</h1>
-  <form method="POST" class="card p-6 space-y-4" action="{{ $editing ? route('staff.update', $user) : route('staff.store') }}">
+  <a href="{{ route('staff.index') }}" class="inline-flex items-center gap-1 h-9 px-3 -ml-3 rounded-full text-sm font-semibold text-slate-500 hover:bg-white hover:text-slate-900 transition"><span class="material-symbols-outlined" style="font-size:18px">arrow_back</span> Kembali ke staff</a>
+  <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight mt-2 mb-6">{{ $editing ? 'Edit Staff' : 'Tambah Staff' }}</h1>
+  <form method="POST" class="card p-5 sm:p-6 space-y-4" action="{{ $editing ? route('staff.update', $user) : route('staff.store') }}">
     @csrf @if ($editing) @method('PUT') @endif
     <div class="grid sm:grid-cols-2 gap-4">
       <div class="sm:col-span-2"><label class="label">Nama *</label><input name="name" class="input" value="{{ old('name', $user->name) }}" required>@error('name')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror</div>
@@ -16,8 +16,8 @@
       <div><label class="label">No. telepon</label><input name="phone" class="input" value="{{ old('phone', $user->phone) }}"></div>
       <div><label class="label">Shift</label><input name="shift" class="input" value="{{ old('shift', $user->shift) }}" placeholder="07:00 - 15:00"></div>
     </div>
-    <label class="flex items-center gap-2 text-sm font-semibold"><input type="hidden" name="is_active" value="0"><input type="checkbox" name="is_active" value="1" class="rounded text-brand-600" @checked(old('is_active', $user->is_active))> Akun aktif</label>
-    <div class="flex gap-3 pt-2"><button class="btn-primary">Simpan</button><a href="{{ route('staff.index') }}" class="btn-ghost">Batal</a></div>
+    <label class="flex items-center gap-2 text-sm font-semibold"><input type="hidden" name="is_active" value="0"><input type="checkbox" name="is_active" value="1" class="rounded border-slate-300 text-[#536500] focus:ring-[#D2F839]/50" @checked(old('is_active', $user->is_active))> Akun aktif</label>
+    <div class="flex flex-col-reverse sm:flex-row gap-3 pt-2"><button class="btn-primary">Simpan</button><a href="{{ route('staff.index') }}" class="btn-ghost">Batal</a></div>
   </form>
 </div>
 @endsection

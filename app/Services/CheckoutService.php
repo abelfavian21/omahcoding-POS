@@ -168,6 +168,46 @@ class CheckoutService
         return $order->fresh(['items', 'customer']);
     }
 
+    /**
+     * Hitung total tagihan TANPA menyimpan apa pun (dipakai QRIS dinamis untuk menentukan nominal QR).
+     * Aturan sama dengan process(): harga dari DB, batas diskon kasir, pajak per bisnis.
+     * Jika aturan di process() diubah, ubah juga di sini.
+     */
+    public function quote(User $user, array $data): array
+    {
+        $lines = collect($data['items'])->groupBy('product_id')->map(fn ($g) => (int) $g->sum('qty'));
+        $products = Product::whereIn('id', $lines->keys())->get()->keyBy('id');
+
+        $subtotal = 0;
+        foreach ($lines as $pid => $qty) {
+            $p = $products[$pid] ?? null;
+            if (! $p) {
+                throw new RuntimeException('Produk tidak ditemukan.');
+            }
+            if (! $p->is_active) {
+                throw new RuntimeException("{$p->name} sedang tidak dijual.");
+            }
+            if ($p->stock < $qty) {
+                throw new RuntimeException("Stok {$p->name} tidak cukup.");
+            }
+            $subtotal += $p->price * $qty;
+        }
+
+        $discount = round((float) ($data['discount'] ?? 0));
+        if ($discount > $subtotal) {
+            throw new RuntimeException('Diskon tidak boleh melebihi subtotal.');
+        }
+        $capPct = (float) config('pos.cashier_max_discount_pct', 10);
+        if (! $user->isAdmin() && $discount > $subtotal * $capPct / 100) {
+            throw new RuntimeException("Diskon kasir maksimal {$capPct}% dari subtotal. Minta admin untuk diskon lebih besar.");
+        }
+
+        $taxRate = $user->business?->taxRate() ?? (float) config('pos.tax_rate');
+        $tax = round(($subtotal - $discount) * $taxRate);
+
+        return ['subtotal' => $subtotal, 'discount' => $discount, 'tax' => $tax, 'total' => $subtotal - $discount + $tax];
+    }
+
     public function hold(User $user, array $data): Order
     {
         return DB::transaction(function () use ($user, $data) {
