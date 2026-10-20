@@ -37,7 +37,7 @@ class PosController extends Controller
             'taxLabel' => $request->user()->business?->tax_label ?? config('pos.tax_label'),
             'shiftOpen' => (bool) CashShift::currentFor($request->user()),
             'nextInvoice' => Order::nextInvoiceNo(),
-            'qrisDynamic' => app(MidtransClient::class)->enabled(),
+            'qrisDynamic' => MidtransClient::forBusiness($request->user()->business)->enabled(),
         ]);
     }
 

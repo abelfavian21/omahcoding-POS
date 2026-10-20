@@ -13,9 +13,32 @@ class Business extends Model
         'tax_rate', 'tax_label', 'receipt_footer',
     ];
 
+    /** Kunci pembayaran tidak boleh ikut ter-serialize ke JSON / log. */
+    protected $hidden = ['midtrans_server_key'];
+
     protected function casts(): array
     {
-        return ['trial_ends_at' => 'datetime', 'tax_rate' => 'float'];
+        return ['trial_ends_at' => 'datetime', 'tax_rate' => 'float', 'midtrans_server_key' => 'encrypted'];
+    }
+
+    /** Server Key Midtrans bisnis ini (null bila belum diisi atau tidak bisa didekripsi, mis. APP_KEY berganti). */
+    public function midtransKey(): ?string
+    {
+        try {
+            $k = $this->midtrans_server_key;
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        return filled($k) ? $k : null;
+    }
+
+    /** Petunjuk aman untuk ditampilkan di UI: 4 karakter terakhir saja. */
+    public function midtransKeyHint(): ?string
+    {
+        $k = $this->midtransKey();
+
+        return $k ? '…' . substr($k, -4) : null;
     }
 
     public function category()

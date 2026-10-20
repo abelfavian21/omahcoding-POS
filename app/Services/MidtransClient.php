@@ -2,31 +2,48 @@
 
 namespace App\Services;
 
+use App\Models\Business;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 /**
- * Klien tipis untuk Midtrans Core API (QRIS). Kunci server HANYA dibaca dari .env / config,
- * tidak pernah dikirim ke browser.
+ * Klien tipis untuk Midtrans Core API (QRIS), satu instance per bisnis.
+ * Server Key milik bisnis (terenkripsi di DB) dan tidak pernah dikirim ke browser.
+ * Mode sandbox/produksi dibaca dari awalan key: "SB-Mid-server-…" = sandbox, "Mid-server-…" = produksi.
  */
 class MidtransClient
 {
+    public function __construct(private ?string $serverKey = null)
+    {
+    }
+
+    public static function forBusiness(?Business $business): self
+    {
+        return new self($business?->midtransKey());
+    }
+
+    public static function forKey(?string $key): self
+    {
+        return new self($key !== null ? trim($key) : null);
+    }
+
+    public static function validKeyFormat(string $key): bool
+    {
+        return (bool) preg_match('/^(SB-)?Mid-server-[A-Za-z0-9_\-]{8,}$/', $key);
+    }
+
     public function enabled(): bool
     {
-        return filled($this->serverKey());
+        return filled($this->serverKey);
     }
 
     public function isProduction(): bool
     {
-        return (bool) config('services.midtrans.is_production', false);
-    }
-
-    private function serverKey(): string
-    {
-        return (string) config('services.midtrans.server_key');
+        return $this->enabled() && ! str_starts_with($this->serverKey, 'SB-');
     }
 
     private function baseUrl(): string
@@ -36,7 +53,7 @@ class MidtransClient
 
     private function http(): PendingRequest
     {
-        return Http::withBasicAuth($this->serverKey(), '')->acceptJson()->asJson()->timeout(15)->connectTimeout(8);
+        return Http::withBasicAuth((string) $this->serverKey, '')->acceptJson()->asJson()->timeout(15)->connectTimeout(8);
     }
 
     /** Buat transaksi QRIS. Mengembalikan body respons Midtrans (transaction_id, qr_string, actions, expiry_time, ...). */
@@ -44,7 +61,7 @@ class MidtransClient
     {
         $headers = [];
         if (filled($url = config('services.midtrans.notify_url'))) {
-            $headers['X-Override-Notification'] = $url;   // opsional: tanpa ini, pakai URL di dashboard Midtrans
+            $headers['X-Override-Notification'] = $url;   // opsional: tanpa ini, pakai URL di dashboard Midtrans bisnis
         }
 
         $body = $this->send(fn () => $this->http()->withHeaders($headers)->post($this->baseUrl() . '/v2/charge', [
@@ -71,6 +88,19 @@ class MidtransClient
         return $this->send(fn () => $this->http()->post($this->baseUrl() . '/v2/' . rawurlencode($orderId) . '/cancel'));
     }
 
+    /**
+     * Uji key tanpa membuat transaksi: tanya status order fiktif. Key benar -> 404 "tidak ada";
+     * key salah / beda mode -> 401. Melempar RuntimeException bila ditolak atau gateway tak terjangkau.
+     */
+    public function verifyKey(): void
+    {
+        $body = $this->status('keycheck-' . Str::lower(Str::random(12)));
+
+        if ((string) ($body['status_code'] ?? '') === '401') {
+            throw new RuntimeException('Server Key ditolak Midtrans. Pastikan key benar dan berasal dari akun Midtrans bisnis ini.');
+        }
+    }
+
     /** signature_key = SHA512(order_id + status_code + gross_amount + server_key), dibandingkan constant-time. */
     public function validSignature(array $n): bool
     {
@@ -83,7 +113,7 @@ class MidtransClient
             return false;
         }
 
-        $expected = hash('sha512', $n['order_id'] . $n['status_code'] . $n['gross_amount'] . $this->serverKey());
+        $expected = hash('sha512', $n['order_id'] . $n['status_code'] . $n['gross_amount'] . $this->serverKey);
 
         return hash_equals($expected, strtolower((string) $n['signature_key']));
     }
@@ -112,6 +142,10 @@ class MidtransClient
 
     private function send(callable $call): array
     {
+        if (! $this->enabled()) {
+            throw new RuntimeException('Midtrans Server Key belum diisi untuk bisnis ini.');
+        }
+
         try {
             $res = $call();
         } catch (ConnectionException $e) {

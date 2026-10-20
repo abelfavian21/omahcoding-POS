@@ -77,6 +77,7 @@ Route::middleware(['auth', 'account'])->group(function () {
 
         Route::get('/settings', [SettingsController::class, 'edit'])->name('settings.edit');
         Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
+        Route::put('/settings/midtrans', [SettingsController::class, 'updateMidtrans'])->middleware('throttle:10,1')->name('settings.midtrans');
         Route::get('/audit', [AuditController::class, 'index'])->name('audit.index');
     });
 });
