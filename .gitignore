@@ -12,3 +12,4 @@
 /database/*.sqlite
 /database/*.sqlite-journal
 .phpunit.result.cache
+.env.before_lerd

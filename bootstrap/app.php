@@ -28,8 +28,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'account' => \App\Http\Middleware\EnsureAccountActive::class,
         ]);
 
-        // Di belakang Nginx/Cloudflare/load balancer: percayai proxy supaya IP asli (rate limit)
-        // dan skema https (cookie secure, HSTS) terbaca benar. Lihat catatan di SECURITY_REVIEW.md.
+        // Di belakang Nginx/Cloudflare/load balancer: isi TRUSTED_PROXIES di .env (lihat config/trustedproxy.php)
+        // supaya IP asli (rate limit) dan skema https (cookie secure, HSTS) terbaca benar.
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
