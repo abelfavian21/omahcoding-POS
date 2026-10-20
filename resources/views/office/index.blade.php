@@ -2,23 +2,23 @@
 @section('title', 'Kantor Virtual')
 @section('content')
 <div class="mb-6">
-  <div class="text-xs text-slate-500 mb-1">Dashboard › <span class="text-brand-600 font-semibold">Kantor Virtual</span></div>
-  <h1 class="text-3xl font-extrabold tracking-tight">Kantor Virtual</h1>
-  <p class="text-sm text-slate-500">Lihat bagaimana tim bekerja: ada yang di meja, rapat, ngopi di pantry, cek gudang, sampai ruang server.</p>
+  <div class="text-xs text-slate-400 font-semibold mb-1">Dashboard › <span class="text-slate-700">Kantor Virtual</span></div>
+  <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">Kantor Virtual</h1>
+  <p class="text-sm font-medium text-slate-500 mt-1">Lihat bagaimana tim bekerja: ada yang di meja, rapat, ngopi di pantry, cek gudang, sampai ruang server.</p>
 </div>
 
 <div class="grid xl:grid-cols-[minmax(0,1fr)_320px] gap-5">
   {{-- ===== Panel peta ===== --}}
   <div class="card p-3 sm:p-4">
-    <div class="flex flex-wrap items-center gap-2 mb-3">
+    <div class="flex gap-2 mb-3 overflow-x-auto no-scrollbar sm:flex-wrap sm:items-center [&>button]:shrink-0">
       <button id="btnPause"   class="btn btn-secondary !h-9 !px-3 text-xs" type="button"><span class="material-symbols-outlined">pause</span><span>Jeda</span></button>
       <button id="btnBubble"  class="btn btn-secondary !h-9 !px-3 text-xs" type="button"><span class="material-symbols-outlined">chat_bubble</span><span>Dialog: ON</span></button>
       <button id="btnSpeed"   class="btn btn-secondary !h-9 !px-3 text-xs" type="button"><span class="material-symbols-outlined">speed</span><span>Kecepatan 1×</span></button>
       <button id="btnMeeting" class="btn btn-secondary !h-9 !px-3 text-xs" type="button"><span class="material-symbols-outlined">groups</span><span>Rapat sekarang</span></button>
       <button id="btnShuffle" class="btn btn-ghost !h-9 !px-3 text-xs" type="button"><span class="material-symbols-outlined">shuffle</span><span>Acak ulang</span></button>
-      <span id="statusText" class="ml-auto text-xs text-slate-500">Memuat peta…</span>
+      <span id="statusText" class="ml-auto pl-2 shrink-0 text-xs text-slate-400 font-medium">Memuat peta…</span>
     </div>
-    <div class="relative rounded-xl overflow-hidden border border-slate-200 bg-slate-900">
+    <div class="relative rounded-2xl overflow-hidden border border-card-border bg-slate-900">
       <canvas id="office" width="1536" height="1024" class="block w-full h-auto"
               style="aspect-ratio:1536/1024"
               data-map="{{ asset('img/office/map.png') }}"
@@ -31,12 +31,12 @@
 
   {{-- ===== Panel samping ===== --}}
   <div class="space-y-5">
-    <div class="card p-5">
-      <h2 class="font-bold text-lg mb-3">Tim hari ini</h2>
+    <div class="card p-5 sm:p-6">
+      <h2 class="font-extrabold text-base mb-3">Tim hari ini</h2>
       <div id="people" class="space-y-3"></div>
     </div>
-    <div class="card p-5">
-      <h2 class="font-bold text-lg mb-3">Aktivitas terbaru</h2>
+    <div class="card p-5 sm:p-6">
+      <h2 class="font-extrabold text-base mb-3">Aktivitas terbaru</h2>
       <ul id="log" class="space-y-2 text-sm"></ul>
     </div>
   </div>

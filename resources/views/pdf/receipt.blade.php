@@ -40,7 +40,7 @@
   <table>
     <tr><td>Subtotal</td><td class="r">{{ number_format($order->subtotal, 0, ',', '.') }}</td></tr>
     @if ($order->discount > 0)<tr><td>Diskon</td><td class="r">-{{ number_format($order->discount, 0, ',', '.') }}</td></tr>@endif
-    <tr><td>{{ config('pos.tax_label') }}</td><td class="r">{{ number_format($order->tax, 0, ',', '.') }}</td></tr>
+    <tr><td>{{ $order->business?->tax_label ?? config('pos.tax_label') }}</td><td class="r">{{ number_format($order->tax, 0, ',', '.') }}</td></tr>
     <tr class="total"><td>TOTAL</td><td class="r">Rp {{ number_format($order->total, 0, ',', '.') }}</td></tr>
     <tr><td>Bayar ({{ \App\Models\Order::PAYMENTS[$order->payment_method] ?? $order->payment_method }})</td><td class="r">{{ number_format($order->paid_amount, 0, ',', '.') }}</td></tr>
     <tr><td>Kembali</td><td class="r">{{ number_format($order->change_amount, 0, ',', '.') }}</td></tr>
@@ -49,6 +49,6 @@
   @if ($order->customer && $order->status === 'paid')
     <div class="c">Poin Anda: {{ number_format($order->customer->points) }}</div>
   @endif
-  <div class="c" style="margin-top:4px">{{ config('pos.receipt_footer') }}</div>
+  <div class="c" style="margin-top:4px">{{ $order->business?->receipt_footer ?? config('pos.receipt_footer') }}</div>
 </body>
 </html>

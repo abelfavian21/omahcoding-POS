@@ -3,11 +3,15 @@
 namespace App\Exports;
 
 use Maatwebsite\Excel\Concerns\FromArray;
+use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithColumnFormatting;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
+use PhpOffice\PhpSpreadsheet\Cell\Cell;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Cell\DefaultValueBinder;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
@@ -17,8 +21,25 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  * Sheet tabel rapi: judul (baris 1), periode (baris 2), header berwarna (baris 4),
  * data mulai baris 5, border, freeze header, kolom auto-width, baris TOTAL opsional.
  */
-class TableSheet implements FromArray, WithTitle, WithStyles, ShouldAutoSize, WithColumnFormatting
+class TableSheet extends DefaultValueBinder implements FromArray, WithTitle, WithStyles, ShouldAutoSize, WithColumnFormatting, WithCustomValueBinder
 {
+    /**
+     * Teks yang diawali "=" HANYA dianggap rumus pada baris TOTAL (rumus SUM milik kita).
+     * Di sel lain (nama pelanggan, produk, catatan) selalu disimpan sebagai teks,
+     * sehingga input berbahaya seperti =HYPERLINK(...) tidak dieksekusi saat pemilik membuka Excel.
+     */
+    public function bindValue(Cell $cell, $value): bool
+    {
+        $isTotalsRow = $this->totals && $cell->getRow() === 5 + count($this->rows);
+
+        if (is_string($value) && $value !== '' && $value[0] === '=' && ! $isTotalsRow) {
+            $cell->setValueExplicit($value, DataType::TYPE_STRING);
+            return true;
+        }
+
+        return parent::bindValue($cell, $value);
+    }
+
     public function __construct(
         private string $title,
         private string $heading,

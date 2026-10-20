@@ -14,10 +14,10 @@
     </div>
   </div>
   <div class="flex items-center gap-2 pointer-events-auto">
-    <button type="button" id="voiceHelpBtn" title="Daftar perintah suara" class="w-11 h-11 rounded-full bg-slate-900 text-white shadow-lg grid place-items-center hover:bg-slate-700">
+    <button type="button" id="voiceHelpBtn" title="Daftar perintah suara" class="w-11 h-11 rounded-full bg-[#181829] text-white shadow-lg grid place-items-center hover:bg-slate-700">
       <span class="material-symbols-outlined">help</span>
     </button>
-    <button type="button" id="voiceMic" title="Perintah suara" class="w-14 h-14 rounded-full bg-brand-600 hover:bg-brand-700 text-white shadow-xl shadow-brand-600/40 grid place-items-center transition">
+    <button type="button" id="voiceMic" title="Perintah suara" class="w-14 h-14 rounded-full bg-lime-accent hover:bg-[#DCFA5C] text-slate-950 shadow-xl shadow-lime-accent/30 grid place-items-center transition">
       <span id="voiceMicIcon" class="material-symbols-outlined" style="font-size:28px">mic</span>
     </button>
   </div>

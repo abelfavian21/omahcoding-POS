@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use App\Models\Product;
 use App\Models\StockMovement;
 use Illuminate\Http\Request;
@@ -52,6 +53,8 @@ class StockController extends Controller
         } catch (RuntimeException $e) {
             return back()->withErrors(['qty' => $e->getMessage()])->withInput();
         }
+
+        AuditLog::record('stock.' . $data['type'], $product->sku, ['delta' => $delta, 'after' => $product->stock, 'note' => $data['note'] ?? null]);
 
         return redirect()->route('stock.index', ['product' => $product->id])
             ->with('success', "Stok {$product->name} sekarang {$product->stock}.");

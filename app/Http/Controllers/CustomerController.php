@@ -53,7 +53,7 @@ class CustomerController extends Controller
 
     public function store(Request $request)
     {
-        $customer = Customer::create($this->validated($request));
+        $customer = Customer::create($this->validated($request) + ['tier' => 'bronze']);
 
         // Jika dibuat dari halaman kasir (tahap 2) kembali ke sana
         if ($request->input('return_to') === 'pos') {
@@ -85,14 +85,20 @@ class CustomerController extends Controller
 
     private function validated(Request $request, ?Customer $customer = null): array
     {
-        return $request->validate([
+        $rules = [
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:30'],
             'email' => ['nullable', 'email', 'max:255'],
-            'tier' => ['required', 'in:bronze,silver,gold,vip'],
             'birthday' => ['nullable', 'date', 'before:today'],
             'allergy' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:1000'],
-        ]);
+        ];
+
+        // tier = benefit finansial: hanya admin yang boleh mengubah (kasir tidak bisa menaikkan tier teman/diri sendiri)
+        if ($request->user()->isAdmin()) {
+            $rules['tier'] = ['required', 'in:bronze,silver,gold,vip'];
+        }
+
+        return $request->validate($rules);
     }
 }

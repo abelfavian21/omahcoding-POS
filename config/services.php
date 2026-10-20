@@ -28,6 +28,15 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    // QRIS dinamis (Midtrans Core API). Kosongkan MIDTRANS_SERVER_KEY untuk mematikan fitur ini
+    // (kasir kembali memakai QRIS manual seperti sebelumnya).
+    'midtrans' => [
+        'server_key' => env('MIDTRANS_SERVER_KEY'),
+        'is_production' => (bool) env('MIDTRANS_IS_PRODUCTION', false),
+        'qris_acquirer' => env('MIDTRANS_QRIS_ACQUIRER', 'gopay'),
+        'notify_url' => env('MIDTRANS_NOTIFY_URL'),   // opsional (override URL notifikasi per transaksi)
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

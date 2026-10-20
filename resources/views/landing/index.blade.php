@@ -525,8 +525,8 @@
               <p class="text-[11px] text-slate-400 mt-1.5">Kode toko ada di layar konfirmasi saat registrasi. Tanyakan ke pemilik jika lupa.</p>
             </div>
             <div>
-              <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">PIN 4 Digit</label>
-              <input type="password" name="pin" required inputmode="numeric" maxlength="4" pattern="\d{4}" placeholder="••••" class="{{ $inp }} tracking-[0.6em] text-center">
+              <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">PIN Kasir</label>
+              <input type="password" name="pin" required inputmode="numeric" maxlength="6" pattern="\d{4,6}" placeholder="••••••" autocomplete="off" class="{{ $inp }} tracking-[0.6em] text-center">
               @error('pin', 'login')<p class="text-xs text-rose-600 font-semibold mt-1.5">{{ $message }}</p>@enderror
               @error('store_code', 'login')<p class="text-xs text-rose-600 font-semibold mt-1.5">{{ $message }}</p>@enderror
             </div>

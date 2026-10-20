@@ -12,6 +12,8 @@ class User extends Authenticatable
 
     protected $fillable = ['name', 'email', 'password', 'role', 'phone', 'pin', 'shift', 'is_active', 'business_id'];
 
+    // last_login_* sengaja TIDAK fillable (diisi sistem, bukan dari input)
+
     protected $hidden = ['password', 'pin', 'remember_token'];
 
     protected function casts(): array

@@ -3,10 +3,10 @@
 @section('content')
 @php $editing = $product->exists; @endphp
 <div class="max-w-3xl">
-  <a href="{{ route('products.index') }}" class="text-sm font-semibold text-brand-600">← Kembali ke produk</a>
-  <h1 class="text-3xl font-extrabold tracking-tight mt-2 mb-6">{{ $editing ? 'Edit Produk' : 'Tambah Produk' }}</h1>
+  <a href="{{ route('products.index') }}" class="inline-flex items-center gap-1 h-9 px-3 -ml-3 rounded-full text-sm font-semibold text-slate-500 hover:bg-white hover:text-slate-900 transition"><span class="material-symbols-outlined" style="font-size:18px">arrow_back</span> Kembali ke produk</a>
+  <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight mt-2 mb-6">{{ $editing ? 'Edit Produk' : 'Tambah Produk' }}</h1>
 
-  <form method="POST" enctype="multipart/form-data" class="card p-6 space-y-5"
+  <form method="POST" enctype="multipart/form-data" class="card p-5 sm:p-6 space-y-5"
         action="{{ $editing ? route('products.update', $product) : route('products.store') }}">
     @csrf @if ($editing) @method('PUT') @endif
 
@@ -50,10 +50,10 @@
 
     <label class="flex items-center gap-2 text-sm font-semibold">
       <input type="hidden" name="is_active" value="0">
-      <input type="checkbox" name="is_active" value="1" class="rounded text-brand-600" @checked(old('is_active', $product->is_active))> Tampilkan di menu kasir
+      <input type="checkbox" name="is_active" value="1" class="rounded border-slate-300 text-[#536500] focus:ring-[#D2F839]/50" @checked(old('is_active', $product->is_active))> Tampilkan di menu kasir
     </label>
 
-    <div class="flex gap-3 pt-2">
+    <div class="flex flex-col-reverse sm:flex-row gap-3 pt-2">
       <button class="btn-primary">Simpan</button>
       <a href="{{ route('products.index') }}" class="btn-ghost">Batal</a>
     </div>

@@ -16,6 +16,11 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        // Seeder ini membuat akun demo dengan password lemah ('password'). JANGAN pernah jalan di production.
+        if (app()->isProduction()) {
+            throw new \RuntimeException('DatabaseSeeder (data demo) tidak boleh dijalankan di production.');
+        }
+
         /* ---- Kategori usaha + bisnis demo ---- */
         $this->call(BusinessCategorySeeder::class);
         $business = Business::create([
@@ -29,18 +34,18 @@ class DatabaseSeeder extends Seeder
         $admin = User::create([
             'business_id' => $business->id,
             'name' => 'Orely Studio', 'email' => 'admin@cashierstore.test', 'password' => 'password',
-            'role' => 'admin', 'pin' => '0000', 'shift' => '08:00 - 16:00', 'phone' => '0812-0000-0001',
+            'role' => 'admin', 'shift' => '08:00 - 16:00', 'phone' => '0812-0000-0001',
         ]);
         Auth::setUser($admin);   // data berikutnya otomatis milik bisnis demo
         User::create([
             'business_id' => $business->id,
             'name' => 'Clara Lucas', 'email' => 'kasir@cashierstore.test', 'password' => 'password',
-            'role' => 'kasir', 'pin' => '1234', 'shift' => '07:00 - 15:30', 'phone' => '0812-0000-0002',
+            'role' => 'kasir', 'pin' => '482913', 'shift' => '07:00 - 15:30', 'phone' => '0812-0000-0002',
         ]);
         User::create([
             'business_id' => $business->id,
             'name' => 'Elena Morris', 'email' => 'elena@cashierstore.test', 'password' => 'password',
-            'role' => 'kasir', 'pin' => '5678', 'shift' => '08:00 - 16:00', 'phone' => '0812-0000-0003',
+            'role' => 'kasir', 'pin' => '715264', 'shift' => '08:00 - 16:00', 'phone' => '0812-0000-0003',
         ]);
 
         /* ---- Kategori ---- */

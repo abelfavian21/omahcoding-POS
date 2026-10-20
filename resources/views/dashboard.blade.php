@@ -5,211 +5,249 @@
   $hour = now()->hour;
   $greet = $hour < 11 ? 'Selamat pagi' : ($hour < 15 ? 'Selamat siang' : ($hour < 19 ? 'Selamat sore' : 'Selamat malam'));
   $first = explode(' ', auth()->user()->name)[0];
-  $trendPill = fn ($v) => $v >= 0 ? 'pill-green' : 'pill-red';
 
   // jam tersibuk (hanya kalau memang ada pesanan)
   $peak = $chart->sortByDesc(fn ($c) => $c['dine'] + $c['take'])->first();
   $peak = ($peak && $peak['count'] > 0) ? $peak : null;
   $topMax = max(1, (int) $topItems->max('sold'));
 
-  // satu bahasa permukaan, sama dengan kartu di landing: rounded-3xl + border tipis
-  $surface = 'bg-white rounded-3xl border border-slate-200/80 dark:border-slate-700/60 shadow-sm';
-  $focus = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600';
+  // komposisi dine-in vs takeaway (dihitung dari angka yang sudah ada)
+  $mixTotal = (float) $dineTotal + (float) $takeTotal;
+  $dinePct = $mixTotal > 0 ? round($dineTotal / $mixTotal * 100) : 0;
 
-  $kpis = [
-    ['label' => 'Total pendapatan', 'icon' => 'payments', 'tile' => 'bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300',
-     'value' => 'Rp ' . number_format($revenue, 0, ',', '.'), 'trend' => $revenueTrend, 'foot' => 'vs kemarin (Rp ' . number_format($revenueY, 0, ',', '.') . ')'],
-    ['label' => 'Total pesanan', 'icon' => 'receipt_long', 'tile' => 'bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300',
-     'value' => $orders, 'trend' => $ordersTrend, 'foot' => 'pesanan selesai hari ini'],
-    ['label' => 'Rata-rata transaksi', 'icon' => 'sell', 'tile' => 'bg-cyan-50 text-cyan-600 dark:bg-cyan-500/15 dark:text-cyan-300',
-     'value' => 'Rp ' . number_format($avg, 0, ',', '.'), 'trend' => $avgTrend, 'foot' => 'per pesanan'],
-  ];
+  $trendPill = fn ($v) => $v >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600';
+  $arrow = fn ($v) => $v >= 0 ? 'arrow_upward' : 'arrow_downward';
+  $focus = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#B1D501]';
+  $label = 'text-xs font-bold text-slate-400 tracking-wide uppercase';
 @endphp
 
-{{-- Latar ambient: orb + grid biru tipis, sama seperti hero landing --}}
-<div aria-hidden="true" class="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-  <div class="absolute -top-32 right-0 w-[520px] h-[520px] rounded-full bg-blue-300/30 blur-[80px] dark:bg-blue-500/10"></div>
-  <div class="absolute top-1/2 left-1/3 w-[460px] h-[460px] rounded-full bg-indigo-200/40 blur-[80px] dark:bg-indigo-500/10"></div>
-  <div class="absolute inset-0" style="background-size:40px 40px;background-image:linear-gradient(to right,rgba(37,99,235,.05) 1px,transparent 1px),linear-gradient(to bottom,rgba(37,99,235,.05) 1px,transparent 1px)"></div>
-</div>
-
 {{-- Header --}}
-<div class="flex flex-wrap items-end justify-between gap-5 mb-8">
-  <div class="space-y-3">
-    <div class="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-200/80 text-blue-700 text-xs font-bold shadow-sm dark:bg-blue-500/15 dark:border-blue-400/30 dark:text-blue-300">
-      <span class="relative flex w-2 h-2">
-        <span class="absolute inline-flex h-full w-full rounded-full bg-blue-500 opacity-75 animate-ping motion-reduce:animate-none"></span>
-        <span class="relative inline-flex w-2 h-2 rounded-full bg-blue-600"></span>
-      </span>
-      Live &middot; {{ now()->translatedFormat('l, d F Y') }}
-    </div>
-    <h1 class="text-3xl sm:text-4xl font-black tracking-tight leading-[1.12] text-slate-900">{{ $greet }}, {{ $first }} ☕</h1>
-    <p class="text-sm text-slate-500 max-w-xl">Ringkasan penjualan hari ini. Angka dibandingkan dengan kemarin.</p>
+<div class="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-6">
+  <div class="min-w-0">
+    <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">{{ $greet }}, {{ $first }} ☕</h1>
+    <p class="text-sm font-medium text-slate-500 mt-1">Ringkasan penjualan hari ini, dibandingkan dengan kemarin.</p>
   </div>
-  <div class="flex flex-wrap gap-3">
-    <div class="inline-flex h-11 items-center gap-1 rounded-xl bg-slate-100 p-1 border border-slate-200/80 dark:border-slate-700/60" role="group" aria-label="Tema tampilan">
-      @foreach (['light' => ['Mode terang', 'light_mode'], 'dark' => ['Mode gelap', 'dark_mode']] as $mode => [$label, $icon])
-        <button type="button" data-theme-set="{{ $mode }}" aria-pressed="false" aria-label="{{ $label }}" title="{{ $label }}"
-                class="grid place-items-center w-9 h-9 rounded-lg transition text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 aria-pressed:bg-blue-600 aria-pressed:text-white aria-pressed:shadow-sm aria-pressed:hover:text-white {{ $focus }}">
+  <div class="flex flex-wrap items-center gap-2.5">
+    <span class="h-11 px-4 inline-flex items-center gap-2 rounded-full bg-white border border-card-border text-xs font-bold text-slate-700 shadow-sm">
+      <span class="relative flex w-2 h-2"><span class="absolute inline-flex h-full w-full rounded-full bg-lime-500 opacity-75 animate-ping motion-reduce:animate-none"></span><span class="relative inline-flex w-2 h-2 rounded-full bg-lime-500"></span></span>
+      {{ now()->translatedFormat('l, d F Y') }}
+    </span>
+    <div class="inline-flex h-11 items-center gap-1 rounded-full bg-white border border-card-border p-1 shadow-sm" role="group" aria-label="Tema tampilan">
+      @foreach (['light' => ['Mode terang', 'light_mode'], 'dark' => ['Mode gelap', 'dark_mode']] as $mode => [$lbl, $icon])
+        <button type="button" data-theme-set="{{ $mode }}" aria-pressed="false" aria-label="{{ $lbl }}" title="{{ $lbl }}"
+                class="grid place-items-center w-9 h-9 rounded-full transition text-slate-400 hover:text-slate-700 aria-pressed:bg-[#181829] aria-pressed:text-lime-accent {{ $focus }}">
           <span class="material-symbols-outlined">{{ $icon }}</span>
         </button>
       @endforeach
     </div>
     @if (auth()->user()->isAdmin())
-      <a href="{{ route('reports.index') }}" class="inline-flex items-center gap-2 h-11 px-5 rounded-xl bg-white border border-slate-200 text-slate-700 text-sm font-bold hover:bg-slate-50 transition {{ $focus }}">
-        <span class="material-symbols-outlined">download</span> Export laporan
+      <a href="{{ route('reports.index') }}" class="btn bg-white border border-card-border text-slate-700 hover:bg-slate-50 shadow-sm {{ $focus }}">
+        <span class="material-symbols-outlined">download</span> <span class="hidden xs:inline">Export laporan</span><span class="xs:hidden">Export</span>
       </a>
     @endif
-    <a href="{{ route('pos') }}" class="inline-flex items-center gap-2 h-11 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-lg shadow-blue-600/30 hover:-translate-y-0.5 transition-all motion-reduce:transition-none motion-reduce:hover:translate-y-0 {{ $focus }}">
+    <a href="{{ route('pos') }}" class="btn-dark text-lime-accent shadow-sm {{ $focus }}">
       <span class="material-symbols-outlined">add_circle</span> Pesanan baru
     </a>
   </div>
 </div>
 
-<div class="grid grid-cols-1 xl:grid-cols-12 gap-6">
-  <div class="xl:col-span-8 space-y-6 min-w-0">
-
-    {{-- KPI --}}
-    <div class="grid sm:grid-cols-3 gap-6">
-      @foreach ($kpis as $k)
-        <div class="{{ $surface }} p-6">
-          <div class="flex items-start justify-between">
-            <span class="w-12 h-12 rounded-2xl grid place-items-center {{ $k['tile'] }}"><span class="material-symbols-outlined">{{ $k['icon'] }}</span></span>
-            <span class="pill {{ $trendPill($k['trend']) }}">{{ $k['trend'] >= 0 ? '↗ +' : '↘ ' }}{{ $k['trend'] }}%</span>
-          </div>
-          <div class="mt-5 text-sm font-semibold text-slate-500">{{ $k['label'] }}</div>
-          <div class="mt-1 text-2xl xl:text-[28px] font-black tracking-tight text-slate-900">{{ $k['value'] }}</div>
-          <div class="mt-2 text-xs text-slate-500">{{ $k['foot'] }}</div>
-        </div>
-      @endforeach
+{{-- KPI --}}
+<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5 mb-5">
+  {{-- Hero gelap --}}
+  <div class="card-dark p-5 sm:p-6 flex flex-col justify-between">
+    <div class="flex items-start justify-between">
+      <div>
+        <span class="text-xs font-bold text-slate-400 tracking-wide uppercase">Total pendapatan</span>
+        <div class="mt-2 text-[28px] leading-[34px] font-extrabold tracking-[-0.03em] break-all"><span class="text-sm font-bold text-slate-400 align-top mr-1">Rp</span>{{ number_format($revenue, 0, ',', '.') }}</div>
+      </div>
+      <div class="w-9 h-9 rounded-xl bg-lime-accent text-slate-950 grid place-items-center shrink-0"><span class="material-symbols-outlined fill-1">payments</span></div>
     </div>
-
-    {{-- Grafik per jam: satu-satunya blok gelap, sama dengan band navy di landing --}}
-    <section class="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 text-white p-6 sm:p-8 shadow-xl shadow-slate-900/10 dark:ring-1 dark:ring-white/10">
-      <div aria-hidden="true" class="absolute inset-0" style="background-size:40px 40px;background-image:linear-gradient(to right,rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(to bottom,rgba(255,255,255,.04) 1px,transparent 1px)"></div>
-      <div class="relative">
-        <div class="flex flex-wrap items-start justify-between gap-6">
-          <div>
-            <h2 class="text-2xl font-black tracking-tight">Pendapatan per jam</h2>
-            <p class="text-sm text-slate-300 mt-1">Hari ini, dine-in dan takeaway.</p>
-            @if ($peak)
-              <p class="text-sm font-semibold text-blue-300 mt-3">Tersibuk pukul {{ $peak['label'] }}, {{ $peak['count'] }} pesanan.</p>
-            @endif
-          </div>
-          <dl class="flex gap-8">
-            <div>
-              <dt class="flex items-center gap-2 text-xs font-semibold text-slate-300"><span class="w-2.5 h-2.5 rounded-full bg-blue-400"></span>Dine-in</dt>
-              <dd class="mt-1 text-xl font-black">@rupiah($dineTotal)</dd>
-            </div>
-            <div>
-              <dt class="flex items-center gap-2 text-xs font-semibold text-slate-300"><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>Takeaway</dt>
-              <dd class="mt-1 text-xl font-black">@rupiah($takeTotal)</dd>
-            </div>
-          </dl>
-        </div>
-
-        <div class="relative mt-10 h-56">
-          <div aria-hidden="true" class="absolute inset-0 flex flex-col justify-between">
-            <div class="border-t border-white/10"></div><div class="border-t border-white/10"></div><div class="border-t border-white/10"></div><div class="border-t border-white/20"></div>
-          </div>
-          <div class="relative flex items-end gap-2 h-full">
-            @foreach ($chart as $c)
-              @php $tipPos = $loop->first ? 'left-0' : ($loop->last ? 'right-0' : 'left-1/2 -translate-x-1/2'); @endphp
-              <div class="group relative flex-1 h-full flex items-end justify-center gap-0.5 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-blue-400" tabindex="0" role="img"
-                   aria-label="{{ $c['label'] }}: {{ $c['count'] }} pesanan, dine-in @rupiah($c['dine']), takeaway @rupiah($c['take'])">
-                <div class="w-full max-w-[18px] rounded-t-md bg-gradient-to-t from-blue-600 to-blue-400 transition group-hover:brightness-125 group-focus-visible:brightness-125" style="height: {{ max(2, $c['dine'] / $chartMax * 100) }}%"></div>
-                <div class="w-full max-w-[18px] rounded-t-md bg-amber-400 transition group-hover:brightness-110 group-focus-visible:brightness-110" style="height: {{ max(2, $c['take'] / $chartMax * 100) }}%"></div>
-                <div class="hidden group-hover:block group-focus-visible:block absolute -top-12 {{ $tipPos }} z-10 rounded-lg bg-white text-slate-900 text-[11px] font-semibold px-2.5 py-1.5 whitespace-nowrap shadow-lg">
-                  {{ $c['label'] }} &middot; {{ $c['count'] }} pesanan
-                </div>
-              </div>
-            @endforeach
-          </div>
-        </div>
-        <div class="flex gap-2 mt-3">
-          @foreach ($chart as $c)
-            <div class="flex-1 text-center text-[10px] font-semibold {{ $peak && $c['label'] === $peak['label'] ? 'text-blue-300' : 'text-slate-400' }}">{{ substr($c['label'], 0, 2) }}</div>
-          @endforeach
-        </div>
-      </div>
-    </section>
-
-    {{-- Pesanan terbaru --}}
-    <section class="{{ $surface }} overflow-hidden">
-      <div class="flex justify-between items-center px-6 sm:px-8 pt-6 pb-4">
-        <h2 class="text-xl font-black tracking-tight">Pesanan terbaru</h2>
-        @if (auth()->user()->isAdmin())
-          <a href="{{ route('reports.index') }}" class="text-sm font-bold text-brand-600 hover:underline rounded {{ $focus }}">Lihat semua</a>
-        @endif
-      </div>
-      <div class="overflow-x-auto">
-        <table class="w-full">
-          <thead class="bg-brand-50/50"><tr><th class="th sm:pl-8">Order</th><th class="th">Pelanggan</th><th class="th">Item</th><th class="th text-right">Total</th><th class="th sm:pr-8">Bayar</th></tr></thead>
-          <tbody class="divide-y divide-slate-50">
-            @forelse ($recent as $o)
-              <tr class="hover:bg-slate-50/60 transition-colors">
-                <td class="td sm:pl-8"><div class="font-bold text-brand-600">{{ $o->invoice_no }}</div><div class="text-xs text-slate-500">{{ $o->paid_at?->format('H:i') }}</div></td>
-                <td class="td"><div class="font-semibold">{{ $o->customer->name ?? 'Walk-in' }}</div>
-                  <span class="pill pill-slate !text-[10px]">{{ $o->order_type === 'dine_in' ? 'Dine-in' . ($o->table_no ? ' · T' . $o->table_no : '') : 'Takeaway' }}</span></td>
-                <td class="td text-slate-600 max-w-[220px] truncate">{{ $o->items->map(fn ($i) => $i->qty . '× ' . $i->product_name)->implode(', ') }}</td>
-                <td class="td text-right font-black">@rupiah($o->total)</td>
-                <td class="td text-slate-600 sm:pr-8">{{ \App\Models\Order::PAYMENTS[$o->payment_method] ?? $o->payment_method }}</td>
-              </tr>
-            @empty
-              <tr><td colspan="5" class="px-6 py-12 text-center">
-                <span class="mx-auto mb-3 w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 grid place-items-center dark:bg-blue-500/15 dark:text-blue-300"><span class="material-symbols-outlined">receipt_long</span></span>
-                <p class="text-sm font-semibold">Belum ada pesanan.</p>
-                <a href="{{ route('pos') }}" class="inline-block mt-1 text-sm font-bold text-brand-600 hover:underline">Buat pesanan pertama</a>
-              </td></tr>
-            @endforelse
-          </tbody>
-        </table>
-      </div>
-    </section>
+    <div class="mt-5 flex flex-wrap items-center gap-2">
+      <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-lime-accent/15 text-lime-accent font-bold text-xs"><span class="material-symbols-outlined" style="font-size:14px">{{ $arrow($revenueTrend) }}</span>{{ $revenueTrend >= 0 ? '+' : '' }}{{ $revenueTrend }}%</span>
+      <span class="text-xs font-medium text-slate-400">vs kemarin (Rp {{ number_format($revenueY, 0, ',', '.') }})</span>
+    </div>
+    <span aria-hidden="true" class="material-symbols-outlined absolute -right-3 -bottom-4 text-white/5 pointer-events-none" style="font-size:96px">receipt</span>
   </div>
 
-  {{-- Kolom kanan --}}
-  <div class="xl:col-span-4 space-y-6 min-w-0">
-
-    <section class="{{ $surface }} p-6">
-      <div class="flex justify-between items-baseline mb-5">
-        <h2 class="text-xl font-black tracking-tight">Menu terlaris</h2>
-        <span class="text-xs font-semibold text-slate-500">7 hari terakhir</span>
+  <div class="card p-5 sm:p-6 flex flex-col justify-between">
+    <div class="flex items-start justify-between">
+      <div>
+        <span class="{{ $label }}">Total pesanan</span>
+        <div class="mt-2 flex items-baseline gap-1.5"><span class="text-[28px] leading-[34px] font-extrabold tracking-[-0.03em] text-slate-900">{{ $orders }}</span><span class="text-[11px] font-bold text-slate-400">PESANAN</span></div>
       </div>
-      <ul class="space-y-4">
-        @forelse ($topItems as $i)
-          <li class="flex items-center gap-3">
-            <div class="w-12 h-12 rounded-2xl bg-amber-50 grid place-items-center text-2xl overflow-hidden shrink-0">
-              @if ($i->product?->image_url)<img src="{{ $i->product->image_url }}" class="w-full h-full object-cover" alt="">@else{{ $i->product?->emoji ?? '🍽️' }}@endif
-            </div>
-            <div class="flex-1 min-w-0">
-              <div class="flex items-baseline justify-between gap-2">
-                <span class="font-bold truncate">{{ $i->product_name }}</span>
-                <span class="text-sm font-black shrink-0">@rupiah($i->revenue)</span>
-              </div>
-              <div class="mt-1.5 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                <div class="h-full rounded-full bg-gradient-to-r from-blue-600 to-indigo-500" style="width: {{ round($i->sold / $topMax * 100) }}%"></div>
-              </div>
-              <div class="mt-1 text-xs text-slate-500">{{ $i->sold }} terjual</div>
-            </div>
-          </li>
-        @empty
-          <li class="text-sm text-slate-500">Belum ada data penjualan.</li>
-        @endforelse
-      </ul>
-    </section>
+      <div class="w-9 h-9 rounded-xl bg-slate-100 text-slate-600 grid place-items-center shrink-0"><span class="material-symbols-outlined">receipt_long</span></div>
+    </div>
+    <div class="mt-5 flex flex-wrap items-center gap-2">
+      <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-bold text-xs {{ $trendPill($ordersTrend) }}"><span class="material-symbols-outlined" style="font-size:14px">{{ $arrow($ordersTrend) }}</span>{{ $ordersTrend >= 0 ? '+' : '' }}{{ $ordersTrend }}%</span>
+      <span class="text-xs font-medium text-slate-400">selesai hari ini</span>
+    </div>
+  </div>
 
-    <section class="{{ $surface }} p-6">
-      <div class="flex justify-between items-baseline mb-5">
-        <h2 class="text-xl font-black tracking-tight">Stok menipis</h2>
+  <div class="card p-5 sm:p-6 flex flex-col justify-between">
+    <div class="flex items-start justify-between">
+      <div>
+        <span class="{{ $label }}">Rata-rata transaksi</span>
+        <div class="mt-2 text-[28px] leading-[34px] font-extrabold tracking-[-0.03em] text-slate-900 break-all"><span class="text-sm font-bold text-slate-400 align-top mr-1">Rp</span>{{ number_format($avg, 0, ',', '.') }}</div>
+      </div>
+      <div class="w-9 h-9 rounded-xl bg-slate-100 text-slate-600 grid place-items-center shrink-0"><span class="material-symbols-outlined">sell</span></div>
+    </div>
+    <div class="mt-5 flex flex-wrap items-center gap-2">
+      <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-bold text-xs {{ $trendPill($avgTrend) }}"><span class="material-symbols-outlined" style="font-size:14px">{{ $arrow($avgTrend) }}</span>{{ $avgTrend >= 0 ? '+' : '' }}{{ $avgTrend }}%</span>
+      <span class="text-xs font-medium text-slate-400">per pesanan</span>
+    </div>
+  </div>
+
+  <div class="card p-5 sm:p-6 flex flex-col justify-between">
+    <div class="flex items-start justify-between">
+      <div>
+        <span class="{{ $label }}">Dine-in vs takeaway</span>
+        <div class="mt-2 flex items-baseline gap-1.5"><span class="text-[28px] leading-[34px] font-extrabold tracking-[-0.03em] text-slate-900">{{ $dinePct }}<span class="text-xl text-slate-400 font-semibold">%</span></span><span class="text-[11px] font-bold text-slate-400">DINE-IN</span></div>
+      </div>
+      <div class="w-9 h-9 rounded-xl bg-slate-100 text-slate-600 grid place-items-center shrink-0"><span class="material-symbols-outlined">restaurant</span></div>
+    </div>
+    <div class="mt-5">
+      <div class="h-2 rounded-full overflow-hidden flex bg-slate-100"><div class="h-full bg-lime-accent" style="width: {{ $dinePct }}%"></div><div class="h-full hatch" style="width: {{ $mixTotal > 0 ? 100 - $dinePct : 0 }}%"></div></div>
+      <div class="mt-2 text-xs font-medium text-slate-400">Takeaway {{ $mixTotal > 0 ? 100 - $dinePct : 0 }}%</div>
+    </div>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-5">
+  {{-- Grafik per jam --}}
+  <section class="card p-5 sm:p-6 xl:col-span-8 min-w-0">
+    <div class="flex flex-wrap items-start justify-between gap-4 mb-5">
+      <div>
+        <h2 class="text-base font-extrabold text-slate-900">Pendapatan per jam</h2>
+        <p class="text-xs text-slate-400 font-medium">Hari ini, dine-in dan takeaway.@if ($peak) <span class="text-slate-700 font-bold">Tersibuk {{ $peak['label'] }} · {{ $peak['count'] }} pesanan.</span>@endif</p>
+      </div>
+      <dl class="flex gap-5">
+        <div><dt class="flex items-center gap-2 text-xs font-semibold text-slate-500"><span class="w-3 h-3 rounded-full bg-lime-accent"></span>Dine-in</dt><dd class="mt-0.5 text-sm font-extrabold text-slate-900">@rupiah($dineTotal)</dd></div>
+        <div><dt class="flex items-center gap-2 text-xs font-semibold text-slate-500"><span class="w-3 h-3 rounded-full hatch"></span>Takeaway</dt><dd class="mt-0.5 text-sm font-extrabold text-slate-900">@rupiah($takeTotal)</dd></div>
+      </dl>
+    </div>
+
+    <div class="relative h-56">
+      <div aria-hidden="true" class="absolute inset-0 flex flex-col justify-between">
+        <div class="border-t border-slate-100"></div><div class="border-t border-slate-100"></div><div class="border-t border-slate-100"></div><div class="border-t border-slate-200"></div>
+      </div>
+      <div class="relative flex items-end gap-1 sm:gap-2 h-full">
+        @foreach ($chart as $c)
+          @php $tipPos = $loop->first ? 'left-0' : ($loop->last ? 'right-0' : 'left-1/2 -translate-x-1/2'); @endphp
+          <div class="group relative flex-1 min-w-0 h-full flex items-end justify-center gap-0.5 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-[#B1D501]" tabindex="0" role="img"
+               aria-label="{{ $c['label'] }}: {{ $c['count'] }} pesanan, dine-in @rupiah($c['dine']), takeaway @rupiah($c['take'])">
+            <div class="w-full max-w-[14px] rounded-full bg-lime-accent transition group-hover:brightness-95" style="height: {{ max(2, $c['dine'] / $chartMax * 100) }}%"></div>
+            <div class="w-full max-w-[14px] rounded-full hatch transition group-hover:brightness-95" style="height: {{ max(2, $c['take'] / $chartMax * 100) }}%"></div>
+            <div class="hidden group-hover:block group-focus:block absolute -top-11 {{ $tipPos }} z-10 rounded-xl bg-[#181829] text-white text-[11px] font-semibold px-2.5 py-1.5 whitespace-nowrap shadow-lg">
+              {{ $c['label'] }} &middot; {{ $c['count'] }} pesanan
+            </div>
+          </div>
+        @endforeach
+      </div>
+    </div>
+    <div class="flex gap-1 sm:gap-2 mt-2 pt-2 border-t border-slate-100">
+      @foreach ($chart as $c)
+        <div class="flex-1 min-w-0 text-center text-[10px] font-bold {{ $peak && $c['label'] === $peak['label'] ? 'text-slate-900' : 'text-slate-400' }}">{{ substr($c['label'], 0, 2) }}</div>
+      @endforeach
+    </div>
+  </section>
+
+  {{-- Menu terlaris --}}
+  <section class="card p-5 sm:p-6 xl:col-span-4 min-w-0">
+    <div class="flex justify-between items-baseline mb-5">
+      <h2 class="text-base font-extrabold text-slate-900">Menu terlaris</h2>
+      <span class="text-xs font-semibold text-slate-400">7 hari terakhir</span>
+    </div>
+    <ul class="space-y-4">
+      @forelse ($topItems as $i)
+        <li class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-2xl bg-slate-100 grid place-items-center text-2xl overflow-hidden shrink-0">
+            @if ($i->product?->image_url)<img src="{{ $i->product->image_url }}" class="w-full h-full object-cover" alt="">@else{{ $i->product?->emoji ?? '🍽️' }}@endif
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-baseline justify-between gap-2">
+              <span class="font-bold text-sm truncate">{{ $i->product_name }}</span>
+              <span class="text-sm font-extrabold shrink-0">@rupiah($i->revenue)</span>
+            </div>
+            <div class="mt-1.5 h-1.5 rounded-full bg-slate-100 overflow-hidden"><div class="h-full rounded-full bg-lime-accent" style="width: {{ round($i->sold / $topMax * 100) }}%"></div></div>
+            <div class="mt-1 text-xs text-slate-400 font-medium">{{ $i->sold }} terjual</div>
+          </div>
+        </li>
+      @empty
+        <li class="text-sm text-slate-500">Belum ada data penjualan.</li>
+      @endforelse
+    </ul>
+  </section>
+
+  {{-- Pesanan terbaru --}}
+  <section class="card xl:col-span-8 min-w-0 overflow-hidden">
+    <div class="flex justify-between items-center px-5 sm:px-6 pt-5 sm:pt-6 pb-3">
+      <div class="flex items-center gap-2"><h2 class="text-base font-extrabold text-slate-900">Pesanan terbaru</h2><span class="w-2 h-2 rounded-full bg-lime-500 animate-pulse motion-reduce:animate-none"></span></div>
+      @if (auth()->user()->isAdmin())
+        <a href="{{ route('reports.index') }}" class="text-sm font-bold text-brand-600 hover:underline rounded {{ $focus }}">Lihat semua</a>
+      @endif
+    </div>
+
+    {{-- tabel (tablet+) --}}
+    <div class="hidden md:block overflow-x-auto px-2 pb-3">
+      <table class="w-full">
+        <thead><tr class="border-b border-slate-100"><th class="th">Order</th><th class="th">Pelanggan</th><th class="th">Item</th><th class="th">Bayar</th><th class="th text-right">Total</th></tr></thead>
+        <tbody class="divide-y divide-slate-50">
+          @forelse ($recent as $o)
+            <tr class="hover:bg-slate-50/70 transition-colors">
+              <td class="td">
+                <div class="flex items-center gap-2.5">
+                  <span class="w-9 h-9 rounded-xl bg-[#181829] text-lime-accent grid place-items-center shrink-0"><span class="material-symbols-outlined" style="font-size:18px">receipt</span></span>
+                  <div><div class="font-bold text-slate-900">{{ $o->invoice_no }}</div><div class="text-[11px] text-slate-400">{{ $o->paid_at?->format('H:i') }}</div></div>
+                </div>
+              </td>
+              <td class="td"><div class="font-bold">{{ $o->customer->name ?? 'Walk-in' }}</div>
+                <div class="text-[11px] text-slate-400">{{ $o->order_type === 'dine_in' ? 'Dine-in' . ($o->table_no ? ' · Meja ' . $o->table_no : '') : 'Takeaway' }}</div></td>
+              <td class="td text-slate-500 max-w-[200px] truncate">{{ $o->items->map(fn ($i) => $i->qty . '× ' . $i->product_name)->implode(', ') }}</td>
+              <td class="td"><span class="pill pill-slate">{{ \App\Models\Order::PAYMENTS[$o->payment_method] ?? $o->payment_method }}</span></td>
+              <td class="td text-right font-extrabold text-slate-900">@rupiah($o->total)</td>
+            </tr>
+          @empty
+            <tr><td colspan="5" class="px-6 py-12 text-center">
+              <span class="mx-auto mb-3 w-12 h-12 rounded-2xl bg-slate-100 text-slate-500 grid place-items-center"><span class="material-symbols-outlined">receipt_long</span></span>
+              <p class="text-sm font-semibold">Belum ada pesanan.</p>
+              <a href="{{ route('pos') }}" class="inline-block mt-1 text-sm font-bold text-brand-600 hover:underline">Buat pesanan pertama</a>
+            </td></tr>
+          @endforelse
+        </tbody>
+      </table>
+    </div>
+
+    {{-- daftar kartu (mobile) --}}
+    <ul class="md:hidden divide-y divide-slate-50 px-5 pb-3">
+      @forelse ($recent as $o)
+        <li class="py-3.5 flex items-start gap-3">
+          <span class="w-10 h-10 rounded-xl bg-[#181829] text-lime-accent grid place-items-center shrink-0"><span class="material-symbols-outlined" style="font-size:18px">receipt</span></span>
+          <div class="min-w-0 flex-1">
+            <div class="flex justify-between gap-2"><span class="font-bold text-sm truncate">{{ $o->customer->name ?? 'Walk-in' }}</span><span class="font-extrabold text-sm shrink-0">@rupiah($o->total)</span></div>
+            <div class="text-[11px] text-slate-400">{{ $o->invoice_no }} · {{ $o->paid_at?->format('H:i') }} · {{ $o->order_type === 'dine_in' ? 'Dine-in' . ($o->table_no ? ' T' . $o->table_no : '') : 'Takeaway' }}</div>
+            <div class="text-xs text-slate-500 truncate mt-0.5">{{ $o->items->map(fn ($i) => $i->qty . '× ' . $i->product_name)->implode(', ') }}</div>
+            <span class="pill pill-slate mt-1.5">{{ \App\Models\Order::PAYMENTS[$o->payment_method] ?? $o->payment_method }}</span>
+          </div>
+        </li>
+      @empty
+        <li class="py-10 text-center text-sm text-slate-500">Belum ada pesanan. <a href="{{ route('pos') }}" class="font-bold text-brand-600">Buat pesanan pertama</a></li>
+      @endforelse
+    </ul>
+  </section>
+
+  {{-- Kolom kanan bawah --}}
+  <div class="xl:col-span-4 space-y-5 min-w-0">
+    <section class="card p-5 sm:p-6">
+      <div class="flex justify-between items-baseline mb-4">
+        <h2 class="text-base font-extrabold text-slate-900">Stok menipis</h2>
         <a href="{{ route('products.index', ['stock' => 'low']) }}" class="text-sm font-bold text-brand-600 hover:underline rounded {{ $focus }}">Lihat semua</a>
       </div>
-      <ul class="space-y-3">
+      <ul class="space-y-1">
         @forelse ($lowStock as $p)
           <li class="flex items-center justify-between gap-3 p-3 -mx-3 rounded-2xl hover:bg-slate-50 transition-colors">
             <div class="min-w-0">
-              <div class="font-semibold truncate">{{ $p->emoji }} {{ $p->name }}</div>
-              <div class="text-xs text-slate-500">Minimum {{ $p->min_stock }}</div>
+              <div class="font-semibold text-sm truncate">{{ $p->emoji }} {{ $p->name }}</div>
+              <div class="text-xs text-slate-400">Minimum {{ $p->min_stock }}</div>
             </div>
             <span class="pill {{ $p->stock <= 0 ? 'pill-red' : 'pill-amber' }}">{{ $p->stock <= 0 ? 'Habis' : 'Sisa ' . $p->stock }}</span>
           </li>
@@ -219,17 +257,17 @@
       </ul>
     </section>
 
-    <section class="{{ $surface }} p-6">
-      <div class="flex justify-between items-baseline mb-5">
-        <h2 class="text-xl font-black tracking-tight">Staff bertugas</h2>
-        <span class="pill pill-green">● Aktif</span>
+    <section class="card p-5 sm:p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-base font-extrabold text-slate-900">Staff bertugas</h2>
+        <span class="pill pill-blue">● Aktif</span>
       </div>
-      <ul class="space-y-4">
+      <ul class="space-y-3.5">
         @foreach ($staff as $s)
           <li class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-700 to-blue-500 text-white grid place-items-center text-sm font-bold shadow-md shadow-blue-500/25">{{ $s->initials }}</div>
-            <div class="flex-1 min-w-0"><div class="font-bold truncate">{{ $s->name }}</div><div class="text-xs text-slate-500 capitalize">{{ $s->role }}</div></div>
-            <span class="text-xs font-semibold text-slate-500">{{ $s->shift }}</span>
+            <div class="w-10 h-10 rounded-full bg-[#181829] text-lime-accent grid place-items-center text-sm font-bold shrink-0 ring-2 ring-lime-accent/40">{{ $s->initials }}</div>
+            <div class="flex-1 min-w-0"><div class="font-bold text-sm truncate">{{ $s->name }}</div><div class="text-xs text-slate-400 capitalize">{{ $s->role }}</div></div>
+            <span class="text-xs font-semibold text-slate-400">{{ $s->shift }}</span>
           </li>
         @endforeach
       </ul>
@@ -241,7 +279,6 @@
 @push('scripts')
 <script>
   (function () {
-    // Cadangan kalau partials/theme-init belum terpasang; kunci 'theme' sama dengan head
     if (!window.setTheme) {
       window.setTheme = function (mode) {
         document.documentElement.classList.toggle('dark', mode === 'dark');
@@ -254,7 +291,6 @@
       btns.forEach(function (b) { b.setAttribute('aria-pressed', String((b.dataset.themeSet === 'dark') === dark)); });
     }
     btns.forEach(function (b) { b.addEventListener('click', function () { window.setTheme(b.dataset.themeSet); sync(); }); });
-    // ikut berubah kalau tema diganti dari tombol sidebar / tab lain
     new MutationObserver(sync).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     sync();
   })();
