@@ -71,6 +71,9 @@
         <div class="flex flex-wrap gap-2 mt-2" id="quick"></div>
         <div class="flex justify-between mt-2"><span class="text-slate-600">Kembalian</span><b id="sChange">Rp 0</b></div>
       </div>
+      <div id="refBox" class="hidden">
+        <input id="ref" maxlength="60" class="input" placeholder="No. referensi / approval code">
+      </div>
 
       <p id="err" class="hidden text-xs font-semibold text-red-600"></p>
       <button id="charge" class="btn-primary w-full !h-12 text-base disabled:opacity-50 disabled:cursor-not-allowed" disabled>Bayar Rp 0</button>
@@ -162,6 +165,7 @@ const uuid = () => ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (c ^ cryp
 let cat = 0, q = '';
 let customer = @json($customer);
 let orderType = 'dine_in', method = 'cash';
+const needsRef = () => method === 'card' || (method === 'qris' && !QRIS_DYNAMIC);   // QRIS dinamis diverifikasi Midtrans, tanpa input manual
 const byId = Object.fromEntries(PRODUCTS.map(p => [p.id, p]));
 
 /* ---------- Menu ---------- */
@@ -215,7 +219,7 @@ function renderCart() {
   $('sChange').textContent = rp(Math.max(0, paid - t.total));
   $('quick').innerHTML = t.total > 0 ? [t.total, ...[20000, 50000, 100000].filter(v => v > t.total)].map((v, i) => `<button data-q="${v}" class="px-3 h-9 rounded-full bg-slate-100 text-slate-700 hover:bg-lime-accent hover:text-slate-950 text-xs font-bold transition">${i === 0 ? 'Uang pas' : rp(v)}</button>`).join('') : '';
 
-  const ok = t.total > 0 && (method !== 'cash' || paid >= t.total);
+  const ok = t.total > 0 && (method === 'cash' ? paid >= t.total : !needsRef() || $('ref').value.trim() !== '');
   $('charge').disabled = !ok;
 }
 function renderMeta() {
@@ -227,6 +231,7 @@ function renderMeta() {
   document.querySelectorAll('#payTabs button').forEach(b => { const on = b.dataset.m === method; b.className = `h-10 rounded-2xl text-sm font-bold border ${on ? 'chip-on' : 'bg-white text-slate-700 border-slate-200'}`; });
   $('table').classList.toggle('hidden', orderType !== 'dine_in');
   $('cashBox').classList.toggle('hidden', method !== 'cash');
+  $('refBox').classList.toggle('hidden', !needsRef());
 }
 const refresh = () => { renderGrid(); renderCart(); renderMeta(); };
 
@@ -243,6 +248,7 @@ $('typeTabs').addEventListener('click', e => { const b = e.target.closest('[data
 $('payTabs').addEventListener('click', e => { const b = e.target.closest('[data-m]'); if (b) { method = b.dataset.m; renderMeta(); renderCart(); } });
 $('discount').addEventListener('input', renderCart);
 $('paid').addEventListener('input', renderCart);
+$('ref').addEventListener('input', renderCart);
 $('quick').addEventListener('click', e => { const b = e.target.closest('[data-q]'); if (b) { $('paid').value = b.dataset.q; renderCart(); } });
 $('clear').addEventListener('click', () => { cart = {}; $('discount').value = 0; $('paid').value = ''; refresh(); });
 $('jump').addEventListener('click', () => $('cartPanel').scrollIntoView({ behavior: 'smooth' }));
@@ -283,12 +289,13 @@ $('charge').addEventListener('click', async () => {
         items: Object.entries(cart).map(([id, qty]) => ({ product_id: +id, qty })),
         customer_id: customer?.id ?? null, order_type: orderType, table_no: $('table').value || null,
         discount: t.disc, payment_method: method, paid_amount: method === 'cash' ? (+$('paid').value || 0) : t.total,
+        payment_ref: needsRef() ? $('ref').value.trim() : null,
       }),
     });
     const d = await r.json();
     if (!r.ok) { idemKey = null; }   // server menolak -> percobaan berikutnya adalah transaksi baru
     if (!r.ok) throw new Error(d.errors ? Object.values(d.errors)[0][0] : (d.message || 'Transaksi gagal'));
-    idemKey = null;
+    idemKey = null; $('ref').value = '';
     $('doneInv').textContent = d.invoice_no; $('doneTotal').textContent = rp(d.total);
     $('doneChange').textContent = d.change > 0 ? 'Kembalian ' + rp(d.change) : '';
     $('doneView').href = d.receipt_url; $('doneDl').href = d.download_url;

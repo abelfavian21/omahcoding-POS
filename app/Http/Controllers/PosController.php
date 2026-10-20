@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AuditLog;
 use App\Models\Category;
 use App\Models\Customer;
 use App\Models\Order;
@@ -61,7 +62,7 @@ class PosController extends Controller
         return response()->json($this->customerJson(Customer::create($data)), 201);
     }
 
-    public function checkout(Request $request, CheckoutService $checkout)
+    public function checkout(Request $request, CheckoutService $checkout, MidtransClient $mt)
     {
         $bid = $request->user()->business_id;
 
@@ -75,15 +76,27 @@ class PosController extends Controller
             'table_no' => ['nullable', 'string', 'max:10'],
             'discount' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
             'payment_method' => ['required', 'in:cash,qris,card'],
-            'payment_ref' => ['nullable', 'string', 'max:60'],
+            // pembayaran manual (QRIS statis / kartu) tidak bisa diverifikasi server -> wajib nomor referensi
+            'payment_ref' => ['nullable', 'string', 'max:60', 'required_if:payment_method,qris,card'],
             'paid_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999'],
             'note' => ['nullable', 'string', 'max:255'],
         ]);
+
+        // QRIS dinamis aktif: QRIS hanya sah lewat /pos/qris (diverifikasi Midtrans), bukan input manual kasir
+        if ($data['payment_method'] === 'qris' && $mt->enabled()) {
+            return response()->json(['message' => 'QRIS dinamis aktif. Gunakan tombol QRIS untuk membuat kode bayar.'], 422);
+        }
 
         try {
             $order = $checkout->checkout($request->user(), $data);
         } catch (RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
+        }
+
+        if ($data['payment_method'] !== 'cash') {
+            AuditLog::record('order.manual_payment', $order->invoice_no, [
+                'method' => $data['payment_method'], 'ref' => $data['payment_ref'], 'total' => (float) $order->total,
+            ]);
         }
 
         return response()->json([
