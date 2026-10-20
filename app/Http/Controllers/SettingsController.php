@@ -6,6 +6,8 @@ use App\Models\AuditLog;
 use App\Models\QrisPayment;
 use App\Services\MidtransClient;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 class SettingsController extends Controller
@@ -38,6 +40,55 @@ class SettingsController extends Controller
         AuditLog::record('settings.updated', null, ['tax_rate_pct' => (float) $data['tax_rate_pct'], 'tax_label' => $data['tax_label']]);
 
         return redirect()->route('settings.edit')->with('success', 'Pengaturan toko disimpan. Pajak dan struk memakai data ini.');
+    }
+
+    /**
+     * QRIS manual: unggah / ganti / hapus gambar QRIS statis bisnis dan atur apakah nomor referensi wajib.
+     * Gambar disimpan di disk privat dan hanya disajikan lewat route terautentikasi milik bisnis ini.
+     */
+    public function updateQris(Request $request)
+    {
+        $request->validate([
+            'qris_image' => ['nullable', 'file', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048', 'dimensions:min_width=200,min_height=200'],
+        ], [
+            'qris_image.image' => 'File harus berupa gambar (PNG, JPG, atau WEBP).',
+            'qris_image.mimes' => 'Format gambar harus PNG, JPG, atau WEBP.',
+            'qris_image.max' => 'Ukuran gambar maksimal 2 MB.',
+            'qris_image.dimensions' => 'Gambar terlalu kecil (minimal 200x200 piksel) sehingga QR sulit dipindai.',
+        ]);
+
+        $business = $request->user()->business;
+        $old = $business->qris_image;
+
+        if ($request->boolean('remove_image')) {
+            if ($old) {
+                Storage::disk('local')->delete($old);
+            }
+            $business->forceFill(['qris_image' => null])->save();
+            AuditLog::record('settings.qris_image_removed');
+
+            return redirect()->route('settings.edit')->with('success', 'Gambar QRIS dihapus. Kasir kembali wajib mengisi nomor referensi untuk QRIS manual.');
+        }
+
+        $changes = ['qris_require_ref' => $request->boolean('qris_require_ref')];
+
+        if ($request->hasFile('qris_image')) {
+            $file = $request->file('qris_image');
+            $name = 'qris/' . $business->id . '-' . Str::lower(Str::random(16)) . '.' . $file->extension();
+            Storage::disk('local')->putFileAs('qris', $file, basename($name));
+            $changes['qris_image'] = $name;
+        }
+
+        $business->forceFill($changes)->save();
+
+        if (isset($changes['qris_image']) && $old && $old !== $changes['qris_image']) {
+            Storage::disk('local')->delete($old);
+        }
+        AuditLog::record('settings.qris_updated', null, [
+            'image_changed' => isset($changes['qris_image']), 'require_ref' => $changes['qris_require_ref'],
+        ]);
+
+        return redirect()->route('settings.edit')->with('success', 'Pengaturan QRIS manual disimpan.');
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class Business extends Model
@@ -18,7 +19,7 @@ class Business extends Model
 
     protected function casts(): array
     {
-        return ['trial_ends_at' => 'datetime', 'tax_rate' => 'float', 'midtrans_server_key' => 'encrypted'];
+        return ['trial_ends_at' => 'datetime', 'tax_rate' => 'float', 'midtrans_server_key' => 'encrypted', 'qris_require_ref' => 'boolean'];
     }
 
     /** Server Key Midtrans bisnis ini (null bila belum diisi atau tidak bisa didekripsi, mis. APP_KEY berganti). */
@@ -49,6 +50,22 @@ class Business extends Model
     public function users()
     {
         return $this->hasMany(User::class);
+    }
+
+    /** Gambar QRIS statis milik bisnis ini ada di disk privat? */
+    public function hasManualQris(): bool
+    {
+        return filled($this->qris_image) && Storage::disk('local')->exists($this->qris_image);
+    }
+
+    /**
+     * Apakah kasir wajib mengisi nomor referensi untuk QRIS manual?
+     * Tanpa gambar QRIS di Pengaturan: wajib (perilaku lama, karena tidak ada yang bisa diverifikasi).
+     * Dengan gambar: mengikuti opsi admin (default tidak wajib).
+     */
+    public function qrisManualNeedsRef(): bool
+    {
+        return ! $this->hasManualQris() || (bool) $this->qris_require_ref;
     }
 
     /** Tarif pajak bisnis ini; fallback ke config bila belum diatur. */

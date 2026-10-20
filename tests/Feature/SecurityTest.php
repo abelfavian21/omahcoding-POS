@@ -210,8 +210,8 @@ class SecurityTest extends TestCase
 
     public function test_qris_manual_ditolak_saat_qris_dinamis_aktif(): void
     {
-        config(['services.midtrans.server_key' => 'SB-Mid-server-test']);
         $b = $this->business('CS-AAA-1111');
+        $b->forceFill(['midtrans_server_key' => 'SB-Mid-server-test1234'])->save();   // key kini per bisnis, bukan config
         $admin = $this->user($b, 'admin');
         $kasir = $this->user($b, 'kasir');
         $p = $this->product($admin);

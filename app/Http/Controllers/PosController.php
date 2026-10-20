@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use App\Models\CashShift;
 use App\Services\CheckoutService;
 use App\Services\MidtransClient;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use RuntimeException;
 
@@ -39,6 +40,9 @@ class PosController extends Controller
             'shiftOpen' => (bool) CashShift::currentFor($request->user()),
             'nextInvoice' => Order::nextInvoiceNo(),
             'qrisDynamic' => MidtransClient::forBusiness($request->user()->business)->enabled(),
+            'qrisManualUrl' => $request->user()->business?->hasManualQris()
+                ? route('pos.qris.manual', ['v' => substr(md5($request->user()->business->qris_image), 0, 8)]) : null,
+            'qrisNeedsRef' => (bool) $request->user()->business?->qrisManualNeedsRef(),
         ]);
     }
 
@@ -62,9 +66,14 @@ class PosController extends Controller
         return response()->json($this->customerJson(Customer::create($data)), 201);
     }
 
-    public function checkout(Request $request, CheckoutService $checkout, MidtransClient $mt)
+    public function checkout(Request $request, CheckoutService $checkout)
     {
+        // Key Midtrans milik bisnis ini (BUKAN injeksi container: itu membuat klien tanpa key -> enabled() selalu false)
+        $mt = MidtransClient::forBusiness($request->user()->business);
         $bid = $request->user()->business_id;
+        // Nomor referensi: kartu selalu wajib; QRIS manual wajib bila bisnis belum mengunggah gambar QRIS atau admin mewajibkannya
+        $needsRef = $request->input('payment_method') === 'card'
+            || ($request->input('payment_method') === 'qris' && $request->user()->business->qrisManualNeedsRef());
 
         $data = $request->validate([
             'idempotency_key' => ['required', 'uuid'],
@@ -76,8 +85,8 @@ class PosController extends Controller
             'table_no' => ['nullable', 'string', 'max:10'],
             'discount' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
             'payment_method' => ['required', 'in:cash,qris,card'],
-            // pembayaran manual (QRIS statis / kartu) tidak bisa diverifikasi server -> wajib nomor referensi
-            'payment_ref' => ['nullable', 'string', 'max:60', 'required_if:payment_method,qris,card'],
+            // pembayaran manual (QRIS statis / kartu) tidak bisa diverifikasi server; wajib referensi sesuai aturan di atas
+            'payment_ref' => ['nullable', 'string', 'max:60', Rule::requiredIf($needsRef)],
             'paid_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999'],
             'note' => ['nullable', 'string', 'max:255'],
         ]);
@@ -95,7 +104,7 @@ class PosController extends Controller
 
         if ($data['payment_method'] !== 'cash') {
             AuditLog::record('order.manual_payment', $order->invoice_no, [
-                'method' => $data['payment_method'], 'ref' => $data['payment_ref'], 'total' => (float) $order->total,
+                'method' => $data['payment_method'], 'ref' => $data['payment_ref'] ?? null, 'total' => (float) $order->total,
             ]);
         }
 
@@ -107,6 +116,15 @@ class PosController extends Controller
             'receipt_url' => route('orders.receipt', $order),
             'download_url' => route('orders.receipt', [$order, 'download' => 1]),
         ], 201);
+    }
+
+    /** Gambar QRIS manual milik bisnis kasir yang login (disk privat, tidak pernah publik). */
+    public function manualQris(Request $request)
+    {
+        $business = $request->user()->business;
+        abort_unless($business && $business->hasManualQris(), 404);
+
+        return Storage::disk('local')->response($business->qris_image, null, ['Cache-Control' => 'private, max-age=3600']);
     }
 
     private function customerJson(Customer $c): array

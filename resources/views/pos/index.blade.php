@@ -146,12 +146,37 @@
   </div>
 </div>
 
+{{-- Modal QRIS manual (gambar QRIS toko dari Pengaturan) --}}
+<div id="qrisManualModal" class="hidden fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm grid items-end sm:place-items-center sm:p-4">
+  <div class="card w-full max-w-sm p-5 sm:p-6 text-center !rounded-b-none sm:!rounded-3xl max-h-[94vh] overflow-y-auto" style="padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px))">
+    <h3 class="font-extrabold text-lg">Bayar dengan QRIS</h3>
+    <div class="mx-auto mt-3 w-60 max-w-full rounded-2xl border border-slate-200 overflow-hidden grid place-items-center" style="background:#fff;aspect-ratio:1/1">
+      <img id="mqImg" alt="QRIS toko" class="w-full h-full object-contain p-2" style="background:#fff">
+    </div>
+    <a id="mqOpen" target="_blank" rel="noopener" class="inline-block text-xs font-bold underline mt-2">Buka layar penuh</a>
+    <div class="text-xs text-slate-500 mt-3">Total yang harus dibayar</div>
+    <div class="text-[32px] tracking-[-0.03em] font-extrabold" id="mqTotal">Rp 0</div>
+    <p class="text-xs text-slate-500 mt-1">Minta pelanggan scan dan pastikan nominalnya sesuai. Tekan konfirmasi setelah uang masuk.</p>
+    <div id="mqRefBox" class="hidden mt-3 text-left">
+      <label class="label" for="mqRef">Kode konfirmasi / approval code</label>
+      <input id="mqRef" maxlength="60" class="input" placeholder="Masukkan kode dari bukti pembayaran" autocomplete="off">
+    </div>
+    <p id="mqErr" class="hidden text-xs font-semibold text-red-600 mt-2"></p>
+    <div class="grid gap-2 mt-4">
+      <button id="mqConfirm" class="btn-primary !h-12 text-base disabled:opacity-50">Konfirmasi Pembayaran</button>
+      <button id="mqCancel" class="btn-secondary">Batal</button>
+    </div>
+  </div>
+</div>
+
 @push('scripts')
 <script>
 const PRODUCTS = @json($products);
 const CATEGORIES = @json($categories);
 const TAX_RATE = {{ $taxRate }};
 const URLS = { customers: @json(route('pos.customers')), newCustomer: @json(route('pos.customers.store')), checkout: @json(route('pos.checkout')), qris: @json(route('pos.qris.store')) };
+const QRIS_MANUAL_URL = @json($qrisManualUrl ?? null);   // gambar QRIS statis bisnis (Pengaturan); null = belum diunggah
+const QRIS_NEEDS_REF = @json($qrisNeedsRef ?? true);     // di modal QRIS manual: tampilkan input kode konfirmasi (opsi admin, default mati)
 const QRIS_DYNAMIC = @json($qrisDynamic ?? false);   // true bila MIDTRANS_SERVER_KEY terisi; false = QRIS manual seperti sebelumnya
 const CSRF = document.querySelector('meta[name=csrf-token]').content;
 
@@ -165,7 +190,7 @@ const uuid = () => ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (c ^ cryp
 let cat = 0, q = '';
 let customer = @json($customer);
 let orderType = 'dine_in', method = 'cash';
-const needsRef = () => method === 'card' || (method === 'qris' && !QRIS_DYNAMIC);   // QRIS dinamis diverifikasi Midtrans, tanpa input manual
+const needsRef = () => method === 'card' || (method === 'qris' && !QRIS_DYNAMIC && !QRIS_MANUAL_URL);   // dengan gambar QRIS: konfirmasi lewat modal   // QRIS dinamis diverifikasi Midtrans, tanpa input manual
 const byId = Object.fromEntries(PRODUCTS.map(p => [p.id, p]));
 
 /* ---------- Menu ---------- */
@@ -276,9 +301,15 @@ $('newBtn').addEventListener('click', async () => {
 });
 
 /* ---------- Checkout ---------- */
-$('charge').addEventListener('click', async () => {
+$('charge').addEventListener('click', () => {
   if (method === 'qris' && QRIS_DYNAMIC) return startQris();
-  const btn = $('charge'), err = $('err'); err.classList.add('hidden');
+  if (method === 'qris' && QRIS_MANUAL_URL) return openManualQris();
+  return runCheckout(needsRef() ? $('ref').value.trim() : null, $('err'), $('charge'));
+});
+
+async function runCheckout(refValue, err, btn) {
+  err.classList.add('hidden');
+  const label = btn.textContent;
   btn.disabled = true; btn.textContent = 'Memproses…';
   const t = totals();
   try {
@@ -289,20 +320,39 @@ $('charge').addEventListener('click', async () => {
         items: Object.entries(cart).map(([id, qty]) => ({ product_id: +id, qty })),
         customer_id: customer?.id ?? null, order_type: orderType, table_no: $('table').value || null,
         discount: t.disc, payment_method: method, paid_amount: method === 'cash' ? (+$('paid').value || 0) : t.total,
-        payment_ref: needsRef() ? $('ref').value.trim() : null,
+        payment_ref: refValue || null,
       }),
     });
     const d = await r.json();
     if (!r.ok) { idemKey = null; }   // server menolak -> percobaan berikutnya adalah transaksi baru
     if (!r.ok) throw new Error(d.errors ? Object.values(d.errors)[0][0] : (d.message || 'Transaksi gagal'));
-    idemKey = null; $('ref').value = '';
+    idemKey = null; $('ref').value = ''; $('mqRef').value = '';
+    $('qrisManualModal').classList.add('hidden');
     $('doneInv').textContent = d.invoice_no; $('doneTotal').textContent = rp(d.total);
     $('doneChange').textContent = d.change > 0 ? 'Kembalian ' + rp(d.change) : '';
     $('doneView').href = d.receipt_url; $('doneDl').href = d.download_url;
     $('doneModal').classList.remove('hidden');
   } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
+  btn.textContent = label; btn.disabled = false;
   renderCart();
+}
+
+/* ---------- QRIS manual (gambar QRIS toko) ---------- */
+function openManualQris() {
+  $('mqTotal').textContent = rp(totals().total);
+  if ($('mqImg').getAttribute('src') !== QRIS_MANUAL_URL) $('mqImg').src = QRIS_MANUAL_URL;
+  $('mqOpen').href = QRIS_MANUAL_URL;
+  $('mqRefBox').classList.toggle('hidden', !QRIS_NEEDS_REF);
+  $('mqRef').value = ''; $('mqErr').classList.add('hidden');
+  $('qrisManualModal').classList.remove('hidden');
+  if (QRIS_NEEDS_REF) $('mqRef').focus();
+}
+$('mqConfirm').addEventListener('click', () => {
+  const ref = $('mqRef').value.trim(), err = $('mqErr');
+  if (QRIS_NEEDS_REF && !ref) { err.textContent = 'Isi kode konfirmasi / approval code.'; err.classList.remove('hidden'); return; }
+  runCheckout(QRIS_NEEDS_REF ? ref : null, err, $('mqConfirm'));
 });
+$('mqCancel').addEventListener('click', () => { if (!$('mqConfirm').disabled) $('qrisManualModal').classList.add('hidden'); });
 /* ---------- QRIS dinamis (Midtrans) ---------- */
 let qris = null, qrisPoll = null, qrisTick = null, qrisLeft = 0, qrisImgFor = null;
 const JSON_HEADERS = { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': CSRF };
@@ -451,6 +501,7 @@ if (window.Voice) {
     }
     if ($('custModal') && !$('custModal').classList.contains('hidden')) return false;
     if (!$('qrisModal').classList.contains('hidden')) return false;
+    if (!$('qrisManualModal').classList.contains('hidden')) return false;
 
     if (/\b(kosongkan|bersihkan|reset)\b|\b(hapus|batalkan|batal) (semua|keranjang|pesanan)\b/.test(t)) {
       cart = {}; $('discount').value = 0; $('paid').value = ''; touch(); V.say('Keranjang dikosongkan'); return true;

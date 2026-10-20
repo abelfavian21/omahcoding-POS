@@ -18,6 +18,40 @@
     <div class="pt-2"><button class="btn-primary w-full sm:w-auto">Simpan</button></div>
   </form>
 
+  {{-- ===== QRIS manual: gambar QRIS statis toko ===== --}}
+  <div class="card p-5 sm:p-6 space-y-4 mt-5">
+    <div class="flex items-center gap-3">
+      <span class="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 grid place-items-center shrink-0"><span class="material-symbols-outlined">qr_code</span></span>
+      <div class="min-w-0"><h2 class="font-extrabold text-base">QRIS manual (gambar QRIS toko)</h2><p class="text-xs text-slate-500">Dipakai bila QRIS dinamis Midtrans tidak aktif. Gambar tampil di jendela pembayaran kasir setelah menekan Bayar dengan QRIS.</p></div>
+    </div>
+    <form method="POST" action="{{ route('settings.qris') }}" enctype="multipart/form-data" class="space-y-3">
+      @csrf @method('PUT')
+      @if ($business->hasManualQris())
+        <div class="flex items-center gap-4 rounded-2xl bg-slate-50 p-3">
+          <img src="{{ route('pos.qris.manual', ['v' => substr(md5($business->qris_image), 0, 8)]) }}" alt="QRIS toko" class="w-24 h-24 rounded-xl bg-white p-1" style="object-fit:contain">
+          <div class="text-xs text-slate-500">Gambar QRIS tersimpan. Pilih file baru untuk menggantinya.</div>
+        </div>
+      @endif
+      <div>
+        <label class="label" for="qimg">{{ $business->hasManualQris() ? 'Ganti gambar QRIS' : 'Unggah gambar QRIS' }}</label>
+        <input id="qimg" name="qris_image" type="file" accept="image/png,image/jpeg,image/webp" class="input !h-auto py-2">
+        @error('qris_image')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+        <p class="text-[11px] text-slate-400 mt-1.5">PNG, JPG, atau WEBP, maksimal 2 MB, minimal 200x200 piksel. Pakai gambar QRIS resmi toko yang bisa discan.</p>
+      </div>
+      <label class="flex items-start gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm cursor-pointer">
+        <input type="checkbox" name="qris_require_ref" value="1" class="mt-1" @checked(old('qris_require_ref', $business->qris_require_ref))>
+        <span><b>Minta kode konfirmasi / approval code</b><br><span class="text-xs text-slate-500">Nonaktif (default): kasir hanya menekan tombol Konfirmasi Pembayaran setelah uang masuk. Aktifkan bila Anda ingin ada kode bukti di setiap pembayaran QRIS. Tanpa gambar QRIS, nomor referensi selalu wajib.</span></span>
+      </label>
+      <div class="flex flex-col sm:flex-row gap-2"><button class="btn-primary">Simpan QRIS manual</button></div>
+    </form>
+    @if ($business->hasManualQris())
+      <form method="POST" action="{{ route('settings.qris') }}" onsubmit="return confirm('Hapus gambar QRIS? Kasir kembali wajib mengisi nomor referensi.')">
+        @csrf @method('PUT')<input type="hidden" name="remove_image" value="1">
+        <button class="btn-ghost !h-9 !px-3 text-red-600 text-xs">Hapus gambar QRIS</button>
+      </form>
+    @endif
+  </div>
+
   {{-- ===== QRIS dinamis (Midtrans): satu Server Key per bisnis ===== --}}
   @php $mid = \App\Services\MidtransClient::forBusiness($business); @endphp
   <div class="card p-5 sm:p-6 space-y-4 mt-5">

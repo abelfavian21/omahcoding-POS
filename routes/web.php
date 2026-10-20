@@ -43,6 +43,8 @@ Route::middleware(['auth', 'account'])->group(function () {
     Route::get('/pos/customers', [PosController::class, 'customers'])->middleware('throttle:120,1')->name('pos.customers');
     Route::post('/pos/customers', [PosController::class, 'quickCustomer'])->middleware('throttle:30,1')->name('pos.customers.store');
     Route::post('/pos/checkout', [PosController::class, 'checkout'])->middleware('throttle:60,1')->name('pos.checkout');
+    // QRIS manual: gambar QRIS statis milik bisnis (disajikan hanya ke user bisnis tsb)
+    Route::get('/pos/qris-manual', [PosController::class, 'manualQris'])->middleware('throttle:120,1')->name('pos.qris.manual');
     // QRIS dinamis (Midtrans)
     Route::post('/pos/qris', [QrisController::class, 'store'])->middleware('throttle:30,1')->name('pos.qris.store');
     Route::get('/pos/qris/{payment}', [QrisController::class, 'show'])->middleware('throttle:90,1')->name('pos.qris.show');
@@ -77,6 +79,7 @@ Route::middleware(['auth', 'account'])->group(function () {
 
         Route::get('/settings', [SettingsController::class, 'edit'])->name('settings.edit');
         Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
+        Route::put('/settings/qris', [SettingsController::class, 'updateQris'])->middleware('throttle:20,1')->name('settings.qris');
         Route::put('/settings/midtrans', [SettingsController::class, 'updateMidtrans'])->middleware('throttle:10,1')->name('settings.midtrans');
         Route::get('/audit', [AuditController::class, 'index'])->name('audit.index');
     });

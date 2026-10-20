@@ -95,9 +95,13 @@ class MidtransClient
     public function verifyKey(): void
     {
         $body = $this->status('keycheck-' . Str::lower(Str::random(12)));
+        $code = (string) ($body['status_code'] ?? '');
 
-        if ((string) ($body['status_code'] ?? '') === '401') {
+        if (in_array($code, ['401', '403'], true)) {
             throw new RuntimeException('Server Key ditolak Midtrans. Pastikan key benar dan berasal dari akun Midtrans bisnis ini.');
+        }
+        if ($code === '') {
+            throw new RuntimeException('Midtrans tidak memberi respons yang bisa dibaca. Coba lagi sebentar.');
         }
     }
 
