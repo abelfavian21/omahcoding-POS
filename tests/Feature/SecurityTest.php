@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AuditLog;
 use App\Models\Business;
 use App\Models\BusinessCategory;
 use App\Models\CashShift;
@@ -100,6 +101,25 @@ class SecurityTest extends TestCase
         $this->assertSame(0, Customer::count());
     }
 
+    private function ipDiAuditLogin(?string $trusted): ?string
+    {
+        config(['trustedproxy.proxies' => $trusted]);
+        $this->withServerVariables(['REMOTE_ADDR' => '10.0.0.1'])->withHeader('X-Forwarded-For', '203.0.113.9')
+            ->post(route('login.password'), ['email' => 'x@t.test', 'password' => 'salah-banget']);
+
+        return \App\Models\AuditLog::withoutGlobalScopes()->where('action', 'login.failed')->value('ip');
+    }
+
+    public function test_ip_asli_hanya_dibaca_dari_proxy_yang_dipercaya(): void
+    {
+        $this->assertSame('10.0.0.1', $this->ipDiAuditLogin(null));   // header palsu diabaikan
+    }
+
+    public function test_ip_asli_terbaca_lewat_proxy_yang_dipercaya(): void
+    {
+        $this->assertSame('203.0.113.9', $this->ipDiAuditLogin('10.0.0.0/8'));
+    }
+
     public function test_admin_tidak_bisa_login_dengan_pin_tapi_kasir_bisa(): void
     {
         $b = $this->business('CS-AAA-1111');
@@ -169,6 +189,37 @@ class SecurityTest extends TestCase
         $p = $this->product($admin);
 
         $this->actingAs($kasir)->postJson(route('pos.checkout'), $this->payload($p))->assertStatus(422);
+    }
+
+    public function test_pembayaran_manual_non_tunai_wajib_nomor_referensi(): void
+    {
+        $b = $this->business('CS-AAA-1111');
+        $admin = $this->user($b, 'admin');
+        $kasir = $this->user($b, 'kasir');
+        $p = $this->product($admin);
+        $this->openShift($kasir);
+
+        $card = $this->payload($p, ['payment_method' => 'card']);
+        $this->actingAs($kasir)->postJson(route('pos.checkout'), $card)
+            ->assertStatus(422)->assertJsonValidationErrors('payment_ref');
+
+        $this->actingAs($kasir)->postJson(route('pos.checkout'), $card + ['payment_ref' => 'APPR-123456'])
+            ->assertCreated();
+        $this->assertTrue(AuditLog::withoutGlobalScopes()->where('action', 'order.manual_payment')->exists());
+    }
+
+    public function test_qris_manual_ditolak_saat_qris_dinamis_aktif(): void
+    {
+        $b = $this->business('CS-AAA-1111');
+        $b->forceFill(['midtrans_server_key' => 'SB-Mid-server-test1234'])->save();   // key kini per bisnis, bukan config
+        $admin = $this->user($b, 'admin');
+        $kasir = $this->user($b, 'kasir');
+        $p = $this->product($admin);
+        $this->openShift($kasir);
+
+        $this->actingAs($kasir)->postJson(route('pos.checkout'), $this->payload($p, ['payment_method' => 'qris', 'payment_ref' => 'X1']))
+            ->assertStatus(422);
+        $this->assertSame(0, Order::withoutGlobalScopes()->count());
     }
 
     public function test_checkout_idempotent_tidak_menggandakan_transaksi_dan_stok(): void

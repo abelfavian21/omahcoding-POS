@@ -15,10 +15,11 @@ use RuntimeException;
 /** Sisi kasir untuk QRIS dinamis: buat QR, pantau status, batalkan, tampilkan gambar QR. */
 class QrisController extends Controller
 {
-    public function store(Request $request, QrisPaymentService $svc, MidtransClient $mt)
+    public function store(Request $request, QrisPaymentService $svc)
     {
+        $mt = MidtransClient::forBusiness($request->user()->business);
         if (! $mt->enabled()) {
-            return response()->json(['message' => 'QRIS dinamis belum dikonfigurasi. Gunakan QRIS manual atau hubungi admin.'], 503);
+            return response()->json(['message' => 'QRIS dinamis belum aktif untuk bisnis ini. Admin dapat mengisi Midtrans Server Key di menu Pengaturan.'], 503);
         }
 
         $bid = $request->user()->business_id;
@@ -34,7 +35,7 @@ class QrisController extends Controller
             'note' => ['nullable', 'string', 'max:255'],
         ]);
 
-        if (config('pos.require_shift') && ! CashShift::currentFor($request->user())) {
+        if ($request->user()->business?->requiresShift() && ! CashShift::currentFor($request->user())) {
             return response()->json(['message' => 'Buka shift kasir terlebih dahulu sebelum menerima pembayaran.'], 422);
         }
 
@@ -47,9 +48,10 @@ class QrisController extends Controller
         return response()->json($this->present($payment, $mt), 201);
     }
 
-    public function show(Request $request, QrisPayment $payment, QrisPaymentService $svc, MidtransClient $mt)
+    public function show(Request $request, QrisPayment $payment, QrisPaymentService $svc)
     {
         $this->authorizeAccess($request, $payment);
+        $mt = MidtransClient::forBusiness($request->user()->business);
 
         // Cadangan bila webhook belum/ tidak sampai (mis. server lokal tanpa URL publik): cek ke Midtrans tiap ≥ 6 detik.
         if ($payment->status === QrisPayment::PENDING && (! $payment->checked_at || $payment->checked_at->diffInSeconds(now()) >= 6)) {
@@ -59,9 +61,10 @@ class QrisController extends Controller
         return response()->json($this->present($payment, $mt));
     }
 
-    public function cancel(Request $request, QrisPayment $payment, QrisPaymentService $svc, MidtransClient $mt)
+    public function cancel(Request $request, QrisPayment $payment, QrisPaymentService $svc)
     {
         $this->authorizeAccess($request, $payment);
+        $mt = MidtransClient::forBusiness($request->user()->business);
 
         return response()->json($this->present($svc->cancel($payment), $mt));
     }

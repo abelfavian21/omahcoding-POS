@@ -148,20 +148,20 @@
       w:{ gudang:3, peralatan:2, server:1.5, lobby:1.2, desk:2, pantry:1, meeting:1, dispenser:.8, toilet:.4, santai:.6 } },
   ];
   const SAY = {
-    desk: { Raka:['Build-nya lolos! 🎉','Push kecil, dampak besar.','Fix bug checkout dulu.','Refactor dikit ah.'],
-            Naya:['Aku rapikan UI dulu ya.','Warna tombolnya pas banget.','Layout dashboard sudah oke 🎨','Cek kontras dark mode.'],
+    desk: { Raka:['Build-nya lolos!','Push kecil, dampak besar.','Fix bug checkout dulu.','Refactor dikit ah.'],
+            Naya:['Aku rapikan UI dulu ya.','Warna tombolnya pas banget.','Layout dashboard sudah oke','Cek kontras dark mode.'],
             Bimo:['Rekap stok masuk dulu.','Jadwal kirim sudah rapi.','Cek laporan harian.'] },
     meeting:['Cek agenda dulu ya.','Catat poin penting.','Siapkan bahan presentasi.'],
-    pantry:['Ada yang mau ngopi? ☕','Air panasnya sudah siap.','Istirahat sebentar ☕','Camilan masih ada?'],
-    gudang:['Stok gudang aman.','Paket baru sudah datang 📦','Hitung ulang stok rak.','Forklift jangan dipinjam dulu!'],
-    server:['Server kelihatan sehat.','Uptime aman 👍','Cek backup malam ini.'],
+    pantry:['Ada yang mau ngopi?','Air panasnya sudah siap.','Istirahat sebentar','Camilan masih ada?'],
+    gudang:['Stok gudang aman.','Paket baru sudah datang','Hitung ulang stok rak.','Forklift jangan dipinjam dulu!'],
+    server:['Server kelihatan sehat.','Uptime aman','Cek backup malam ini.'],
     peralatan:['Aku cek perlengkapan dulu.','Helm dan alat aman.','Perlengkapan lengkap.'],
     manager:['Update progres ke manager.','Ada yang perlu disetujui?','Aku laporan sebentar.'],
     hr:['Ambil berkas cuti dulu.','Rekap absensi minggu ini.','Titip dokumen ya.'],
-    santai:['Istirahat sebentar…','Rileks dulu 5 menit.','Kursinya empuk banget 😌'],
-    toilet:['Sebentar ya 🚻'],
+    santai:['Istirahat sebentar…','Rileks dulu 5 menit.','Kursinya empuk banget'],
+    toilet:['Sebentar ya'],
     lobby:['Ada tamu hari ini?','Cek paket di pintu.','Lobi rapi, aman.'],
-    dispenser:['Isi botol dulu 💧','Air dinginnya segar.'],
+    dispenser:['Isi botol dulu','Air dinginnya segar.'],
   };
   const RAPAT = ['Oke, kita mulai rapat.','Progres minggu ini lancar.','Ada kendala di stok?','Siap, aku follow up.','Deal, kita lanjut!','Catat sebagai prioritas.'];
   const PLACE_NAME = Object.fromEntries(STATIONS.map(s => [s.group, s.place]));

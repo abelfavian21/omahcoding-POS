@@ -16,20 +16,22 @@ use Throwable;
  */
 class MidtransWebhookController extends Controller
 {
-    public function notify(Request $request, MidtransClient $mt, QrisPaymentService $svc)
+    public function notify(Request $request, QrisPaymentService $svc)
     {
         $n = $request->json()->all() ?: $request->all();
 
-        if (! $mt->validSignature($n)) {
-            Log::warning('Midtrans notify: signature tidak valid', ['ip' => $request->ip()]);
-
-            return response()->json(['message' => 'invalid signature'], 403);
-        }
-
-        // Tanpa login -> tidak ada filter bisnis; order_id Midtrans unik se-akun sehingga aman.
-        $payment = QrisPayment::where('midtrans_order_id', $n['order_id'])->first();
+        // Tanpa login -> tidak ada filter bisnis. order_id kita unik secara global (memuat id bisnis + acak),
+        // jadi dari sini diketahui bisnis mana (dan Server Key mana) yang berhak memverifikasi notifikasi ini.
+        $orderId = $n['order_id'] ?? null;
+        $payment = is_string($orderId) && $orderId !== '' ? QrisPayment::with('business')->where('midtrans_order_id', $orderId)->first() : null;
         if (! $payment) {
             return response()->json(['message' => 'ignored']);   // mis. tombol "Test notification" di dashboard
+        }
+
+        if (! MidtransClient::forBusiness($payment->business)->validSignature($n)) {
+            Log::warning('Midtrans notify: signature tidak valid', ['ip' => $request->ip(), 'order' => $orderId]);
+
+            return response()->json(['message' => 'invalid signature'], 403);
         }
 
         try {

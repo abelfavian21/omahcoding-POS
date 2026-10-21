@@ -25,6 +25,10 @@ class ShiftController extends Controller
             'note' => ['nullable', 'string', 'max:255'],
         ]);
 
+        if (! $request->user()->business?->requiresShift()) {
+            return back()->withErrors(['opening_cash' => 'Fitur shift kasir sedang dinonaktifkan oleh admin (Pengaturan).']);
+        }
+
         if (CashShift::currentFor($request->user())) {
             return back()->withErrors(['opening_cash' => 'Masih ada shift yang terbuka. Tutup dulu sebelum buka yang baru.']);
         }

@@ -24,13 +24,24 @@ use Throwable;
  */
 class QrisPaymentService
 {
-    public function __construct(private MidtransClient $mt, private CheckoutService $checkout)
+    public function __construct(private CheckoutService $checkout)
     {
+    }
+
+    /** Klien Midtrans milik bisnis pemilik pembayaran (Server Key per bisnis). */
+    private function client(QrisPayment $payment): MidtransClient
+    {
+        return MidtransClient::forBusiness($payment->business);
     }
 
     public function start(User $user, array $data): QrisPayment
     {
         $key = $data['idempotency_key'];
+
+        $mt = MidtransClient::forBusiness($user->business);
+        if (! $mt->enabled()) {
+            throw new RuntimeException('QRIS dinamis belum aktif untuk bisnis ini. Admin dapat mengisi Midtrans Server Key di menu Pengaturan.');
+        }
 
         if (QrisPayment::where('idempotency_key', $key)->where('status', QrisPayment::REVIEW)->exists()) {
             throw new RuntimeException('Pembayaran QRIS untuk pesanan ini perlu dicek admin. Jangan scan ulang; lihat Audit Log.');
@@ -71,7 +82,7 @@ class QrisPaymentService
         ]);
 
         try {
-            $res = $this->mt->chargeQris($payment->midtrans_order_id, $amount);
+            $res = $mt->chargeQris($payment->midtrans_order_id, $amount);
         } catch (RuntimeException $e) {
             $payment->update(['status' => QrisPayment::FAILED, 'failure_reason' => mb_substr($e->getMessage(), 0, 255)]);
             throw $e;
@@ -91,7 +102,7 @@ class QrisPaymentService
     /** Tanya status ke Midtrans lalu terapkan. Melempar RuntimeException bila gateway tidak terjangkau. */
     public function sync(QrisPayment $payment): QrisPayment
     {
-        $mt = $this->mt->status($payment->midtrans_order_id);
+        $mt = $this->client($payment)->status($payment->midtrans_order_id);
         $payment->forceFill(['checked_at' => now()])->saveQuietly();
 
         return $this->apply($payment, $mt);
@@ -117,7 +128,7 @@ class QrisPaymentService
         }
 
         try {
-            $this->mt->cancel($payment->midtrans_order_id);
+            $this->client($payment)->cancel($payment->midtrans_order_id);
         } catch (RuntimeException $e) {
             report($e);
         }

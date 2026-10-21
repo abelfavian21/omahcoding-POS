@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class Business extends Model
@@ -13,9 +14,32 @@ class Business extends Model
         'tax_rate', 'tax_label', 'receipt_footer',
     ];
 
+    /** Kunci pembayaran tidak boleh ikut ter-serialize ke JSON / log. */
+    protected $hidden = ['midtrans_server_key'];
+
     protected function casts(): array
     {
-        return ['trial_ends_at' => 'datetime', 'tax_rate' => 'float'];
+        return ['trial_ends_at' => 'datetime', 'tax_rate' => 'float', 'midtrans_server_key' => 'encrypted', 'qris_require_ref' => 'boolean', 'shift_enabled' => 'boolean'];
+    }
+
+    /** Server Key Midtrans bisnis ini (null bila belum diisi atau tidak bisa didekripsi, mis. APP_KEY berganti). */
+    public function midtransKey(): ?string
+    {
+        try {
+            $k = $this->midtrans_server_key;
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        return filled($k) ? $k : null;
+    }
+
+    /** Petunjuk aman untuk ditampilkan di UI: 4 karakter terakhir saja. */
+    public function midtransKeyHint(): ?string
+    {
+        $k = $this->midtransKey();
+
+        return $k ? '…' . substr($k, -4) : null;
     }
 
     public function category()
@@ -26,6 +50,27 @@ class Business extends Model
     public function users()
     {
         return $this->hasMany(User::class);
+    }
+
+    /** Wajib buka shift sebelum menerima pembayaran? Diatur admin di Pengaturan (default aktif). */
+    public function requiresShift(): bool
+    {
+        return (bool) $this->shift_enabled;
+    }
+
+    /** Gambar QRIS statis milik bisnis ini ada di disk privat? */
+    public function hasManualQris(): bool
+    {
+        return filled($this->qris_image) && Storage::disk('local')->exists($this->qris_image);
+    }
+
+    /**
+     * Apakah kasir wajib mengisi nomor referensi untuk QRIS manual?
+     * Mengikuti opsi admin di Pengaturan (qris_require_ref), default nonaktif untuk bisnis baru.
+     */
+    public function qrisManualNeedsRef(): bool
+    {
+        return (bool) $this->qris_require_ref;
     }
 
     /** Tarif pajak bisnis ini; fallback ke config bila belum diatur. */

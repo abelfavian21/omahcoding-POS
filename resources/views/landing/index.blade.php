@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@20..48,400,0..1&display=swap" rel="stylesheet">
   <script>
     tailwind.config = {
       theme: {
@@ -32,6 +33,8 @@
   </script>
   @verbatim
   <style>
+    .material-symbols-outlined { font-family: 'Material Symbols Outlined'; font-weight: normal; font-style: normal; font-size: 20px; line-height: 1; letter-spacing: normal; text-transform: none; display: inline-block; white-space: nowrap; direction: ltr; vertical-align: middle; font-variation-settings: 'FILL' 0; -webkit-font-smoothing: antialiased; }
+    .fill-1 { font-variation-settings: 'FILL' 1 !important; }
     /* Parallax & Ambient Background Styles */
     .bg-grid-pattern {
       background-size: 40px 40px;
@@ -208,7 +211,7 @@
                 <div class="space-y-2.5">
                   <div class="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-100">
                     <div class="flex items-center gap-3">
-                      <div class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-xs">🥟</div>
+                      <div class="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-xs"><x-ico v="tapas" style="font-size:18px" /></div>
                       <div>
                         <div class="text-xs font-bold text-slate-800">Chicken Dimsum (x1)</div>
                         <div class="text-[10px] text-slate-400">Sides & Appetizer</div>
@@ -219,7 +222,7 @@
 
                   <div class="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-100">
                     <div class="flex items-center gap-3">
-                      <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-xs">🍵</div>
+                      <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-xs"><x-ico v="emoji_food_beverage" style="font-size:18px" /></div>
                       <div>
                         <div class="text-xs font-bold text-slate-800">Matcha Latte (x1)</div>
                         <div class="text-[10px] text-slate-400">Drinks &bull; Oat Milk</div>
@@ -230,7 +233,7 @@
 
                   <div class="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-100">
                     <div class="flex items-center gap-3">
-                      <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center font-bold text-xs">🍛</div>
+                      <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center font-bold text-xs"><x-ico v="rice_bowl" style="font-size:18px" /></div>
                       <div>
                         <div class="text-xs font-bold text-slate-800">Omurice Bowl (x2)</div>
                         <div class="text-[10px] text-slate-400">Main Course</div>
@@ -461,7 +464,7 @@
   <section id="auth-section" class="py-20 bg-[#f4f7fc] relative z-20">
     <div id="masuk" class="max-w-xl mx-auto px-6">
       <div class="bg-white rounded-3xl shadow-xl border border-slate-200/90 p-8 sm:p-10 text-center space-y-5">
-        <div class="w-14 h-14 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center mx-auto text-2xl">👤</div>
+        <div class="w-14 h-14 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center mx-auto"><x-ico v="person" style="font-size:30px" /></div>
         <h2 class="text-2xl font-black text-slate-900">Kamu sedang masuk</h2>
         <p class="text-sm text-slate-600">Akun aktif: <strong>{{ auth()->user()->name }}</strong> ({{ auth()->user()->business?->name ?? config('pos.store_name') }}). Untuk mendaftarkan usaha lain atau masuk dengan akun berbeda, keluar dulu.</p>
         <div class="flex flex-col sm:flex-row gap-3 justify-center">
@@ -598,10 +601,10 @@
               <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
                 @foreach ($categories as $c)
                   <div class="cat-card relative p-5 rounded-2xl border-2 shadow-sm transition-all {{ $c->is_active ? 'cursor-pointer' : 'cursor-not-allowed opacity-60' }}"
-                       data-slug="{{ $c->slug }}" data-name="{{ $c->name }}" data-icon="{{ $c->icon }}" data-active="{{ $c->is_active ? 1 : 0 }}">
+                       data-slug="{{ $c->slug }}" data-name="{{ $c->name }}" data-icon="{{ \App\Support\Icons::name($c->icon, 'storefront') }}" data-active="{{ $c->is_active ? 1 : 0 }}">
                     <div class="flex items-center justify-between mb-3">
-                      <div class="w-12 h-12 rounded-xl bg-{{ $c->color }}-100 text-{{ $c->color }}-600 flex items-center justify-center text-2xl">{{ $c->icon }}</div>
-                      <div class="check-icon w-6 h-6 rounded-full bg-blue-600 text-white items-center justify-center text-xs font-bold hidden">✓</div>
+                      <div class="w-12 h-12 rounded-xl bg-{{ $c->color }}-100 text-{{ $c->color }}-600 flex items-center justify-center"><x-ico :v="$c->icon" fallback="storefront" style="font-size:26px" /></div>
+                      <div class="check-icon w-6 h-6 rounded-full bg-blue-600 text-white items-center justify-center text-xs font-bold hidden"><x-ico v="check" style="font-size:16px" /></div>
                     </div>
                     <h4 class="font-extrabold text-slate-900 text-base mb-1">{{ $c->name }}</h4>
                     <p class="text-xs text-slate-500 leading-relaxed mb-3">{{ $c->tagline }}</p>
@@ -629,7 +632,7 @@
             {{-- Langkah 3 --}}
             <div id="step-3-content" class="max-w-2xl mx-auto space-y-6 hidden">
               <div class="text-center space-y-1">
-                <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-2 font-bold text-xl">✓</div>
+                <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-2 font-bold"><x-ico v="check" style="font-size:26px" /></div>
                 <h3 class="text-xl font-black text-slate-900">Langkah 3: Konfirmasi Data Usaha Anda</h3>
                 <p class="text-xs text-slate-500">Periksa ringkasan sebelum akun CashierStore Anda dibuat.</p>
               </div>
@@ -637,7 +640,7 @@
                 <div class="flex items-center justify-between pb-4 border-b border-slate-200">
                   <div>
                     <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Nama Bisnis &amp; Kategori</span>
-                    <div class="text-lg font-black text-slate-900 flex items-center gap-2 mt-0.5"><span id="review-cat-icon"></span> <span id="review-business-name"></span></div>
+                    <div class="text-lg font-black text-slate-900 flex items-center gap-2 mt-0.5"><span id="review-cat-icon" class="material-symbols-outlined" aria-hidden="true"></span> <span id="review-business-name"></span></div>
                     <span id="review-category" class="inline-block mt-1 text-xs font-extrabold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200"></span>
                   </div>
                   <button type="button" onclick="goToStep(2)" class="text-xs font-bold text-blue-600 hover:underline">Ubah Kategori</button>
@@ -652,7 +655,7 @@
                   <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Modul yang langsung aktif:</span>
                   <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     @foreach (['Kasir / POS', 'Manajemen Stok', 'CRM & Member Tier', 'Dashboard Penjualan', 'Laporan PDF & Excel', 'Login PIN Kasir'] as $m)
-                      <div class="p-2 bg-white rounded-lg border border-slate-200 text-[11px] font-semibold text-slate-700 flex items-center gap-1.5"><span class="text-emerald-500">✓</span> {{ $m }}</div>
+                      <div class="p-2 bg-white rounded-lg border border-slate-200 text-[11px] font-semibold text-slate-700 flex items-center gap-1.5"><span class="text-emerald-500"><x-ico v="check" style="font-size:14px" /></span> {{ $m }}</div>
                     @endforeach
                   </div>
                 </div>
@@ -673,13 +676,13 @@
 
           {{-- Sukses --}}
           <div id="step-success" class="max-w-lg mx-auto text-center space-y-6 py-8 hidden">
-            <div class="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto text-4xl shadow-lg shadow-emerald-500/20">🎉</div>
+            <div class="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20"><x-ico v="celebration" style="font-size:44px" /></div>
             <div class="space-y-2">
               <h3 class="text-2xl font-black text-slate-900">Selamat! Usaha Anda Berhasil Didaftarkan</h3>
               <p class="text-sm text-slate-600">Akun untuk <strong class="text-blue-600">{{ $reg['name'] ?? '' }}</strong> sudah aktif dengan masa uji coba 14 hari.</p>
             </div>
             <div class="p-4 bg-blue-50 rounded-2xl border border-blue-200 text-xs text-blue-800 space-y-1.5">
-              <div>Kategori Usaha: <strong>{{ ($reg['icon'] ?? '') . ' ' . ($reg['category'] ?? '') }}</strong></div>
+              <div class="flex items-center gap-1.5">Kategori Usaha: <strong class="inline-flex items-center gap-1"><x-ico :v="$reg['icon'] ?? null" fallback="storefront" style="font-size:18px" /> {{ $reg['category'] ?? '' }}</strong></div>
               <div>Kode Toko: <code class="font-mono bg-white px-2 py-0.5 rounded border border-blue-200">{{ $reg['code'] ?? '' }}</code></div>
               <div class="text-[11px] text-blue-600">Simpan kode toko ini. Kasir memakainya bersama PIN untuk login cepat.</div>
             </div>
@@ -703,7 +706,7 @@
       <div class="grid md:grid-cols-3 gap-8">
         <!-- Testimonial 1 -->
         <div class="p-8 rounded-3xl bg-slate-50 border border-slate-200/80 space-y-4 hover:shadow-lg transition-all">
-          <div class="flex text-amber-400 gap-1 text-sm">★★★★★</div>
+          <div class="flex text-amber-400 gap-0.5">@for ($st = 0; $st < 5; $st++)<span class="material-symbols-outlined fill-1" style="font-size:18px" aria-hidden="true">star</span>@endfor</div>
           <p class="text-slate-600 text-sm leading-relaxed italic">
             "Waktu tunggu antrean kopi saat jam makan siang berkurang drastis berkat fitur Quick Barista PIN dan split bill CashierStore. Laporan penjualan harian langsung rapi tanpa lembur rekap manual."
           </p>
@@ -718,7 +721,7 @@
 
         <!-- Testimonial 2 -->
         <div class="p-8 rounded-3xl bg-slate-50 border border-slate-200/80 space-y-4 hover:shadow-lg transition-all">
-          <div class="flex text-amber-400 gap-1 text-sm">★★★★★</div>
+          <div class="flex text-amber-400 gap-0.5">@for ($st = 0; $st < 5; $st++)<span class="material-symbols-outlined fill-1" style="font-size:18px" aria-hidden="true">star</span>@endfor</div>
           <p class="text-slate-600 text-sm leading-relaxed italic">
             "Manajemen stok bahan baku di 4 cabang restoran kami sekarang terhubung otomatis dengan resep kitchen display. Pemborosan berkurang hingga 22% di bulan pertama!"
           </p>
@@ -733,7 +736,7 @@
 
         <!-- Testimonial 3 -->
         <div class="p-8 rounded-3xl bg-slate-50 border border-slate-200/80 space-y-4 hover:shadow-lg transition-all">
-          <div class="flex text-amber-400 gap-1 text-sm">★★★★★</div>
+          <div class="flex text-amber-400 gap-0.5">@for ($st = 0; $st < 5; $st++)<span class="material-symbols-outlined fill-1" style="font-size:18px" aria-hidden="true">star</span>@endfor</div>
           <p class="text-slate-600 text-sm leading-relaxed italic">
             "Setup awal sangat mudah. Begitu pilih kategori retail toko, sistem langsung siap baca barcode ribuan item tanpa ribet konfigurasi server atau instal software berat."
           </p>
@@ -904,7 +907,7 @@
   const badge = (i, state) => {
     const b = $('step-badge-' + i), l = $('step-label-' + i);
     const base = 'w-10 h-10 rounded-full font-black text-sm flex items-center justify-center transition-all ';
-    if (state === 'done') { b.className = base + 'bg-emerald-600 text-white shadow-md'; b.textContent = '✓'; l.className = 'text-[11px] font-bold text-emerald-600 mt-2'; }
+    if (state === 'done') { b.className = base + 'bg-emerald-600 text-white shadow-md'; b.innerHTML = '<span class="material-symbols-outlined" style="font-size:20px">check</span>'; l.className = 'text-[11px] font-bold text-emerald-600 mt-2'; }
     else if (state === 'active') { b.className = base + 'bg-blue-600 text-white shadow-md'; b.textContent = i; l.className = 'text-[11px] font-bold text-blue-600 mt-2'; }
     else { b.className = base + 'bg-slate-100 text-slate-400'; b.textContent = i; l.className = 'text-[11px] font-bold text-slate-400 mt-2'; }
   };

@@ -1,16 +1,16 @@
 @extends('layouts.app')
 @section('title', 'Order Line')
 @section('content')
-@if (! $shiftOpen && config('pos.require_shift'))
+@if (! $shiftOpen && ($shiftRequired ?? true))
   <div class="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 text-sm font-semibold">
     <span>Shift kasir belum dibuka — pembayaran akan ditolak sampai shift dibuka.</span>
     <a href="{{ route('shifts.index') }}" class="btn-dark !h-9 !px-4 text-xs text-lime-accent">Buka shift</a>
   </div>
 @endif
-<div class="grid xl:grid-cols-[1fr_390px] gap-5 items-start">
+<div class="grid grid-cols-[minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_390px] gap-5 items-start">
 
   {{-- ============ MENU ============ --}}
-  <div>
+  <div class="pb-24 xl:pb-0 min-w-0">
     <div class="text-xs text-slate-400 font-semibold mb-1">Order Line › <span class="text-slate-700">Pilih Menu</span></div>
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
       <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">{{ (auth()->user()?->business?->name ?? config('pos.store_name')) }} Menu</h1>
@@ -20,12 +20,24 @@
       </div>
     </div>
     <div id="cats" class="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-4 -mx-4 px-4 sm:mx-0 sm:px-0"></div>
-    <div id="grid" class="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4"></div>
+    <div id="grid" class="grid grid-cols-1 min-[560px]:grid-cols-2 md:grid-cols-3 2xl:grid-cols-4 gap-2.5 sm:gap-4"></div>
     <p id="empty" class="hidden text-center text-slate-500 py-16">Menu tidak ditemukan.</p>
   </div>
 
   {{-- ============ KERANJANG ============ --}}
-  <aside id="cartPanel" class="card scroll-mt-20 xl:sticky xl:top-6 flex flex-col overflow-hidden xl:max-h-[calc(100vh-3rem)]">
+  <div id="cartBackdrop" class="hidden fixed inset-0 z-[35] bg-slate-950/50 backdrop-blur-sm xl:hidden"></div>
+  <aside id="cartPanel" role="dialog" aria-label="Keranjang"
+         class="card flex flex-col fixed inset-x-0 bottom-0 z-40 max-h-[92dvh] overflow-y-auto overscroll-contain !rounded-b-none translate-y-full transition-transform duration-300 ease-out
+                sm:inset-x-0 sm:mx-auto sm:max-w-lg
+                xl:static xl:translate-y-0 xl:max-w-none xl:mx-0 xl:z-auto xl:!rounded-3xl xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)] xl:overflow-hidden">
+    <div class="xl:hidden sticky top-0 z-10 flex items-center justify-between gap-2 px-4 pt-3 pb-2 border-b border-slate-100" style="background: var(--surface)">
+      <div class="flex items-center gap-2">
+        <span class="w-9 h-1 rounded-full bg-slate-300 absolute left-1/2 -translate-x-1/2 top-1.5"></span>
+        <span class="font-extrabold text-base mt-1">Keranjang</span>
+        <span id="sheetCount" class="pill pill-slate mt-1">0 item</span>
+      </div>
+      <button type="button" id="sheetClose" class="p-2 -mr-2 rounded-xl" aria-label="Tutup keranjang"><span class="material-symbols-outlined">close</span></button>
+    </div>
     <div class="p-4 sm:p-5 border-b border-slate-100">
       <div class="flex items-center justify-between gap-2">
         <div>
@@ -38,22 +50,22 @@
       </div>
       <div id="allergy" class="hidden mt-3 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold px-3 py-2"></div>
 
-      <div class="grid grid-cols-2 gap-2 mt-4">
-        <div class="inline-flex p-1 rounded-full bg-slate-100 col-span-2" id="typeTabs">
-          <button data-t="dine_in" class="flex-1 h-9 rounded-full text-sm font-semibold">Dine-in</button>
-          <button data-t="takeaway" class="flex-1 h-9 rounded-full text-sm font-semibold">Takeaway</button>
+      <div class="flex items-center gap-2 mt-3">
+        <div class="inline-flex p-1 rounded-full bg-slate-100 flex-1" id="typeTabs">
+          <button data-t="dine_in" class="flex-1 h-10 sm:h-9 rounded-full text-sm font-semibold">Dine-in</button>
+          <button data-t="takeaway" class="flex-1 h-10 sm:h-9 rounded-full text-sm font-semibold">Takeaway</button>
         </div>
-        <input id="table" class="input col-span-2" placeholder="Nomor meja (mis. 4)">
+        <input id="table" class="input !w-24 shrink-0 text-center" placeholder="No. meja" inputmode="numeric" aria-label="Nomor meja">
       </div>
     </div>
 
-    <div class="flex-1 overflow-y-auto p-4 sm:p-5 min-h-[120px]">
+    <div class="p-4 sm:p-5 xl:flex-1 xl:overflow-y-auto xl:min-h-[120px]">
       <div class="text-xs font-bold text-slate-500 mb-3">Pesanan <span class="text-slate-900">{{ $nextInvoice }}</span></div>
       <div id="lines" class="space-y-3"></div>
       <p id="noLines" class="text-sm text-slate-400 text-center py-8">Keranjang kosong.<br>Ketuk menu untuk menambah.</p>
     </div>
 
-    <div class="p-4 sm:p-5 border-t border-slate-100 space-y-3 text-sm">
+    <div class="p-4 sm:p-5 border-t border-slate-100 space-y-3 text-sm xl:shrink-0">
       <div class="font-bold">Ringkasan Pembayaran</div>
       <div class="flex justify-between text-slate-600"><span>Subtotal</span><span id="sSub">Rp 0</span></div>
       <div class="flex justify-between items-center text-slate-600"><span>Diskon (Rp)</span>
@@ -71,16 +83,21 @@
         <div class="flex flex-wrap gap-2 mt-2" id="quick"></div>
         <div class="flex justify-between mt-2"><span class="text-slate-600">Kembalian</span><b id="sChange">Rp 0</b></div>
       </div>
+      <div id="refBox" class="hidden">
+        <input id="ref" maxlength="60" class="input" placeholder="No. referensi / approval code">
+      </div>
 
-      <p id="err" class="hidden text-xs font-semibold text-red-600"></p>
-      <button id="charge" class="btn-primary w-full !h-12 text-base disabled:opacity-50 disabled:cursor-not-allowed" disabled>Bayar Rp 0</button>
-      <button id="clear" class="btn-ghost w-full !h-9 text-xs">Kosongkan keranjang</button>
+      <div class="sticky bottom-0 -mx-4 sm:-mx-5 -mb-4 sm:-mb-5 px-4 sm:px-5 pt-3 border-t border-slate-100 space-y-2 xl:static xl:m-0 xl:p-0 xl:border-0" style="background: var(--surface); padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px))">
+        <p id="err" class="hidden text-xs font-semibold text-red-600"></p>
+        <button id="charge" class="btn-primary w-full !h-12 text-base disabled:opacity-50 disabled:cursor-not-allowed" disabled>Bayar Rp 0</button>
+        <button id="clear" class="btn-ghost w-full !h-9 text-xs">Kosongkan keranjang</button>
+      </div>
     </div>
   </aside>
 </div>
 
 {{-- Tombol keranjang untuk layar kecil --}}
-<button id="jump" class="xl:hidden fixed left-4 right-4 z-30 btn-dark !h-14 shadow-2xl text-lime-accent" style="bottom: calc(1rem + env(safe-area-inset-bottom, 0px))"><span class="material-symbols-outlined">shopping_bag</span> Lihat keranjang · <span id="jumpTotal">Rp 0</span></button>
+<button id="jump" class="hidden xl:hidden fixed left-4 right-4 z-30 btn-dark !h-14 !justify-between shadow-2xl text-lime-accent sm:left-auto sm:right-6 sm:w-80" style="bottom: calc(1rem + env(safe-area-inset-bottom, 0px))" aria-label="Lihat keranjang"><span class="inline-flex items-center gap-2"><span class="material-symbols-outlined">shopping_bag</span><span><span id="jumpCount">0</span> item</span></span><span class="inline-flex items-center gap-1"><span id="jumpTotal">Rp 0</span><span class="material-symbols-outlined">expand_less</span></span></button>
 
 {{-- Modal pilih pelanggan --}}
 <div id="custModal" class="hidden fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm grid items-end sm:place-items-center sm:p-4">
@@ -143,12 +160,48 @@
   </div>
 </div>
 
+{{-- Modal QRIS manual (gambar QRIS toko dari Pengaturan) --}}
+<div id="qrisManualModal" class="hidden fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm grid items-end sm:place-items-center sm:p-4">
+  <div class="card w-full max-w-sm p-5 sm:p-6 text-center !rounded-b-none sm:!rounded-3xl max-h-[94vh] overflow-y-auto" style="padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px))">
+    <h3 class="font-extrabold text-lg">Bayar dengan QRIS</h3>
+    <div class="mx-auto mt-3 w-60 max-w-full rounded-2xl border border-slate-200 overflow-hidden grid place-items-center" style="background:#fff;aspect-ratio:1/1">
+      <img id="mqImg" alt="QRIS toko" class="w-full h-full object-contain p-2" style="background:#fff">
+    </div>
+    <a id="mqOpen" target="_blank" rel="noopener" class="inline-block text-xs font-bold underline mt-2">Buka layar penuh</a>
+    <div class="text-xs text-slate-500 mt-3">Total yang harus dibayar</div>
+    <div class="text-[32px] tracking-[-0.03em] font-extrabold" id="mqTotal">Rp 0</div>
+    <p class="text-xs text-slate-500 mt-1">Minta pelanggan scan dan pastikan nominalnya sesuai. Tekan konfirmasi setelah uang masuk.</p>
+    <div id="mqRefBox" class="hidden mt-3 text-left">
+      <label class="label" for="mqRef">Kode konfirmasi / approval code</label>
+      <input id="mqRef" maxlength="60" class="input" placeholder="Masukkan kode dari bukti pembayaran" autocomplete="off">
+    </div>
+    <p id="mqErr" class="hidden text-xs font-semibold text-red-600 mt-2"></p>
+    <div class="grid gap-2 mt-4">
+      <button id="mqConfirm" class="btn-primary !h-12 text-base disabled:opacity-50">Konfirmasi Pembayaran</button>
+      <button id="mqCancel" class="btn-secondary">Batal</button>
+    </div>
+  </div>
+</div>
+
 @push('scripts')
 <script>
 const PRODUCTS = @json($products);
 const CATEGORIES = @json($categories);
 const TAX_RATE = {{ $taxRate }};
 const URLS = { customers: @json(route('pos.customers')), newCustomer: @json(route('pos.customers.store')), checkout: @json(route('pos.checkout')), qris: @json(route('pos.qris.store')) };
+const ICONS = @json(\App\Support\Icons::map());   // emoji lama -> nama ikon vektor
+function iconName(v, fb = 'restaurant') {
+  v = String(v || '').replace(/[\uFE0F\u200D]/g, '').trim();
+  if (!v) return fb;
+  if (/^[a-z][a-z0-9_]{1,40}$/.test(v)) return v;
+  return ICONS[v] || ICONS[[...v][0]] || fb;
+}
+/** Ikon Material Symbols; size = px (0 = ikut kelas), cls = kelas tambahan. */
+function ico(v, size = 20, fb = 'restaurant', cls = '') {
+  return `<span class="material-symbols-outlined ${cls}" ${size ? `style="font-size:${size}px"` : ''} aria-hidden="true">${iconName(v, fb)}</span>`;
+}
+const QRIS_MANUAL_URL = @json($qrisManualUrl ?? null);   // gambar QRIS statis bisnis (Pengaturan); null = belum diunggah
+const QRIS_NEEDS_REF = @json($qrisNeedsRef ?? false);     // di modal QRIS manual: tampilkan input kode konfirmasi (opsi admin, default mati)
 const QRIS_DYNAMIC = @json($qrisDynamic ?? false);   // true bila MIDTRANS_SERVER_KEY terisi; false = QRIS manual seperti sebelumnya
 const CSRF = document.querySelector('meta[name=csrf-token]').content;
 
@@ -162,30 +215,34 @@ const uuid = () => ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (c ^ cryp
 let cat = 0, q = '';
 let customer = @json($customer);
 let orderType = 'dine_in', method = 'cash';
+const needsRef = () => method === 'card' || (method === 'qris' && !QRIS_DYNAMIC && !QRIS_MANUAL_URL && QRIS_NEEDS_REF);   // dengan gambar QRIS: konfirmasi lewat modal   // QRIS dinamis diverifikasi Midtrans, tanpa input manual
 const byId = Object.fromEntries(PRODUCTS.map(p => [p.id, p]));
 
 /* ---------- Menu ---------- */
 function renderCats() {
-  const all = [{id: 0, name: 'Semua Menu', emoji: '🍽️'}, ...CATEGORIES];
-  $('cats').innerHTML = all.map(c => `<button data-c="${c.id}" class="chip shrink-0 ${cat === c.id ? 'chip-on' : ''}">${esc(c.name)} ${esc(c.emoji)}</button>`).join('');
+  const all = [{id: 0, name: 'Semua Menu', emoji: 'restaurant_menu'}, ...CATEGORIES];
+  $('cats').innerHTML = all.map(c => `<button data-c="${c.id}" class="chip shrink-0 inline-flex items-center gap-1.5 ${cat === c.id ? 'chip-on' : ''}">${ico(c.emoji, 18)}${esc(c.name)}</button>`).join('');
 }
 function renderGrid() {
   const list = PRODUCTS.filter(p => (!cat || p.category_id === cat) && p.name.toLowerCase().includes(q));
   $('empty').classList.toggle('hidden', list.length > 0);
   $('grid').innerHTML = list.map(p => {
     const n = cart[p.id] || 0, out = p.stock <= 0, max = n >= p.stock;
-    const media = p.image ? `<img src="${esc(p.image)}" class="w-full h-full object-cover" alt="">` : `<span class="text-5xl sm:text-6xl">${esc(p.emoji)}</span>`;
-    return `<div class="card p-2.5 sm:p-3 ${out ? 'opacity-60' : ''}">
-      <div class="aspect-square rounded-2xl bg-slate-100 grid place-items-center overflow-hidden relative">${media}
-        ${out ? '<span class="absolute top-2 left-2 pill pill-red">Habis</span>' : (p.stock <= 5 ? `<span class="absolute top-2 left-2 pill pill-amber">Sisa ${p.stock}</span>` : '')}</div>
-      <div class="font-bold text-sm sm:text-base mt-3 leading-tight min-h-[2.5rem]">${esc(p.name)}</div>
-      <div class="mt-2 pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
-        <b class="text-sm sm:text-base">${rp(p.price)}</b>
-        <div class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-1 h-10 sm:h-9">
-          <button data-dec="${p.id}" class="w-8 h-8 sm:w-7 sm:h-7 rounded-full text-slate-500 disabled:opacity-40" ${n ? '' : 'disabled'}>−</button>
-          <span class="w-5 text-center text-sm font-bold">${n}</span>
-          <button data-inc="${p.id}" class="w-8 h-8 sm:w-7 sm:h-7 rounded-full bg-lime-accent text-slate-950 font-bold disabled:opacity-40" ${out || max ? 'disabled' : ''}>+</button>
-        </div></div></div>`;
+    const media = p.image ? `<img src="${esc(p.image)}" class="w-full h-full object-cover" alt="" loading="lazy">` : ico(p.emoji, 0, 'restaurant', '!text-[38px] sm:!text-[64px] text-slate-400');
+    const badge = out ? '<span class="absolute top-1 left-1 sm:top-2 sm:left-2 pill pill-red !text-[10px]">Habis</span>' : (p.stock <= 5 ? `<span class="absolute top-1 left-1 sm:top-2 sm:left-2 pill pill-amber !text-[10px]">Sisa ${p.stock}</span>` : '');
+    return `<div class="card p-2.5 sm:p-3 flex sm:block items-center gap-3 ${out ? 'opacity-60' : ''}">
+      <div class="w-[72px] h-[72px] sm:w-full sm:h-auto sm:aspect-square shrink-0 rounded-2xl bg-slate-100 grid place-items-center overflow-hidden relative">${media}${badge}</div>
+      <div class="flex-1 min-w-0 sm:mt-3">
+        <div class="font-bold text-sm sm:text-base leading-tight line-clamp-2 sm:min-h-[2.5rem]">${esc(p.name)}</div>
+        <div class="mt-1.5 sm:mt-2 sm:pt-2 sm:border-t border-slate-100 flex items-center justify-between gap-2">
+          <b class="text-sm sm:text-base">${rp(p.price)}</b>
+          <div class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-1 h-11 sm:h-9 shrink-0">
+            <button data-dec="${p.id}" aria-label="Kurangi ${esc(p.name)}" class="w-10 h-10 sm:w-7 sm:h-7 rounded-full text-lg sm:text-base text-slate-500 disabled:opacity-40" ${n ? '' : 'disabled'}>−</button>
+            <span class="w-6 text-center text-sm font-bold">${n}</span>
+            <button data-inc="${p.id}" aria-label="Tambah ${esc(p.name)}" class="w-10 h-10 sm:w-7 sm:h-7 rounded-full text-lg sm:text-base bg-lime-accent text-slate-950 font-bold disabled:opacity-40" ${out || max ? 'disabled' : ''}>+</button>
+          </div>
+        </div>
+      </div></div>`;
   }).join('');
 }
 
@@ -201,32 +258,45 @@ function renderCart() {
   $('noLines').classList.toggle('hidden', ids.length > 0);
   $('lines').innerHTML = ids.map(id => {
     const p = byId[id], n = cart[id];
+    const max = n >= p.stock;
     return `<div class="flex items-center gap-3">
-      <div class="w-11 h-11 rounded-xl bg-slate-100 grid place-items-center text-xl overflow-hidden shrink-0">${p.image ? `<img src="${esc(p.image)}" class="w-full h-full object-cover">` : esc(p.emoji)}</div>
-      <div class="flex-1 min-w-0"><div class="font-semibold text-sm truncate">${esc(p.name)}</div><div class="text-xs text-slate-500">${n} × ${rp(p.price)}</div></div>
-      <div class="font-bold text-sm">${rp(p.price * n)}</div></div>`;
+      <div class="w-12 h-12 rounded-xl bg-slate-100 grid place-items-center overflow-hidden shrink-0 text-slate-500">${p.image ? `<img src="${esc(p.image)}" class="w-full h-full object-cover" alt="">` : ico(p.emoji, 24)}</div>
+      <div class="flex-1 min-w-0">
+        <div class="font-semibold text-sm leading-tight line-clamp-2">${esc(p.name)}</div>
+        <div class="text-xs text-slate-500">${rp(p.price)} × ${n} = <b class="text-slate-700">${rp(p.price * n)}</b></div>
+      </div>
+      <div class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-1 h-10 shrink-0">
+        <button data-ldec="${id}" aria-label="Kurangi ${esc(p.name)}" class="w-8 h-8 rounded-full text-lg text-slate-500">−</button>
+        <span class="w-5 text-center text-sm font-bold">${n}</span>
+        <button data-linc="${id}" aria-label="Tambah ${esc(p.name)}" class="w-8 h-8 rounded-full text-lg bg-lime-accent text-slate-950 font-bold disabled:opacity-40" ${max ? 'disabled' : ''}>+</button>
+      </div></div>`;
   }).join('');
 
   const t = totals();
   $('sSub').textContent = rp(t.sub); $('sTax').textContent = rp(t.tax); $('sTotal').textContent = rp(t.total);
   $('charge').textContent = 'Bayar ' + rp(t.total); $('jumpTotal').textContent = rp(t.total);
+  const qtyAll = Object.values(cart).reduce((a, b) => a + b, 0);
+  $('jumpCount').textContent = qtyAll; $('sheetCount').textContent = qtyAll + ' item';
+  if (!ids.length && sheetIsOpen()) setSheet(false);
+  else if (!sheetIsOpen()) $('jump').classList.toggle('hidden', !ids.length);
 
   const paid = +$('paid').value || 0;
   $('sChange').textContent = rp(Math.max(0, paid - t.total));
   $('quick').innerHTML = t.total > 0 ? [t.total, ...[20000, 50000, 100000].filter(v => v > t.total)].map((v, i) => `<button data-q="${v}" class="px-3 h-9 rounded-full bg-slate-100 text-slate-700 hover:bg-lime-accent hover:text-slate-950 text-xs font-bold transition">${i === 0 ? 'Uang pas' : rp(v)}</button>`).join('') : '';
 
-  const ok = t.total > 0 && (method !== 'cash' || paid >= t.total);
+  const ok = t.total > 0 && (method === 'cash' ? paid >= t.total : !needsRef() || $('ref').value.trim() !== '');
   $('charge').disabled = !ok;
 }
 function renderMeta() {
   $('custName').textContent = customer ? customer.name : 'Walk-in Customer';
   $('custMeta').textContent = customer ? `${customer.code} · ${customer.tier.toUpperCase()} · ${customer.points} poin` : 'Belum memilih pelanggan';
   const a = $('allergy'); a.classList.toggle('hidden', !(customer && customer.allergy));
-  if (customer && customer.allergy) a.textContent = '⚠ ' + customer.allergy;
+  if (customer && customer.allergy) a.innerHTML = ico('warning', 16) + ' ' + esc(customer.allergy);
   document.querySelectorAll('#typeTabs button').forEach(b => { const on = b.dataset.t === orderType; b.className = `flex-1 h-9 rounded-full text-sm font-semibold ${on ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`; });
   document.querySelectorAll('#payTabs button').forEach(b => { const on = b.dataset.m === method; b.className = `h-10 rounded-2xl text-sm font-bold border ${on ? 'chip-on' : 'bg-white text-slate-700 border-slate-200'}`; });
   $('table').classList.toggle('hidden', orderType !== 'dine_in');
   $('cashBox').classList.toggle('hidden', method !== 'cash');
+  $('refBox').classList.toggle('hidden', !needsRef());
 }
 const refresh = () => { renderGrid(); renderCart(); renderMeta(); };
 
@@ -243,9 +313,31 @@ $('typeTabs').addEventListener('click', e => { const b = e.target.closest('[data
 $('payTabs').addEventListener('click', e => { const b = e.target.closest('[data-m]'); if (b) { method = b.dataset.m; renderMeta(); renderCart(); } });
 $('discount').addEventListener('input', renderCart);
 $('paid').addEventListener('input', renderCart);
+$('ref').addEventListener('input', renderCart);
 $('quick').addEventListener('click', e => { const b = e.target.closest('[data-q]'); if (b) { $('paid').value = b.dataset.q; renderCart(); } });
 $('clear').addEventListener('click', () => { cart = {}; $('discount').value = 0; $('paid').value = ''; refresh(); });
-$('jump').addEventListener('click', () => $('cartPanel').scrollIntoView({ behavior: 'smooth' }));
+$('lines').addEventListener('click', e => {
+  const inc = e.target.closest('[data-linc]'), dec = e.target.closest('[data-ldec]');
+  if (inc) { const id = inc.dataset.linc; if ((cart[id] || 0) < byId[id].stock) cart[id] = (cart[id] || 0) + 1; }
+  if (dec) { const id = dec.dataset.ldec; if (--cart[id] <= 0) delete cart[id]; }
+  if (inc || dec) { $('err').classList.add('hidden'); refresh(); }
+});
+
+/* ---------- Keranjang sebagai bottom sheet (HP/tablet); di layar lebar (xl) tetap panel samping ---------- */
+const isWide = window.matchMedia('(min-width: 1280px)');
+function sheetIsOpen() { return !$('cartPanel').classList.contains('translate-y-full'); }
+function setSheet(open) {
+  if (isWide.matches) return;
+  $('cartPanel').classList.toggle('translate-y-full', !open);
+  $('cartBackdrop').classList.toggle('hidden', !open);
+  document.body.style.overflow = open ? 'hidden' : '';
+  $('jump').classList.toggle('hidden', open || !Object.keys(cart).length);
+}
+$('jump').addEventListener('click', () => setSheet(true));
+$('sheetClose').addEventListener('click', () => setSheet(false));
+$('cartBackdrop').addEventListener('click', () => setSheet(false));
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && sheetIsOpen()) setSheet(false); });
+isWide.addEventListener('change', e => { if (e.matches) { $('cartBackdrop').classList.add('hidden'); document.body.style.overflow = ''; } });
 
 /* ---------- Pelanggan ---------- */
 const modal = $('custModal');
@@ -270,9 +362,15 @@ $('newBtn').addEventListener('click', async () => {
 });
 
 /* ---------- Checkout ---------- */
-$('charge').addEventListener('click', async () => {
+$('charge').addEventListener('click', () => {
   if (method === 'qris' && QRIS_DYNAMIC) return startQris();
-  const btn = $('charge'), err = $('err'); err.classList.add('hidden');
+  if (method === 'qris' && QRIS_MANUAL_URL) return openManualQris();
+  return runCheckout(needsRef() ? $('ref').value.trim() : null, $('err'), $('charge'));
+});
+
+async function runCheckout(refValue, err, btn) {
+  err.classList.add('hidden');
+  const label = btn.textContent;
   btn.disabled = true; btn.textContent = 'Memproses…';
   const t = totals();
   try {
@@ -283,19 +381,39 @@ $('charge').addEventListener('click', async () => {
         items: Object.entries(cart).map(([id, qty]) => ({ product_id: +id, qty })),
         customer_id: customer?.id ?? null, order_type: orderType, table_no: $('table').value || null,
         discount: t.disc, payment_method: method, paid_amount: method === 'cash' ? (+$('paid').value || 0) : t.total,
+        payment_ref: refValue || null,
       }),
     });
     const d = await r.json();
     if (!r.ok) { idemKey = null; }   // server menolak -> percobaan berikutnya adalah transaksi baru
     if (!r.ok) throw new Error(d.errors ? Object.values(d.errors)[0][0] : (d.message || 'Transaksi gagal'));
-    idemKey = null;
+    idemKey = null; $('ref').value = ''; $('mqRef').value = '';
+    $('qrisManualModal').classList.add('hidden'); setSheet(false);
     $('doneInv').textContent = d.invoice_no; $('doneTotal').textContent = rp(d.total);
     $('doneChange').textContent = d.change > 0 ? 'Kembalian ' + rp(d.change) : '';
     $('doneView').href = d.receipt_url; $('doneDl').href = d.download_url;
     $('doneModal').classList.remove('hidden');
   } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
+  btn.textContent = label; btn.disabled = false;
   renderCart();
+}
+
+/* ---------- QRIS manual (gambar QRIS toko) ---------- */
+function openManualQris() {
+  $('mqTotal').textContent = rp(totals().total);
+  if ($('mqImg').getAttribute('src') !== QRIS_MANUAL_URL) $('mqImg').src = QRIS_MANUAL_URL;
+  $('mqOpen').href = QRIS_MANUAL_URL;
+  $('mqRefBox').classList.toggle('hidden', !QRIS_NEEDS_REF);
+  $('mqRef').value = ''; $('mqErr').classList.add('hidden');
+  $('qrisManualModal').classList.remove('hidden');
+  if (QRIS_NEEDS_REF) $('mqRef').focus();
+}
+$('mqConfirm').addEventListener('click', () => {
+  const ref = $('mqRef').value.trim(), err = $('mqErr');
+  if (QRIS_NEEDS_REF && !ref) { err.textContent = 'Isi kode konfirmasi / approval code.'; err.classList.remove('hidden'); return; }
+  runCheckout(QRIS_NEEDS_REF ? ref : null, err, $('mqConfirm'));
 });
+$('mqCancel').addEventListener('click', () => { if (!$('mqConfirm').disabled) $('qrisManualModal').classList.add('hidden'); });
 /* ---------- QRIS dinamis (Midtrans) ---------- */
 let qris = null, qrisPoll = null, qrisTick = null, qrisLeft = 0, qrisImgFor = null;
 const JSON_HEADERS = { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': CSRF };
@@ -444,6 +562,7 @@ if (window.Voice) {
     }
     if ($('custModal') && !$('custModal').classList.contains('hidden')) return false;
     if (!$('qrisModal').classList.contains('hidden')) return false;
+    if (!$('qrisManualModal').classList.contains('hidden')) return false;
 
     if (/\b(kosongkan|bersihkan|reset)\b|\b(hapus|batalkan|batal) (semua|keranjang|pesanan)\b/.test(t)) {
       cart = {}; $('discount').value = 0; $('paid').value = ''; touch(); V.say('Keranjang dikosongkan'); return true;

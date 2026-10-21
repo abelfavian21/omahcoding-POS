@@ -28,11 +28,9 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
-    // QRIS dinamis (Midtrans Core API). Kosongkan MIDTRANS_SERVER_KEY untuk mematikan fitur ini
-    // (kasir kembali memakai QRIS manual seperti sebelumnya).
+    // QRIS dinamis (Midtrans Core API). Server Key TIDAK di sini: tiap bisnis menyimpan key-nya sendiri
+    // (terenkripsi) lewat menu Pengaturan. Bisnis tanpa key otomatis memakai QRIS manual.
     'midtrans' => [
-        'server_key' => env('MIDTRANS_SERVER_KEY'),
-        'is_production' => (bool) env('MIDTRANS_IS_PRODUCTION', false),
         'qris_acquirer' => env('MIDTRANS_QRIS_ACQUIRER', 'gopay'),
         'notify_url' => env('MIDTRANS_NOTIFY_URL'),   // opsional (override URL notifikasi per transaksi)
     ],

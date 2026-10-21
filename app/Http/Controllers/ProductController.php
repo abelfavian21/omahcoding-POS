@@ -90,7 +90,7 @@ class ProductController extends Controller
             'cost_price' => ['nullable', 'numeric', 'min:0'],
             'stock' => ['nullable', 'integer', 'min:0'],
             'min_stock' => ['required', 'integer', 'min:0'],
-            'emoji' => ['nullable', 'string', 'max:8'],
+            'emoji' => ['nullable', 'string', 'max:40', Rule::in(array_keys(\App\Support\Icons::picker()))],
             'image' => ['nullable', 'image', 'max:2048'],
         ]);
         $data['is_active'] = $request->boolean('is_active');

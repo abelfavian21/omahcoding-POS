@@ -43,7 +43,7 @@ class CategoryController extends Controller
     {
         return $request->validate([
             'name' => ['required', 'string', 'max:80', Rule::unique('categories', 'name')->where('business_id', auth()->user()->business_id)->ignore($category?->id)],
-            'emoji' => ['nullable', 'string', 'max:8'],
+            'emoji' => ['nullable', 'string', 'max:40'],
             'sort_order' => ['nullable', 'integer', 'min:0', 'max:999'],
         ]);
     }
