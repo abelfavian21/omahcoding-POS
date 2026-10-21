@@ -20,6 +20,7 @@
     ['route' => 'settings.edit', 'match' => 'settings.*', 'icon' => 'settings', 'label' => 'Pengaturan', 'admin' => true, 'group' => 'Management'],
     ['route' => 'audit.index', 'match' => 'audit.*', 'icon' => 'policy', 'label' => 'Audit Log', 'admin' => true, 'group' => 'Management'],
     ['route' => 'office', 'match' => 'office', 'icon' => 'apartment', 'label' => 'Kantor Virtual', 'admin' => false, 'group' => 'Management'],
+    ['route' => 'help', 'match' => 'help', 'icon' => 'menu_book', 'label' => 'Panduan', 'admin' => false, 'group' => 'Management'],
   ];
   $shiftOn = (bool) ($u->business?->requiresShift() ?? true);
   $visible = collect($nav)->reject(fn ($n) => ($n['admin'] && ! $u->isAdmin()) || ($n['route'] === 'shifts.index' && ! $shiftOn));

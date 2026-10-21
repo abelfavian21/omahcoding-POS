@@ -4,6 +4,7 @@ use App\Http\Controllers\AuditController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\HelpController;
 use App\Http\Controllers\LandingController;
 use App\Http\Controllers\OfficeController;
 use App\Http\Controllers\MidtransWebhookController;
@@ -37,6 +38,7 @@ Route::middleware('guest')->group(function () {
 Route::middleware(['auth', 'account'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/office', [OfficeController::class, 'index'])->name('office');
+    Route::get('/help', [HelpController::class, 'index'])->name('help');
 
     // Kasir / POS
     Route::get('/pos', [PosController::class, 'index'])->name('pos');
