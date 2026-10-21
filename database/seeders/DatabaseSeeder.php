@@ -50,24 +50,24 @@ class DatabaseSeeder extends Seeder
 
         /* ---- Kategori ---- */
         $cats = [];
-        foreach ([['Main Course', '🍛'], ['Dessert', '🍰'], ['Drinks', '🥤'], ['Asian', '🍜'], ['Western', '🧇'], ['Sides', '🥟']] as $i => [$n, $e]) {
+        foreach ([['Main Course', 'rice_bowl'], ['Dessert', 'cake'], ['Drinks', 'local_drink'], ['Asian', 'ramen_dining'], ['Western', 'breakfast_dining'], ['Sides', 'tapas']] as $i => [$n, $e]) {
             $cats[$n] = Category::create(['name' => $n, 'emoji' => $e, 'sort_order' => $i]);
         }
 
         /* ---- Produk (mengikuti prototype), harga dalam Rupiah ---- */
         $menu = [
-            ['Chicken Dimsum', 'Sides', 38000, 15000, '🥟', 40],
-            ['Matcha Latte', 'Drinks', 32000, 11000, '🍵', 60],
-            ['Fruit Parfait', 'Dessert', 35000, 14000, '🍨', 25],
-            ['Grilled Salmon with Salad', 'Main Course', 85000, 42000, '🥗', 12],
-            ['Strawberry Waffles', 'Western', 42000, 16000, '🧇', 30],
-            ['Omurice', 'Asian', 55000, 21000, '🍛', 35],
-            ['Almond Croissant', 'Sides', 28000, 10000, '🥐', 4],
-            ['Truffle Omelette', 'Western', 62000, 25000, '🍳', 18],
-            ['Iced Americano', 'Drinks', 24000, 6000, '🧊', 80],
-            ['Cappuccino', 'Drinks', 30000, 9000, '☕', 70],
-            ['Avocado Toast', 'Western', 45000, 18000, '🥑', 3],
-            ['Chocolate Lava Cake', 'Dessert', 38000, 15000, '🍫', 0],
+            ['Chicken Dimsum', 'Sides', 38000, 15000, 'tapas', 40],
+            ['Matcha Latte', 'Drinks', 32000, 11000, 'emoji_food_beverage', 60],
+            ['Fruit Parfait', 'Dessert', 35000, 14000, 'icecream', 25],
+            ['Grilled Salmon with Salad', 'Main Course', 85000, 42000, 'nutrition', 12],
+            ['Strawberry Waffles', 'Western', 42000, 16000, 'breakfast_dining', 30],
+            ['Omurice', 'Asian', 55000, 21000, 'rice_bowl', 35],
+            ['Almond Croissant', 'Sides', 28000, 10000, 'bakery_dining', 4],
+            ['Truffle Omelette', 'Western', 62000, 25000, 'egg_alt', 18],
+            ['Iced Americano', 'Drinks', 24000, 6000, 'local_cafe', 80],
+            ['Cappuccino', 'Drinks', 30000, 9000, 'coffee', 70],
+            ['Avocado Toast', 'Western', 45000, 18000, 'eco', 3],
+            ['Chocolate Lava Cake', 'Dessert', 38000, 15000, 'cookie', 0],
         ];
         $products = [];
         foreach ($menu as $i => [$name, $cat, $price, $cost, $emoji, $stock]) {

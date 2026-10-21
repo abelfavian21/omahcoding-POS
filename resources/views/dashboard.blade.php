@@ -24,7 +24,7 @@
 {{-- Header --}}
 <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-6">
   <div class="min-w-0">
-    <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">{{ $greet }}, {{ $first }} ☕</h1>
+    <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">{{ $greet }}, {{ $first }} <x-ico v="waving_hand" class="text-lime-600 !align-middle" style="font-size:28px" /></h1>
     <p class="text-sm font-medium text-slate-500 mt-1">Ringkasan penjualan hari ini, dibandingkan dengan kemarin.</p>
   </div>
   <div class="flex flex-wrap items-center gap-2.5">
@@ -161,7 +161,7 @@
       @forelse ($topItems as $i)
         <li class="flex items-center gap-3">
           <div class="w-12 h-12 rounded-2xl bg-slate-100 grid place-items-center text-2xl overflow-hidden shrink-0">
-            @if ($i->product?->image_url)<img src="{{ $i->product->image_url }}" class="w-full h-full object-cover" alt="">@else{{ $i->product?->emoji ?? '🍽️' }}@endif
+            @if ($i->product?->image_url)<img src="{{ $i->product->image_url }}" class="w-full h-full object-cover" alt="">@else<x-ico :v="$i->product?->emoji" style="font-size:22px" />@endif
           </div>
           <div class="flex-1 min-w-0">
             <div class="flex items-baseline justify-between gap-2">
@@ -246,7 +246,7 @@
         @forelse ($lowStock as $p)
           <li class="flex items-center justify-between gap-3 p-3 -mx-3 rounded-2xl hover:bg-slate-50 transition-colors">
             <div class="min-w-0">
-              <div class="font-semibold text-sm truncate">{{ $p->emoji }} {{ $p->name }}</div>
+              <div class="font-semibold text-sm truncate"><x-ico :v="$p->emoji" class="text-slate-400 mr-1" style="font-size:18px" />{{ $p->name }}</div>
               <div class="text-xs text-slate-400">Minimum {{ $p->min_stock }}</div>
             </div>
             <span class="pill {{ $p->stock <= 0 ? 'pill-red' : 'pill-amber' }}">{{ $p->stock <= 0 ? 'Habis' : 'Sisa ' . $p->stock }}</span>

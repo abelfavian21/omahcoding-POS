@@ -111,14 +111,18 @@ class ShiftSettingTest extends TestCase
         $this->assertTrue($b->refresh()->requiresShift());
     }
 
-    public function test_buka_shift_ditolak_saat_fitur_dinonaktifkan(): void
+    public function test_halaman_shift_disembunyikan_saat_fitur_dinonaktifkan(): void
     {
         $b = $this->business('CS-AAA-1111');
-        $b->forceFill(['shift_enabled' => false])->save();
         $kasir = $this->user($b, 'kasir');
 
-        $this->actingAs($kasir)->post(route('shifts.store'), ['opening_cash' => 0])->assertSessionHasErrors('opening_cash');
+        $this->actingAs($kasir)->get(route('shifts.index'))->assertOk();                 // aktif: halaman terbuka
+
+        $b->forceFill(['shift_enabled' => false])->save();
+        $this->as($kasir)->get(route('shifts.index'))->assertRedirect(route('pos'));      // nonaktif: diarahkan ke Order Line
+        $this->as($kasir)->post(route('shifts.store'), ['opening_cash' => 0])->assertRedirect(route('pos'));
         $this->assertSame(0, CashShift::withoutGlobalScopes()->count());
+        $this->as($kasir)->get(route('pos'))->assertOk()->assertDontSee(route('shifts.index'));   // tautan menu juga hilang
     }
 
     public function test_kasir_tidak_bisa_mengubah_pengaturan_shift(): void

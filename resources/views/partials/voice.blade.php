@@ -1,6 +1,6 @@
 {{-- Perintah suara (Web Speech API, bahasa Indonesia). Halaman bisa mendaftarkan perintah lewat Voice.register(fn). --}}
 @php
-  $voiceNav = collect($nav ?? [])->reject(fn ($n) => $n['admin'] && ! (auth()->user()?->isAdmin()))
+  $voiceNav = collect($nav ?? [])->reject(fn ($n) => ($n['admin'] && ! (auth()->user()?->isAdmin())) || ($n['route'] === 'shifts.index' && ! ($shiftOn ?? true)))
       ->map(fn ($n) => ['route' => $n['route'], 'label' => $n['label'], 'url' => route($n['route'])])->values();
 @endphp
 <script>window.VOICE_NAV = @json($voiceNav);</script>

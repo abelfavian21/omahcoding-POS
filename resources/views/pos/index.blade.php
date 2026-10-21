@@ -189,6 +189,17 @@ const PRODUCTS = @json($products);
 const CATEGORIES = @json($categories);
 const TAX_RATE = {{ $taxRate }};
 const URLS = { customers: @json(route('pos.customers')), newCustomer: @json(route('pos.customers.store')), checkout: @json(route('pos.checkout')), qris: @json(route('pos.qris.store')) };
+const ICONS = @json(\App\Support\Icons::map());   // emoji lama -> nama ikon vektor
+function iconName(v, fb = 'restaurant') {
+  v = String(v || '').replace(/[\uFE0F\u200D]/g, '').trim();
+  if (!v) return fb;
+  if (/^[a-z][a-z0-9_]{1,40}$/.test(v)) return v;
+  return ICONS[v] || ICONS[[...v][0]] || fb;
+}
+/** Ikon Material Symbols; size = px (0 = ikut kelas), cls = kelas tambahan. */
+function ico(v, size = 20, fb = 'restaurant', cls = '') {
+  return `<span class="material-symbols-outlined ${cls}" ${size ? `style="font-size:${size}px"` : ''} aria-hidden="true">${iconName(v, fb)}</span>`;
+}
 const QRIS_MANUAL_URL = @json($qrisManualUrl ?? null);   // gambar QRIS statis bisnis (Pengaturan); null = belum diunggah
 const QRIS_NEEDS_REF = @json($qrisNeedsRef ?? true);     // di modal QRIS manual: tampilkan input kode konfirmasi (opsi admin, default mati)
 const QRIS_DYNAMIC = @json($qrisDynamic ?? false);   // true bila MIDTRANS_SERVER_KEY terisi; false = QRIS manual seperti sebelumnya
@@ -209,15 +220,15 @@ const byId = Object.fromEntries(PRODUCTS.map(p => [p.id, p]));
 
 /* ---------- Menu ---------- */
 function renderCats() {
-  const all = [{id: 0, name: 'Semua Menu', emoji: '🍽️'}, ...CATEGORIES];
-  $('cats').innerHTML = all.map(c => `<button data-c="${c.id}" class="chip shrink-0 ${cat === c.id ? 'chip-on' : ''}">${esc(c.name)} ${esc(c.emoji)}</button>`).join('');
+  const all = [{id: 0, name: 'Semua Menu', emoji: 'restaurant_menu'}, ...CATEGORIES];
+  $('cats').innerHTML = all.map(c => `<button data-c="${c.id}" class="chip shrink-0 inline-flex items-center gap-1.5 ${cat === c.id ? 'chip-on' : ''}">${ico(c.emoji, 18)}${esc(c.name)}</button>`).join('');
 }
 function renderGrid() {
   const list = PRODUCTS.filter(p => (!cat || p.category_id === cat) && p.name.toLowerCase().includes(q));
   $('empty').classList.toggle('hidden', list.length > 0);
   $('grid').innerHTML = list.map(p => {
     const n = cart[p.id] || 0, out = p.stock <= 0, max = n >= p.stock;
-    const media = p.image ? `<img src="${esc(p.image)}" class="w-full h-full object-cover" alt="" loading="lazy">` : `<span class="text-4xl sm:text-6xl">${esc(p.emoji)}</span>`;
+    const media = p.image ? `<img src="${esc(p.image)}" class="w-full h-full object-cover" alt="" loading="lazy">` : ico(p.emoji, 0, 'restaurant', '!text-[38px] sm:!text-[64px] text-slate-400');
     const badge = out ? '<span class="absolute top-1 left-1 sm:top-2 sm:left-2 pill pill-red !text-[10px]">Habis</span>' : (p.stock <= 5 ? `<span class="absolute top-1 left-1 sm:top-2 sm:left-2 pill pill-amber !text-[10px]">Sisa ${p.stock}</span>` : '');
     return `<div class="card p-2.5 sm:p-3 flex sm:block items-center gap-3 ${out ? 'opacity-60' : ''}">
       <div class="w-[72px] h-[72px] sm:w-full sm:h-auto sm:aspect-square shrink-0 rounded-2xl bg-slate-100 grid place-items-center overflow-hidden relative">${media}${badge}</div>
@@ -249,7 +260,7 @@ function renderCart() {
     const p = byId[id], n = cart[id];
     const max = n >= p.stock;
     return `<div class="flex items-center gap-3">
-      <div class="w-12 h-12 rounded-xl bg-slate-100 grid place-items-center text-xl overflow-hidden shrink-0">${p.image ? `<img src="${esc(p.image)}" class="w-full h-full object-cover" alt="">` : esc(p.emoji)}</div>
+      <div class="w-12 h-12 rounded-xl bg-slate-100 grid place-items-center overflow-hidden shrink-0 text-slate-500">${p.image ? `<img src="${esc(p.image)}" class="w-full h-full object-cover" alt="">` : ico(p.emoji, 24)}</div>
       <div class="flex-1 min-w-0">
         <div class="font-semibold text-sm leading-tight line-clamp-2">${esc(p.name)}</div>
         <div class="text-xs text-slate-500">${rp(p.price)} × ${n} = <b class="text-slate-700">${rp(p.price * n)}</b></div>
@@ -280,7 +291,7 @@ function renderMeta() {
   $('custName').textContent = customer ? customer.name : 'Walk-in Customer';
   $('custMeta').textContent = customer ? `${customer.code} · ${customer.tier.toUpperCase()} · ${customer.points} poin` : 'Belum memilih pelanggan';
   const a = $('allergy'); a.classList.toggle('hidden', !(customer && customer.allergy));
-  if (customer && customer.allergy) a.textContent = '⚠ ' + customer.allergy;
+  if (customer && customer.allergy) a.innerHTML = ico('warning', 16) + ' ' + esc(customer.allergy);
   document.querySelectorAll('#typeTabs button').forEach(b => { const on = b.dataset.t === orderType; b.className = `flex-1 h-9 rounded-full text-sm font-semibold ${on ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`; });
   document.querySelectorAll('#payTabs button').forEach(b => { const on = b.dataset.m === method; b.className = `h-10 rounded-2xl text-sm font-bold border ${on ? 'chip-on' : 'bg-white text-slate-700 border-slate-200'}`; });
   $('table').classList.toggle('hidden', orderType !== 'dine_in');

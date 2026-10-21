@@ -24,7 +24,7 @@ class PosController extends Controller
             'name' => $p->name,
             'price' => (float) $p->price,
             'stock' => $p->stock,
-            'emoji' => $p->emoji ?: '🍽️',
+            'emoji' => $p->emoji,   // emoji lama atau nama ikon; diterjemahkan di browser
             'image' => $p->image_url,
             'category_id' => $p->category_id,
         ])->values();

@@ -53,9 +53,11 @@ Route::middleware(['auth', 'account'])->group(function () {
     Route::get('/orders/{order}/receipt', [OrderController::class, 'receipt'])->name('orders.receipt');
 
     // Shift kas (kasir: milik sendiri; admin: semua)
-    Route::get('/shifts', [ShiftController::class, 'index'])->name('shifts.index');
-    Route::post('/shifts', [ShiftController::class, 'store'])->name('shifts.store');
-    Route::post('/shifts/{shift}/close', [ShiftController::class, 'close'])->name('shifts.close');
+    Route::middleware(\App\Http\Middleware\EnsureShiftEnabled::class)->group(function () {
+        Route::get('/shifts', [ShiftController::class, 'index'])->name('shifts.index');
+        Route::post('/shifts', [ShiftController::class, 'store'])->name('shifts.store');
+        Route::post('/shifts/{shift}/close', [ShiftController::class, 'close'])->name('shifts.close');
+    });
 
     Route::get('/products', [ProductController::class, 'index'])->name('products.index');
     Route::resource('customers', CustomerController::class)->except(['show', 'destroy']);

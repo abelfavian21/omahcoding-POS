@@ -20,7 +20,7 @@
       <div><label class="label">Kategori</label>
         <select name="category_id" class="input">
           <option value="">— Tanpa kategori —</option>
-          @foreach ($categories as $c)<option value="{{ $c->id }}" @selected(old('category_id', $product->category_id) == $c->id)>{{ $c->emoji }} {{ $c->name }}</option>@endforeach
+          @foreach ($categories as $c)<option value="{{ $c->id }}" @selected(old('category_id', $product->category_id) == $c->id)>{{ $c->name }}</option>@endforeach
         </select></div>
       <div><label class="label">Harga jual (Rp) *</label>
         <input name="price" type="number" min="0" step="100" class="input" value="{{ old('price', $product->price !== null ? (int) $product->price : '') }}" required>
@@ -38,8 +38,26 @@
       <div><label class="label">Batas stok menipis *</label>
         <input name="min_stock" type="number" min="0" class="input" value="{{ old('min_stock', $product->min_stock) }}" required></div>
 
-      <div><label class="label">Emoji (jika tanpa foto)</label>
-        <input name="emoji" class="input" maxlength="8" value="{{ old('emoji', $product->emoji) }}" placeholder="🍵"></div>
+      <div class="sm:col-span-2">
+        <label class="label">Ikon (dipakai bila tanpa foto)</label>
+        @php
+          $cur = old('emoji', \App\Support\Icons::name($product->emoji));
+          $opts = \App\Support\Icons::picker();
+          if (! isset($opts[$cur])) { $opts[$cur] = $cur; }   // ikon lama di luar daftar tetap terpilih
+        @endphp
+        <div class="grid grid-cols-6 sm:grid-cols-8 gap-2">
+          @foreach ($opts as $name => $label)
+            <label class="cursor-pointer" title="{{ $label }}">
+              <input type="radio" name="emoji" value="{{ $name }}" class="peer sr-only" @checked($cur === $name)>
+              <span class="grid place-items-center h-11 rounded-xl border border-slate-200 bg-white text-slate-600 transition peer-checked:bg-lime-accent peer-checked:text-slate-950 peer-checked:border-lime-accent peer-focus-visible:ring-4 peer-focus-visible:ring-lime-accent/40">
+                <span class="material-symbols-outlined" aria-hidden="true">{{ $name }}</span>
+                <span class="sr-only">{{ $label }}</span>
+              </span>
+            </label>
+          @endforeach
+        </div>
+        @error('emoji')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+      </div>
       <div><label class="label">Foto produk (maks 2 MB)</label>
         <input name="image" type="file" accept="image/*" class="input !h-auto py-2 text-xs">
         @error('image')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror</div>

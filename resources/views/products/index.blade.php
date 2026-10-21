@@ -26,7 +26,7 @@
   </div>
   <select name="category" class="input lg:!w-auto" onchange="this.form.submit()">
     <option value="">Semua kategori</option>
-    @foreach ($categories as $c)<option value="{{ $c->id }}" @selected(request('category') == $c->id)>{{ $c->emoji }} {{ $c->name }}</option>@endforeach
+    @foreach ($categories as $c)<option value="{{ $c->id }}" @selected(request('category') == $c->id)>{{ $c->name }}</option>@endforeach
   </select>
   <label class="chip gap-2 cursor-pointer {{ request('stock') === 'low' ? '!bg-amber-50 !border-amber-200 !text-amber-700' : '' }}">
     <input type="checkbox" name="stock" value="low" class="rounded text-amber-500" onchange="this.form.submit()" @checked(request('stock') === 'low')> Stok menipis ({{ $lowCount }})
@@ -47,7 +47,7 @@
             <td class="td">
               <div class="flex items-center gap-3">
                 <div class="w-12 h-12 rounded-2xl bg-slate-100 grid place-items-center text-2xl overflow-hidden shrink-0">
-                  @if ($p->image_url)<img src="{{ $p->image_url }}" class="w-full h-full object-cover" alt="">@else{{ $p->emoji ?? '🍽️' }}@endif
+                  @if ($p->image_url)<img src="{{ $p->image_url }}" class="w-full h-full object-cover" alt="">@else<x-ico :v="$p->emoji" style="font-size:26px" />@endif
                 </div>
                 <div><div class="font-bold">{{ $p->name }}</div><div class="text-xs text-slate-400">{{ $p->sku }}</div></div>
               </div>
@@ -80,7 +80,7 @@
       <li class="py-3.5">
         <div class="flex items-center gap-3">
           <div class="w-14 h-14 rounded-2xl bg-slate-100 grid place-items-center text-3xl overflow-hidden shrink-0">
-            @if ($p->image_url)<img src="{{ $p->image_url }}" class="w-full h-full object-cover" alt="">@else{{ $p->emoji ?? '🍽️' }}@endif
+            @if ($p->image_url)<img src="{{ $p->image_url }}" class="w-full h-full object-cover" alt="">@else<x-ico :v="$p->emoji" style="font-size:26px" />@endif
           </div>
           <div class="min-w-0 flex-1">
             <div class="font-bold truncate">{{ $p->name }}</div>
