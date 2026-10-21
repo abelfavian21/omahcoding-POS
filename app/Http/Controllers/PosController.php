@@ -38,6 +38,7 @@ class PosController extends Controller
             'taxRate' => (float) ($request->user()->business?->taxRate() ?? config('pos.tax_rate')),
             'taxLabel' => $request->user()->business?->tax_label ?? config('pos.tax_label'),
             'shiftOpen' => (bool) CashShift::currentFor($request->user()),
+            'shiftRequired' => (bool) $request->user()->business?->requiresShift(),
             'nextInvoice' => Order::nextInvoiceNo(),
             'qrisDynamic' => MidtransClient::forBusiness($request->user()->business)->enabled(),
             'qrisManualUrl' => $request->user()->business?->hasManualQris()

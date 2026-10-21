@@ -21,7 +21,8 @@
     ['route' => 'audit.index', 'match' => 'audit.*', 'icon' => 'policy', 'label' => 'Audit Log', 'admin' => true, 'group' => 'Management'],
     ['route' => 'office', 'match' => 'office', 'icon' => 'apartment', 'label' => 'Kantor Virtual', 'admin' => false, 'group' => 'Management'],
   ];
-  $visible = collect($nav)->reject(fn ($n) => $n['admin'] && ! $u->isAdmin());
+  $shiftOn = (bool) ($u->business?->requiresShift() ?? true);
+  $visible = collect($nav)->reject(fn ($n) => ($n['admin'] && ! $u->isAdmin()) || ($n['route'] === 'shifts.index' && ! $shiftOn));
   $groups = $visible->groupBy('group');
 
   // Bottom nav mobile: 4 menu utama + tombol "Menu". Disembunyikan di kasir karena halaman itu punya bar keranjang sendiri.
@@ -87,7 +88,7 @@
   <div id="backdrop" class="hidden fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-sm md:hidden"></div>
 
   {{-- ========== KONTEN ========== --}}
-  <main class="flex-1 min-w-0 {{ $showBottomNav ? 'pb-24' : 'pb-6' }} md:pb-0">
+  <main class="flex-1 min-w-0 {{ $showBottomNav ? 'pb-24' : 'pb-6' }} md:pb-0 {{ request()->routeIs('pos') ? 'overflow-x-clip' : '' }}">
     <div class="md:hidden sticky top-0 z-30 flex items-center justify-between px-4 h-14 bg-white/90 backdrop-blur border-b border-card-border">
       <button id="menuBtn" class="p-2 -ml-2 rounded-xl" aria-label="Buka menu"><span class="material-symbols-outlined">menu</span></button>
       <span class="font-extrabold tracking-tight flex items-center gap-1.5">

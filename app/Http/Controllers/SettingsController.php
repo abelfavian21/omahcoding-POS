@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
+use App\Models\CashShift;
 use App\Models\QrisPayment;
 use App\Services\MidtransClient;
 use Illuminate\Http\Request;
@@ -40,6 +41,24 @@ class SettingsController extends Controller
         AuditLog::record('settings.updated', null, ['tax_rate_pct' => (float) $data['tax_rate_pct'], 'tax_label' => $data['tax_label']]);
 
         return redirect()->route('settings.edit')->with('success', 'Pengaturan toko disimpan. Pajak dan struk memakai data ini.');
+    }
+
+    /** Aktif / nonaktifkan shift kasir. Menonaktifkan ditolak selama masih ada shift terbuka agar hitungan kas tidak menggantung. */
+    public function updateShift(Request $request)
+    {
+        $enable = $request->boolean('shift_enabled');
+        $business = $request->user()->business;
+
+        if (! $enable && CashShift::open()->exists()) {
+            return redirect()->route('settings.edit')->withErrors(['shift_enabled' => 'Masih ada shift yang terbuka. Tutup semua shift dulu sebelum menonaktifkan fitur ini.']);
+        }
+
+        $business->forceFill(['shift_enabled' => $enable])->save();
+        AuditLog::record('settings.shift_' . ($enable ? 'enabled' : 'disabled'));
+
+        return redirect()->route('settings.edit')->with('success', $enable
+            ? 'Shift kasir diaktifkan. Kasir wajib membuka shift sebelum menerima pembayaran.'
+            : 'Shift kasir dinonaktifkan. Kasir bisa langsung menerima pembayaran tanpa buka shift.');
     }
 
     /**

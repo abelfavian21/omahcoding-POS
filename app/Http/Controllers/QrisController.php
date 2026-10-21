@@ -35,7 +35,7 @@ class QrisController extends Controller
             'note' => ['nullable', 'string', 'max:255'],
         ]);
 
-        if (config('pos.require_shift') && ! CashShift::currentFor($request->user())) {
+        if ($request->user()->business?->requiresShift() && ! CashShift::currentFor($request->user())) {
             return response()->json(['message' => 'Buka shift kasir terlebih dahulu sebelum menerima pembayaran.'], 422);
         }
 

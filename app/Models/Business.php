@@ -19,7 +19,7 @@ class Business extends Model
 
     protected function casts(): array
     {
-        return ['trial_ends_at' => 'datetime', 'tax_rate' => 'float', 'midtrans_server_key' => 'encrypted', 'qris_require_ref' => 'boolean'];
+        return ['trial_ends_at' => 'datetime', 'tax_rate' => 'float', 'midtrans_server_key' => 'encrypted', 'qris_require_ref' => 'boolean', 'shift_enabled' => 'boolean'];
     }
 
     /** Server Key Midtrans bisnis ini (null bila belum diisi atau tidak bisa didekripsi, mis. APP_KEY berganti). */
@@ -50,6 +50,12 @@ class Business extends Model
     public function users()
     {
         return $this->hasMany(User::class);
+    }
+
+    /** Wajib buka shift sebelum menerima pembayaran? Diatur admin di Pengaturan (default aktif). */
+    public function requiresShift(): bool
+    {
+        return (bool) $this->shift_enabled;
     }
 
     /** Gambar QRIS statis milik bisnis ini ada di disk privat? */

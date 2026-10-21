@@ -45,7 +45,7 @@ class CheckoutService
     private function process(User $user, array $data): Order
     {
         $shift = CashShift::currentFor($user);
-        if (! $shift && config('pos.require_shift')) {
+        if (! $shift && $user->business?->requiresShift()) {
             throw new RuntimeException('Buka shift kasir terlebih dahulu sebelum menerima pembayaran.');
         }
 

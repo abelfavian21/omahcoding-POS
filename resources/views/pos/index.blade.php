@@ -1,16 +1,16 @@
 @extends('layouts.app')
 @section('title', 'Order Line')
 @section('content')
-@if (! $shiftOpen && config('pos.require_shift'))
+@if (! $shiftOpen && ($shiftRequired ?? true))
   <div class="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 text-sm font-semibold">
     <span>Shift kasir belum dibuka — pembayaran akan ditolak sampai shift dibuka.</span>
     <a href="{{ route('shifts.index') }}" class="btn-dark !h-9 !px-4 text-xs text-lime-accent">Buka shift</a>
   </div>
 @endif
-<div class="grid xl:grid-cols-[1fr_390px] gap-5 items-start">
+<div class="grid grid-cols-[minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_390px] gap-5 items-start">
 
   {{-- ============ MENU ============ --}}
-  <div>
+  <div class="pb-24 xl:pb-0 min-w-0">
     <div class="text-xs text-slate-400 font-semibold mb-1">Order Line › <span class="text-slate-700">Pilih Menu</span></div>
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
       <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">{{ (auth()->user()?->business?->name ?? config('pos.store_name')) }} Menu</h1>
@@ -20,12 +20,24 @@
       </div>
     </div>
     <div id="cats" class="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-4 -mx-4 px-4 sm:mx-0 sm:px-0"></div>
-    <div id="grid" class="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4"></div>
+    <div id="grid" class="grid grid-cols-1 min-[560px]:grid-cols-2 md:grid-cols-3 2xl:grid-cols-4 gap-2.5 sm:gap-4"></div>
     <p id="empty" class="hidden text-center text-slate-500 py-16">Menu tidak ditemukan.</p>
   </div>
 
   {{-- ============ KERANJANG ============ --}}
-  <aside id="cartPanel" class="card scroll-mt-20 xl:sticky xl:top-6 flex flex-col overflow-hidden xl:max-h-[calc(100vh-3rem)]">
+  <div id="cartBackdrop" class="hidden fixed inset-0 z-[35] bg-slate-950/50 backdrop-blur-sm xl:hidden"></div>
+  <aside id="cartPanel" role="dialog" aria-label="Keranjang"
+         class="card flex flex-col fixed inset-x-0 bottom-0 z-40 max-h-[92dvh] overflow-y-auto overscroll-contain !rounded-b-none translate-y-full transition-transform duration-300 ease-out
+                sm:inset-x-0 sm:mx-auto sm:max-w-lg
+                xl:static xl:translate-y-0 xl:max-w-none xl:mx-0 xl:z-auto xl:!rounded-3xl xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)] xl:overflow-hidden">
+    <div class="xl:hidden sticky top-0 z-10 flex items-center justify-between gap-2 px-4 pt-3 pb-2 border-b border-slate-100" style="background: var(--surface)">
+      <div class="flex items-center gap-2">
+        <span class="w-9 h-1 rounded-full bg-slate-300 absolute left-1/2 -translate-x-1/2 top-1.5"></span>
+        <span class="font-extrabold text-base mt-1">Keranjang</span>
+        <span id="sheetCount" class="pill pill-slate mt-1">0 item</span>
+      </div>
+      <button type="button" id="sheetClose" class="p-2 -mr-2 rounded-xl" aria-label="Tutup keranjang"><span class="material-symbols-outlined">close</span></button>
+    </div>
     <div class="p-4 sm:p-5 border-b border-slate-100">
       <div class="flex items-center justify-between gap-2">
         <div>
@@ -38,22 +50,22 @@
       </div>
       <div id="allergy" class="hidden mt-3 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold px-3 py-2"></div>
 
-      <div class="grid grid-cols-2 gap-2 mt-4">
-        <div class="inline-flex p-1 rounded-full bg-slate-100 col-span-2" id="typeTabs">
-          <button data-t="dine_in" class="flex-1 h-9 rounded-full text-sm font-semibold">Dine-in</button>
-          <button data-t="takeaway" class="flex-1 h-9 rounded-full text-sm font-semibold">Takeaway</button>
+      <div class="flex items-center gap-2 mt-3">
+        <div class="inline-flex p-1 rounded-full bg-slate-100 flex-1" id="typeTabs">
+          <button data-t="dine_in" class="flex-1 h-10 sm:h-9 rounded-full text-sm font-semibold">Dine-in</button>
+          <button data-t="takeaway" class="flex-1 h-10 sm:h-9 rounded-full text-sm font-semibold">Takeaway</button>
         </div>
-        <input id="table" class="input col-span-2" placeholder="Nomor meja (mis. 4)">
+        <input id="table" class="input !w-24 shrink-0 text-center" placeholder="No. meja" inputmode="numeric" aria-label="Nomor meja">
       </div>
     </div>
 
-    <div class="flex-1 overflow-y-auto p-4 sm:p-5 min-h-[120px]">
+    <div class="p-4 sm:p-5 xl:flex-1 xl:overflow-y-auto xl:min-h-[120px]">
       <div class="text-xs font-bold text-slate-500 mb-3">Pesanan <span class="text-slate-900">{{ $nextInvoice }}</span></div>
       <div id="lines" class="space-y-3"></div>
       <p id="noLines" class="text-sm text-slate-400 text-center py-8">Keranjang kosong.<br>Ketuk menu untuk menambah.</p>
     </div>
 
-    <div class="p-4 sm:p-5 border-t border-slate-100 space-y-3 text-sm">
+    <div class="p-4 sm:p-5 border-t border-slate-100 space-y-3 text-sm xl:shrink-0">
       <div class="font-bold">Ringkasan Pembayaran</div>
       <div class="flex justify-between text-slate-600"><span>Subtotal</span><span id="sSub">Rp 0</span></div>
       <div class="flex justify-between items-center text-slate-600"><span>Diskon (Rp)</span>
@@ -75,15 +87,17 @@
         <input id="ref" maxlength="60" class="input" placeholder="No. referensi / approval code">
       </div>
 
-      <p id="err" class="hidden text-xs font-semibold text-red-600"></p>
-      <button id="charge" class="btn-primary w-full !h-12 text-base disabled:opacity-50 disabled:cursor-not-allowed" disabled>Bayar Rp 0</button>
-      <button id="clear" class="btn-ghost w-full !h-9 text-xs">Kosongkan keranjang</button>
+      <div class="sticky bottom-0 -mx-4 sm:-mx-5 -mb-4 sm:-mb-5 px-4 sm:px-5 pt-3 border-t border-slate-100 space-y-2 xl:static xl:m-0 xl:p-0 xl:border-0" style="background: var(--surface); padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px))">
+        <p id="err" class="hidden text-xs font-semibold text-red-600"></p>
+        <button id="charge" class="btn-primary w-full !h-12 text-base disabled:opacity-50 disabled:cursor-not-allowed" disabled>Bayar Rp 0</button>
+        <button id="clear" class="btn-ghost w-full !h-9 text-xs">Kosongkan keranjang</button>
+      </div>
     </div>
   </aside>
 </div>
 
 {{-- Tombol keranjang untuk layar kecil --}}
-<button id="jump" class="xl:hidden fixed left-4 right-4 z-30 btn-dark !h-14 shadow-2xl text-lime-accent" style="bottom: calc(1rem + env(safe-area-inset-bottom, 0px))"><span class="material-symbols-outlined">shopping_bag</span> Lihat keranjang · <span id="jumpTotal">Rp 0</span></button>
+<button id="jump" class="hidden xl:hidden fixed left-4 right-4 z-30 btn-dark !h-14 !justify-between shadow-2xl text-lime-accent sm:left-auto sm:right-6 sm:w-80" style="bottom: calc(1rem + env(safe-area-inset-bottom, 0px))" aria-label="Lihat keranjang"><span class="inline-flex items-center gap-2"><span class="material-symbols-outlined">shopping_bag</span><span><span id="jumpCount">0</span> item</span></span><span class="inline-flex items-center gap-1"><span id="jumpTotal">Rp 0</span><span class="material-symbols-outlined">expand_less</span></span></button>
 
 {{-- Modal pilih pelanggan --}}
 <div id="custModal" class="hidden fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm grid items-end sm:place-items-center sm:p-4">
@@ -203,18 +217,21 @@ function renderGrid() {
   $('empty').classList.toggle('hidden', list.length > 0);
   $('grid').innerHTML = list.map(p => {
     const n = cart[p.id] || 0, out = p.stock <= 0, max = n >= p.stock;
-    const media = p.image ? `<img src="${esc(p.image)}" class="w-full h-full object-cover" alt="">` : `<span class="text-5xl sm:text-6xl">${esc(p.emoji)}</span>`;
-    return `<div class="card p-2.5 sm:p-3 ${out ? 'opacity-60' : ''}">
-      <div class="aspect-square rounded-2xl bg-slate-100 grid place-items-center overflow-hidden relative">${media}
-        ${out ? '<span class="absolute top-2 left-2 pill pill-red">Habis</span>' : (p.stock <= 5 ? `<span class="absolute top-2 left-2 pill pill-amber">Sisa ${p.stock}</span>` : '')}</div>
-      <div class="font-bold text-sm sm:text-base mt-3 leading-tight min-h-[2.5rem]">${esc(p.name)}</div>
-      <div class="mt-2 pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
-        <b class="text-sm sm:text-base">${rp(p.price)}</b>
-        <div class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-1 h-10 sm:h-9">
-          <button data-dec="${p.id}" class="w-8 h-8 sm:w-7 sm:h-7 rounded-full text-slate-500 disabled:opacity-40" ${n ? '' : 'disabled'}>−</button>
-          <span class="w-5 text-center text-sm font-bold">${n}</span>
-          <button data-inc="${p.id}" class="w-8 h-8 sm:w-7 sm:h-7 rounded-full bg-lime-accent text-slate-950 font-bold disabled:opacity-40" ${out || max ? 'disabled' : ''}>+</button>
-        </div></div></div>`;
+    const media = p.image ? `<img src="${esc(p.image)}" class="w-full h-full object-cover" alt="" loading="lazy">` : `<span class="text-4xl sm:text-6xl">${esc(p.emoji)}</span>`;
+    const badge = out ? '<span class="absolute top-1 left-1 sm:top-2 sm:left-2 pill pill-red !text-[10px]">Habis</span>' : (p.stock <= 5 ? `<span class="absolute top-1 left-1 sm:top-2 sm:left-2 pill pill-amber !text-[10px]">Sisa ${p.stock}</span>` : '');
+    return `<div class="card p-2.5 sm:p-3 flex sm:block items-center gap-3 ${out ? 'opacity-60' : ''}">
+      <div class="w-[72px] h-[72px] sm:w-full sm:h-auto sm:aspect-square shrink-0 rounded-2xl bg-slate-100 grid place-items-center overflow-hidden relative">${media}${badge}</div>
+      <div class="flex-1 min-w-0 sm:mt-3">
+        <div class="font-bold text-sm sm:text-base leading-tight line-clamp-2 sm:min-h-[2.5rem]">${esc(p.name)}</div>
+        <div class="mt-1.5 sm:mt-2 sm:pt-2 sm:border-t border-slate-100 flex items-center justify-between gap-2">
+          <b class="text-sm sm:text-base">${rp(p.price)}</b>
+          <div class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-1 h-11 sm:h-9 shrink-0">
+            <button data-dec="${p.id}" aria-label="Kurangi ${esc(p.name)}" class="w-10 h-10 sm:w-7 sm:h-7 rounded-full text-lg sm:text-base text-slate-500 disabled:opacity-40" ${n ? '' : 'disabled'}>−</button>
+            <span class="w-6 text-center text-sm font-bold">${n}</span>
+            <button data-inc="${p.id}" aria-label="Tambah ${esc(p.name)}" class="w-10 h-10 sm:w-7 sm:h-7 rounded-full text-lg sm:text-base bg-lime-accent text-slate-950 font-bold disabled:opacity-40" ${out || max ? 'disabled' : ''}>+</button>
+          </div>
+        </div>
+      </div></div>`;
   }).join('');
 }
 
@@ -230,15 +247,27 @@ function renderCart() {
   $('noLines').classList.toggle('hidden', ids.length > 0);
   $('lines').innerHTML = ids.map(id => {
     const p = byId[id], n = cart[id];
+    const max = n >= p.stock;
     return `<div class="flex items-center gap-3">
-      <div class="w-11 h-11 rounded-xl bg-slate-100 grid place-items-center text-xl overflow-hidden shrink-0">${p.image ? `<img src="${esc(p.image)}" class="w-full h-full object-cover">` : esc(p.emoji)}</div>
-      <div class="flex-1 min-w-0"><div class="font-semibold text-sm truncate">${esc(p.name)}</div><div class="text-xs text-slate-500">${n} × ${rp(p.price)}</div></div>
-      <div class="font-bold text-sm">${rp(p.price * n)}</div></div>`;
+      <div class="w-12 h-12 rounded-xl bg-slate-100 grid place-items-center text-xl overflow-hidden shrink-0">${p.image ? `<img src="${esc(p.image)}" class="w-full h-full object-cover" alt="">` : esc(p.emoji)}</div>
+      <div class="flex-1 min-w-0">
+        <div class="font-semibold text-sm leading-tight line-clamp-2">${esc(p.name)}</div>
+        <div class="text-xs text-slate-500">${rp(p.price)} × ${n} = <b class="text-slate-700">${rp(p.price * n)}</b></div>
+      </div>
+      <div class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-1 h-10 shrink-0">
+        <button data-ldec="${id}" aria-label="Kurangi ${esc(p.name)}" class="w-8 h-8 rounded-full text-lg text-slate-500">−</button>
+        <span class="w-5 text-center text-sm font-bold">${n}</span>
+        <button data-linc="${id}" aria-label="Tambah ${esc(p.name)}" class="w-8 h-8 rounded-full text-lg bg-lime-accent text-slate-950 font-bold disabled:opacity-40" ${max ? 'disabled' : ''}>+</button>
+      </div></div>`;
   }).join('');
 
   const t = totals();
   $('sSub').textContent = rp(t.sub); $('sTax').textContent = rp(t.tax); $('sTotal').textContent = rp(t.total);
   $('charge').textContent = 'Bayar ' + rp(t.total); $('jumpTotal').textContent = rp(t.total);
+  const qtyAll = Object.values(cart).reduce((a, b) => a + b, 0);
+  $('jumpCount').textContent = qtyAll; $('sheetCount').textContent = qtyAll + ' item';
+  if (!ids.length && sheetIsOpen()) setSheet(false);
+  else if (!sheetIsOpen()) $('jump').classList.toggle('hidden', !ids.length);
 
   const paid = +$('paid').value || 0;
   $('sChange').textContent = rp(Math.max(0, paid - t.total));
@@ -276,7 +305,28 @@ $('paid').addEventListener('input', renderCart);
 $('ref').addEventListener('input', renderCart);
 $('quick').addEventListener('click', e => { const b = e.target.closest('[data-q]'); if (b) { $('paid').value = b.dataset.q; renderCart(); } });
 $('clear').addEventListener('click', () => { cart = {}; $('discount').value = 0; $('paid').value = ''; refresh(); });
-$('jump').addEventListener('click', () => $('cartPanel').scrollIntoView({ behavior: 'smooth' }));
+$('lines').addEventListener('click', e => {
+  const inc = e.target.closest('[data-linc]'), dec = e.target.closest('[data-ldec]');
+  if (inc) { const id = inc.dataset.linc; if ((cart[id] || 0) < byId[id].stock) cart[id] = (cart[id] || 0) + 1; }
+  if (dec) { const id = dec.dataset.ldec; if (--cart[id] <= 0) delete cart[id]; }
+  if (inc || dec) { $('err').classList.add('hidden'); refresh(); }
+});
+
+/* ---------- Keranjang sebagai bottom sheet (HP/tablet); di layar lebar (xl) tetap panel samping ---------- */
+const isWide = window.matchMedia('(min-width: 1280px)');
+function sheetIsOpen() { return !$('cartPanel').classList.contains('translate-y-full'); }
+function setSheet(open) {
+  if (isWide.matches) return;
+  $('cartPanel').classList.toggle('translate-y-full', !open);
+  $('cartBackdrop').classList.toggle('hidden', !open);
+  document.body.style.overflow = open ? 'hidden' : '';
+  $('jump').classList.toggle('hidden', open || !Object.keys(cart).length);
+}
+$('jump').addEventListener('click', () => setSheet(true));
+$('sheetClose').addEventListener('click', () => setSheet(false));
+$('cartBackdrop').addEventListener('click', () => setSheet(false));
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && sheetIsOpen()) setSheet(false); });
+isWide.addEventListener('change', e => { if (e.matches) { $('cartBackdrop').classList.add('hidden'); document.body.style.overflow = ''; } });
 
 /* ---------- Pelanggan ---------- */
 const modal = $('custModal');
@@ -327,7 +377,7 @@ async function runCheckout(refValue, err, btn) {
     if (!r.ok) { idemKey = null; }   // server menolak -> percobaan berikutnya adalah transaksi baru
     if (!r.ok) throw new Error(d.errors ? Object.values(d.errors)[0][0] : (d.message || 'Transaksi gagal'));
     idemKey = null; $('ref').value = ''; $('mqRef').value = '';
-    $('qrisManualModal').classList.add('hidden');
+    $('qrisManualModal').classList.add('hidden'); setSheet(false);
     $('doneInv').textContent = d.invoice_no; $('doneTotal').textContent = rp(d.total);
     $('doneChange').textContent = d.change > 0 ? 'Kembalian ' + rp(d.change) : '';
     $('doneView').href = d.receipt_url; $('doneDl').href = d.download_url;

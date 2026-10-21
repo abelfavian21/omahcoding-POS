@@ -30,6 +30,15 @@ class ManualQrisTest extends TestCase
         Storage::fake('local');
     }
 
+    /** Ganti user di tengah tes dengan sesi bersih (AuthenticateSession menolak sesi yang hash passwordnya milik user lain). */
+    private function as(User $u): static
+    {
+        $this->flushSession();
+        $this->app['auth']->forgetGuards();
+
+        return $this->actingAs($u);
+    }
+
     private function business(string $code): Business
     {
         $cat = BusinessCategory::first() ?? BusinessCategory::create([
@@ -216,9 +225,10 @@ class ManualQrisTest extends TestCase
         $bb = $this->business('CS-BBB-2222');
         $kasirB = $this->user($bb, 'kasir');
 
-        $this->actingAs($kasirA)->get(route('pos.qris.manual'))->assertOk();
-        $this->actingAs($kasirB)->get(route('pos.qris.manual'))->assertNotFound();   // B tidak punya gambar & tidak bisa melihat milik A
-        auth()->logout();
-        $this->get(route('pos.qris.manual'))->assertRedirect();                      // tamu: harus login
+        $this->as($kasirA)->get(route('pos.qris.manual'))->assertOk();
+        $this->as($kasirB)->get(route('pos.qris.manual'))->assertNotFound();   // B tidak punya gambar & tidak bisa melihat milik A
+        $this->flushSession();
+        $this->app['auth']->forgetGuards();
+        $this->get(route('pos.qris.manual'))->assertRedirect();                // tamu: harus login
     }
 }
