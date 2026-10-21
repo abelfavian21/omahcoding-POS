@@ -66,12 +66,11 @@ class Business extends Model
 
     /**
      * Apakah kasir wajib mengisi nomor referensi untuk QRIS manual?
-     * Tanpa gambar QRIS di Pengaturan: wajib (perilaku lama, karena tidak ada yang bisa diverifikasi).
-     * Dengan gambar: mengikuti opsi admin (default tidak wajib).
+     * Mengikuti opsi admin di Pengaturan (qris_require_ref), default nonaktif untuk bisnis baru.
      */
     public function qrisManualNeedsRef(): bool
     {
-        return ! $this->hasManualQris() || (bool) $this->qris_require_ref;
+        return (bool) $this->qris_require_ref;
     }
 
     /** Tarif pajak bisnis ini; fallback ke config bila belum diatur. */

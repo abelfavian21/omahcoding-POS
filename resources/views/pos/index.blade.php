@@ -201,7 +201,7 @@ function ico(v, size = 20, fb = 'restaurant', cls = '') {
   return `<span class="material-symbols-outlined ${cls}" ${size ? `style="font-size:${size}px"` : ''} aria-hidden="true">${iconName(v, fb)}</span>`;
 }
 const QRIS_MANUAL_URL = @json($qrisManualUrl ?? null);   // gambar QRIS statis bisnis (Pengaturan); null = belum diunggah
-const QRIS_NEEDS_REF = @json($qrisNeedsRef ?? true);     // di modal QRIS manual: tampilkan input kode konfirmasi (opsi admin, default mati)
+const QRIS_NEEDS_REF = @json($qrisNeedsRef ?? false);     // di modal QRIS manual: tampilkan input kode konfirmasi (opsi admin, default mati)
 const QRIS_DYNAMIC = @json($qrisDynamic ?? false);   // true bila MIDTRANS_SERVER_KEY terisi; false = QRIS manual seperti sebelumnya
 const CSRF = document.querySelector('meta[name=csrf-token]').content;
 
@@ -215,7 +215,7 @@ const uuid = () => ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (c ^ cryp
 let cat = 0, q = '';
 let customer = @json($customer);
 let orderType = 'dine_in', method = 'cash';
-const needsRef = () => method === 'card' || (method === 'qris' && !QRIS_DYNAMIC && !QRIS_MANUAL_URL);   // dengan gambar QRIS: konfirmasi lewat modal   // QRIS dinamis diverifikasi Midtrans, tanpa input manual
+const needsRef = () => method === 'card' || (method === 'qris' && !QRIS_DYNAMIC && !QRIS_MANUAL_URL && QRIS_NEEDS_REF);   // dengan gambar QRIS: konfirmasi lewat modal   // QRIS dinamis diverifikasi Midtrans, tanpa input manual
 const byId = Object.fromEntries(PRODUCTS.map(p => [p.id, p]));
 
 /* ---------- Menu ---------- */
