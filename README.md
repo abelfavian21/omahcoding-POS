@@ -35,7 +35,7 @@ Aplikasi kasir (Point of Sale) multi-bisnis berbasis **Laravel**, dengan manajem
 
 > Tailwind dimuat lewat CDN supaya tanpa proses build. Untuk produksi berskala besar, pertimbangkan mengompilasi Tailwind (dan sesuaikan CSP).
 
-## Instalasi
+## Tips Instalasi
 
 ```bash
 git clone <url-repo> cashierstore
