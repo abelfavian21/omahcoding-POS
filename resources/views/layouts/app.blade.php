@@ -46,10 +46,14 @@
 
     <nav class="flex-1 px-3 xl:px-4 pb-4 space-y-5">
       @foreach ($groups as $gname => $items)
-        <div>
-          <span class="px-3 text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-2 block md:hidden xl:block">{{ $gname }}</span>
+        @php $hasActive = collect($items)->contains(fn ($n) => request()->routeIs($n['match'])); @endphp
+        <div class="nav-group" data-group="{{ \Illuminate\Support\Str::slug($gname) }}" data-has-active="{{ $hasActive ? 1 : 0 }}">
+          <button type="button" class="nav-group-btn w-full px-3 mb-2 items-center justify-between text-[11px] font-bold text-slate-500 hover:text-slate-300 tracking-wider uppercase hidden xl:flex max-md:flex" aria-expanded="true">
+            <span>{{ $gname }}</span>
+            <span class="material-symbols-outlined nav-chev text-base transition-transform">expand_more</span>
+          </button>
           @if (! $loop->first)<div class="hidden md:block xl:hidden h-px bg-white/10 mx-3 mb-3"></div>@endif
-          <div class="space-y-1.5">
+          <div class="nav-group-body space-y-1.5">
             @foreach ($items as $n)
               @php $on = request()->routeIs($n['match']); @endphp
               <a href="{{ route($n['route']) }}" title="{{ $n['label'] }}" @if ($on) aria-current="page" @endif
@@ -131,6 +135,33 @@
   </nav>
 @endif
 
+<style>
+  .nav-group.is-collapsed .nav-group-body { display: none; }
+  .nav-group.is-collapsed .nav-chev { transform: rotate(-90deg); }
+  /* icon rail (tablet): semua menu selalu terlihat */
+  @media (min-width: 768px) and (max-width: 1279px) { .nav-group.is-collapsed .nav-group-body { display: block; } }
+</style>
+<script>
+  (() => {
+    const KEY = 'sidebar-collapsed';
+    let saved = [];
+    try { saved = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) {}
+    const save = () => { try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) {} };
+    document.querySelectorAll('.nav-group').forEach((g) => {
+      const id = g.dataset.group, btn = g.querySelector('.nav-group-btn');
+      const set = (collapsed) => { g.classList.toggle('is-collapsed', collapsed); btn.setAttribute('aria-expanded', String(!collapsed)); };
+      // grup yang berisi halaman aktif selalu terbuka
+      set(saved.includes(id) && g.dataset.hasActive !== '1');
+      btn.addEventListener('click', () => {
+        const collapsed = !g.classList.contains('is-collapsed');
+        set(collapsed);
+        saved = saved.filter((x) => x !== id);
+        if (collapsed) saved.push(id);
+        save();
+      });
+    });
+  })();
+</script>
 <script>
   const sb = document.getElementById('sidebar'), bd = document.getElementById('backdrop');
   const isOpen = () => !sb.classList.contains('-translate-x-full');
