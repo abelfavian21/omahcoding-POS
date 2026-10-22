@@ -27,6 +27,26 @@ class Product extends Model
         return $this->belongsTo(Category::class);
     }
 
+    public function variants()
+    {
+        return $this->hasMany(ProductVariant::class)->where('is_active', true);
+    }
+
+    public function allVariants()
+    {
+        return $this->hasMany(ProductVariant::class);
+    }
+
+    public function recipes()
+    {
+        return $this->hasMany(ProductRecipe::class);
+    }
+
+    public function hasRecipe(): bool
+    {
+        return $this->recipes()->exists();
+    }
+
     public function movements()
     {
         return $this->hasMany(StockMovement::class)->latest();

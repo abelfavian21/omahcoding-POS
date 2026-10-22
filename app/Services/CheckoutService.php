@@ -5,8 +5,10 @@ namespace App\Services;
 use App\Models\AuditLog;
 use App\Models\CashShift;
 use App\Models\Customer;
+use App\Models\Ingredient;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
@@ -14,7 +16,7 @@ use RuntimeException;
 
 /**
  * SATU-SATUNYA jalur pembayaran. Semua angka dihitung ulang di server:
- * harga, pajak (per bisnis), diskon (dibatasi untuk kasir), poin.
+ * harga, varian, BOM (resep/bahan baku), pajak (per bisnis), diskon, poin.
  */
 class CheckoutService
 {
@@ -54,33 +56,11 @@ class CheckoutService
             throw new RuntimeException('Pesanan tertahan tidak ditemukan.');
         }
 
-        $lines = collect($data['items'])->groupBy('product_id')->map(fn ($g) => (int) $g->sum('qty'));
-        $products = Product::whereIn('id', $lines->keys())->lockForUpdate()->get()->keyBy('id');
-
-        $subtotal = 0;
-        $rows = [];
-        foreach ($lines as $pid => $qty) {
-            $p = $products[$pid] ?? null;
-            if (! $p) {
-                throw new RuntimeException('Produk tidak ditemukan.');
-            }
-            if (! $p->is_active) {
-                throw new RuntimeException("{$p->name} sedang tidak dijual.");
-            }
-            $rows[] = [
-                'product' => $p,
-                'qty' => $qty,
-                'data' => [
-                    'product_id' => $p->id,
-                    'product_name' => $p->name,
-                    'price' => $p->price,
-                    'cost_price' => $p->cost_price,
-                    'qty' => $qty,
-                    'subtotal' => $p->price * $qty,
-                ],
-            ];
-            $subtotal += $p->price * $qty;
-        }
+        $calc = $this->calculateItems($data['items'] ?? []);
+        $rows = $calc['rows'];
+        $subtotal = $calc['subtotal'];
+        $ingredientDeductions = $calc['ingredient_deductions'];
+        $productDeductions = $calc['product_deductions'];
 
         /* ---- diskon manual: dibatasi untuk kasir, admin bebas; selalu dicatat ---- */
         $manualDiscount = round((float) ($data['discount'] ?? 0));
@@ -147,8 +127,18 @@ class CheckoutService
 
         foreach ($rows as $r) {
             $order->items()->create($r['data']);
-            // melempar RuntimeException bila stok kurang -> seluruh transaksi di-rollback
-            $r['product']->adjustStock(-$r['qty'], 'sale', $order->invoice_no, $user->id, $order->id);
+        }
+
+        // 1. Potong stok produk jadi (yang tidak punya resep)
+        foreach ($productDeductions as $pId => $qty) {
+            $prod = Product::lockForUpdate()->findOrFail($pId);
+            $prod->adjustStock(-$qty, 'sale', $order->invoice_no, $user->id, $order->id);
+        }
+
+        // 2. Potong stok bahan baku (BOM)
+        foreach ($ingredientDeductions as $ingId => $amount) {
+            $ingredient = Ingredient::lockForUpdate()->findOrFail($ingId);
+            $ingredient->adjustStock(-$amount, 'sale', "Pesanan {$order->invoice_no}", $user->id, $order->id);
         }
 
         if ($customer && $redeem > 0) {
@@ -169,29 +159,12 @@ class CheckoutService
     }
 
     /**
-     * Hitung total tagihan TANPA menyimpan apa pun (dipakai QRIS dinamis untuk menentukan nominal QR).
-     * Aturan sama dengan process(): harga dari DB, batas diskon kasir, pajak per bisnis.
-     * Jika aturan di process() diubah, ubah juga di sini.
+     * Hitung total tagihan TANPA menyimpan apa pun (untuk validasi & penawaran QRIS dinamis).
      */
     public function quote(User $user, array $data): array
     {
-        $lines = collect($data['items'])->groupBy('product_id')->map(fn ($g) => (int) $g->sum('qty'));
-        $products = Product::whereIn('id', $lines->keys())->get()->keyBy('id');
-
-        $subtotal = 0;
-        foreach ($lines as $pid => $qty) {
-            $p = $products[$pid] ?? null;
-            if (! $p) {
-                throw new RuntimeException('Produk tidak ditemukan.');
-            }
-            if (! $p->is_active) {
-                throw new RuntimeException("{$p->name} sedang tidak dijual.");
-            }
-            if ($p->stock < $qty) {
-                throw new RuntimeException("Stok {$p->name} tidak cukup.");
-            }
-            $subtotal += $p->price * $qty;
-        }
+        $calc = $this->calculateItems($data['items'] ?? [], false);
+        $subtotal = $calc['subtotal'];
 
         $discount = round((float) ($data['discount'] ?? 0));
         if ($discount > $subtotal) {
@@ -211,26 +184,9 @@ class CheckoutService
     public function hold(User $user, array $data): Order
     {
         return DB::transaction(function () use ($user, $data) {
-            $lines = collect($data['items'])->groupBy('product_id')->map(fn ($g) => (int) $g->sum('qty'));
-            $products = Product::whereIn('id', $lines->keys())->get()->keyBy('id');
-
-            $subtotal = 0;
-            $rows = [];
-            foreach ($lines as $pid => $qty) {
-                $p = $products[$pid] ?? null;
-                if (! $p || ! $p->is_active) {
-                    throw new RuntimeException('Produk tidak tersedia untuk ditahan.');
-                }
-                $rows[] = [
-                    'product_id' => $p->id,
-                    'product_name' => $p->name,
-                    'price' => $p->price,
-                    'cost_price' => $p->cost_price,
-                    'qty' => $qty,
-                    'subtotal' => $p->price * $qty,
-                ];
-                $subtotal += $p->price * $qty;
-            }
+            $calc = $this->calculateItems($data['items'] ?? [], false);
+            $subtotal = $calc['subtotal'];
+            $rows = $calc['rows'];
 
             $order = Order::create([
                 'invoice_no' => Order::nextInvoiceNo(),
@@ -248,9 +204,130 @@ class CheckoutService
                 'status' => 'held',
                 'note' => $data['note'] ?? null,
             ]);
-            $order->items()->createMany($rows);
+
+            foreach ($rows as $r) {
+                $order->items()->create($r['data']);
+            }
 
             return $order->load('items');
         });
+    }
+
+    /**
+     * Helper kalkulasi item keranjang, varian, dan kebutuhan bahan baku (BOM).
+     */
+    private function calculateItems(array $rawItems, bool $lock = true): array
+    {
+        if (empty($rawItems)) {
+            throw new RuntimeException('Keranjang belanja kosong.');
+        }
+
+        $pIds = collect($rawItems)->pluck('product_id')->filter()->unique()->values()->all();
+        $productQuery = Product::with(['recipes', 'variants'])->whereIn('id', $pIds);
+        if ($lock) {
+            $productQuery->lockForUpdate();
+        }
+        $products = $productQuery->get()->keyBy('id');
+
+        // Kumpulkan semua varian id yang dipilih
+        $vIds = [];
+        foreach ($rawItems as $item) {
+            if (! empty($item['variant_ids']) && is_array($item['variant_ids'])) {
+                foreach ($item['variant_ids'] as $vid) {
+                    $vIds[] = (int) $vid;
+                }
+            }
+        }
+        $variants = ProductVariant::whereIn('id', array_unique($vIds))->get()->keyBy('id');
+
+        $rows = [];
+        $subtotal = 0;
+        $ingredientDeductions = []; // [ingredient_id => total_amount]
+        $productDeductions = [];    // [product_id => total_qty] (khusus produk tanpa resep)
+
+        foreach ($rawItems as $item) {
+            $pid = $item['product_id'] ?? null;
+            $qty = (int) ($item['qty'] ?? 1);
+            if ($qty <= 0) continue;
+
+            $p = $products[$pid] ?? null;
+            if (! $p) {
+                throw new RuntimeException('Produk tidak ditemukan.');
+            }
+            if (! $p->is_active) {
+                throw new RuntimeException("{$p->name} sedang tidak dijual.");
+            }
+
+            $selectedVariants = [];
+            $extraPrice = 0;
+            $extraCost = 0;
+
+            if (! empty($item['variant_ids']) && is_array($item['variant_ids'])) {
+                foreach ($item['variant_ids'] as $vid) {
+                    $v = $variants[$vid] ?? null;
+                    if ($v && $v->product_id == $p->id && $v->is_active) {
+                        $selectedVariants[] = [
+                            'id' => $v->id,
+                            'group' => $v->group_name,
+                            'name' => $v->name,
+                            'price' => (float) $v->price_extra,
+                        ];
+                        $extraPrice += (float) $v->price_extra;
+                        $extraCost += (float) $v->cost_extra;
+                    }
+                }
+            }
+
+            $unitPrice = (float) $p->price + $extraPrice;
+            $unitCost = (float) $p->cost_price + $extraCost;
+            $lineTotal = $unitPrice * $qty;
+            $subtotal += $lineTotal;
+
+            $rows[] = [
+                'product' => $p,
+                'qty' => $qty,
+                'data' => [
+                    'product_id' => $p->id,
+                    'product_name' => $p->name,
+                    'price' => $unitPrice,
+                    'cost_price' => $unitCost,
+                    'qty' => $qty,
+                    'subtotal' => $lineTotal,
+                    'variants_json' => ! empty($selectedVariants) ? $selectedVariants : null,
+                ],
+            ];
+
+            // Cek apakah produk ini memiliki resep (BOM)
+            $hasRecipe = $p->recipes->isNotEmpty();
+            if ($hasRecipe) {
+                // Potong bahan baku sesuai resep dasar & resep per varian
+                $selectedVids = array_column($selectedVariants, 'id');
+                foreach ($p->recipes as $recipe) {
+                    // Resep berlaku jika umum (product_variant_id null) ATAU jika varian tersebut dipilih
+                    if ($recipe->product_variant_id === null || in_array($recipe->product_variant_id, $selectedVids)) {
+                        $needed = (float) $recipe->amount * $qty;
+                        $ingredientDeductions[$recipe->ingredient_id] = ($ingredientDeductions[$recipe->ingredient_id] ?? 0) + $needed;
+                    }
+                }
+            } else {
+                // Produk jadi tanpa resep -> potong stok produk fisik
+                $productDeductions[$p->id] = ($productDeductions[$p->id] ?? 0) + $qty;
+            }
+        }
+
+        // Cek kecukupan stok produk jadi jika quote / verifikasi
+        foreach ($productDeductions as $pId => $needQty) {
+            $prod = $products[$pId] ?? null;
+            if ($prod && $prod->stock < $needQty) {
+                throw new RuntimeException("Stok {$prod->name} tidak cukup (tersisa {$prod->stock}).");
+            }
+        }
+
+        return [
+            'rows' => $rows,
+            'subtotal' => $subtotal,
+            'ingredient_deductions' => $ingredientDeductions,
+            'product_deductions' => $productDeductions,
+        ];
     }
 }

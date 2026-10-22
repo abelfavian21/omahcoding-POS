@@ -104,7 +104,26 @@ class Order extends Model
 
             foreach ($order->items as $item) {
                 if ($item->product) {
-                    $item->product->adjustStock($item->qty, 'void', "Void {$order->invoice_no}", $userId, $order->id);
+                    $hasRecipe = $item->product->hasRecipe();
+                    if ($hasRecipe) {
+                        // Kembalikan stok bahan baku
+                        $selectedVids = collect($item->variants_json ?? [])->pluck('id')->filter()->all();
+                        foreach ($item->product->recipes as $recipe) {
+                            if ($recipe->product_variant_id === null || in_array($recipe->product_variant_id, $selectedVids)) {
+                                $returnAmount = (float) $recipe->amount * $item->qty;
+                                $recipe->ingredient?->adjustStock(
+                                    $returnAmount,
+                                    'void',
+                                    "Void {$order->invoice_no} ({$item->product_name})",
+                                    $userId,
+                                    $order->id
+                                );
+                            }
+                        }
+                    } else {
+                        // Kembalikan stok produk jadi
+                        $item->product->adjustStock($item->qty, 'void', "Void {$order->invoice_no}", $userId, $order->id);
+                    }
                 }
             }
 
