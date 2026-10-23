@@ -76,15 +76,25 @@ class RegisterController extends Controller
 
             return $owner;
         });
-
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->route('landing')->with('registered', [
+        $registered = [
             'name' => $user->business->name,
             'category' => $category->name,
             'icon' => $category->icon,
             'code' => $user->business->code,
-        ]);
+        ];
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Usaha berhasil didaftarkan.',
+                'registered' => $registered,
+                'redirect' => route('dashboard'),
+            ]);
+        }
+
+        return redirect()->route('landing')->with('registered', $registered);
     }
 }
