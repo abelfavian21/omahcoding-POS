@@ -10,9 +10,9 @@
         name="password"
         wire:model.live.debounce.300ms="password"
         required
-        minlength="8"
+        minlength="10"
         autocomplete="new-password"
-        placeholder="Minimal 8 karakter"
+        placeholder="Minimal 10 karakter"
         class="w-full px-4 py-3 rounded-xl border text-sm font-semibold outline-none transition-all
         {{ $errors->has('password')
             ? 'border-rose-500 focus:ring-4 focus:ring-rose-100'

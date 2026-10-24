@@ -20,6 +20,7 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\StockController;
+use App\Http\Controllers\Platform;
 use Illuminate\Support\Facades\Route;
 
 /* ---------- Publik: landing page / company profile ---------- */
@@ -47,8 +48,6 @@ Route::middleware(['auth', 'account'])->group(function () {
     Route::get('/pos/customers', [PosController::class, 'customers'])->middleware('throttle:120,1')->name('pos.customers');
     Route::post('/pos/customers', [PosController::class, 'quickCustomer'])->middleware('throttle:30,1')->name('pos.customers.store');
     Route::post('/pos/checkout', [PosController::class, 'checkout'])->middleware('throttle:60,1')->name('pos.checkout');
-    // QRIS manual: gambar QRIS statis milik bisnis (disajikan hanya ke user bisnis tsb)
-    Route::get('/pos/qris-manual', [PosController::class, 'manualQris'])->middleware('throttle:120,1')->name('pos.qris.manual');
     // QRIS dinamis (Midtrans)
     Route::post('/pos/qris', [QrisController::class, 'store'])->middleware('throttle:30,1')->name('pos.qris.store');
     Route::get('/pos/qris/{payment}', [QrisController::class, 'show'])->middleware('throttle:90,1')->name('pos.qris.show');
@@ -57,11 +56,9 @@ Route::middleware(['auth', 'account'])->group(function () {
     Route::get('/orders/{order}/receipt', [OrderController::class, 'receipt'])->name('orders.receipt');
 
     // Shift kas (kasir: milik sendiri; admin: semua)
-    Route::middleware(\App\Http\Middleware\EnsureShiftEnabled::class)->group(function () {
-        Route::get('/shifts', [ShiftController::class, 'index'])->name('shifts.index');
-        Route::post('/shifts', [ShiftController::class, 'store'])->name('shifts.store');
-        Route::post('/shifts/{shift}/close', [ShiftController::class, 'close'])->name('shifts.close');
-    });
+    Route::get('/shifts', [ShiftController::class, 'index'])->name('shifts.index');
+    Route::post('/shifts', [ShiftController::class, 'store'])->name('shifts.store');
+    Route::post('/shifts/{shift}/close', [ShiftController::class, 'close'])->name('shifts.close');
 
     Route::get('/products', [ProductController::class, 'index'])->name('products.index');
     Route::resource('customers', CustomerController::class)->except(['show', 'destroy']);
@@ -98,9 +95,34 @@ Route::middleware(['auth', 'account'])->group(function () {
 
         Route::get('/settings', [SettingsController::class, 'edit'])->name('settings.edit');
         Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
-        Route::put('/settings/shift', [SettingsController::class, 'updateShift'])->middleware('throttle:20,1')->name('settings.shift');
-        Route::put('/settings/qris', [SettingsController::class, 'updateQris'])->middleware('throttle:20,1')->name('settings.qris');
-        Route::put('/settings/midtrans', [SettingsController::class, 'updateMidtrans'])->middleware('throttle:10,1')->name('settings.midtrans');
         Route::get('/audit', [AuditController::class, 'index'])->name('audit.index');
+    });
+});
+
+/* ---------- Panel platform (pemilik CashierStore). Guard "platform", terpisah dari user toko.
+              Tidak ditautkan dari halaman publik. Opsional dikunci ke IP tertentu: PLATFORM_ALLOWED_IPS ---------- */
+Route::prefix('platform')->name('platform.')->middleware('platform.ip')->group(function () {
+    Route::middleware('guest:platform')->group(function () {
+        Route::get('/login', [Platform\AuthController::class, 'showLogin'])->name('login');
+        Route::post('/login', [Platform\AuthController::class, 'login'])->middleware('throttle:platform-login')->name('login.store');
+    });
+
+    Route::middleware('platform.auth')->group(function () {
+        Route::post('/logout', [Platform\AuthController::class, 'logout'])->name('logout');
+        Route::get('/account', [Platform\AccountController::class, 'edit'])->name('account');
+        Route::put('/account', [Platform\AccountController::class, 'update'])->middleware('throttle:10,1')->name('account.update');
+
+        Route::get('/', [Platform\DashboardController::class, 'index'])->name('dashboard');
+
+        Route::get('/businesses', [Platform\BusinessController::class, 'index'])->name('businesses.index');
+        Route::get('/businesses/{business}', [Platform\BusinessController::class, 'show'])->name('businesses.show');
+        Route::post('/businesses/{business}/status', [Platform\BusinessController::class, 'status'])->middleware('throttle:30,1')->name('businesses.status');
+        Route::post('/businesses/{business}/trial', [Platform\BusinessController::class, 'extendTrial'])->middleware('throttle:30,1')->name('businesses.trial');
+
+        Route::get('/admins', [Platform\AdminController::class, 'index'])->name('admins.index');
+        Route::post('/admins', [Platform\AdminController::class, 'store'])->middleware('throttle:10,1')->name('admins.store');
+        Route::post('/admins/{admin}/active', [Platform\AdminController::class, 'toggle'])->middleware('throttle:20,1')->name('admins.toggle');
+
+        Route::get('/audit', [Platform\AuditController::class, 'index'])->name('audit');
     });
 });

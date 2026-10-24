@@ -13,3 +13,9 @@
 /database/*.sqlite-journal
 .phpunit.result.cache
 .env.before_lerd
+/.claude
+/.cursor
+/.gemini
+/.github
+/.junie
+/.vscode
