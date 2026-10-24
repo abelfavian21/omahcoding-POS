@@ -91,23 +91,17 @@ class Business extends Model
 
     public function isUsable(): bool
     {
-        if ($this->status === 'suspended') {
-            return false;
-        }
-
-        return ! ($this->isTrialExpired() && config('pos.enforce_trial'));
+        return $this->status !== 'suspended';
     }
 
     public function isTrialExpired(): bool
     {
-        return $this->status === 'trial' && $this->trial_ends_at && $this->trial_ends_at->isPast();
+        return false;
     }
 
     public function unusableReason(): string
     {
-        return $this->status === 'suspended'
-            ? 'Akun bisnis ini ditangguhkan. Hubungi dukungan CashierStore.'
-            : 'Masa percobaan sudah berakhir. Hubungi dukungan CashierStore untuk mengaktifkan.';
+        return 'Akun bisnis ini ditangguhkan. Hubungi dukungan CashierStore.';
     }
 
     /** ID Toko unik, contoh: CS-ORELY-8804 */

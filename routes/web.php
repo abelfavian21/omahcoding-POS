@@ -117,7 +117,6 @@ Route::prefix('platform')->name('platform.')->middleware('platform.ip')->group(f
         Route::get('/businesses', [Platform\BusinessController::class, 'index'])->name('businesses.index');
         Route::get('/businesses/{business}', [Platform\BusinessController::class, 'show'])->name('businesses.show');
         Route::post('/businesses/{business}/status', [Platform\BusinessController::class, 'status'])->middleware('throttle:30,1')->name('businesses.status');
-        Route::post('/businesses/{business}/trial', [Platform\BusinessController::class, 'extendTrial'])->middleware('throttle:30,1')->name('businesses.trial');
 
         Route::get('/admins', [Platform\AdminController::class, 'index'])->name('admins.index');
         Route::post('/admins', [Platform\AdminController::class, 'store'])->middleware('throttle:10,1')->name('admins.store');

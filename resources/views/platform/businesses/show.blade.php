@@ -1,7 +1,7 @@
 @extends('layouts.platform')
 @section('title', $business->name)
 @section('content')
-@php $pill = ['trial' => 'pill-amber', 'active' => 'pill-green', 'suspended' => 'pill-red']; @endphp
+@php $pill = ['active' => 'pill-green', 'suspended' => 'pill-red']; @endphp
 <div class="mb-5">
   <a href="{{ route('platform.businesses.index') }}" class="text-sm font-semibold text-slate-600 hover:underline">‹ Semua toko</a>
   <div class="flex flex-wrap items-center gap-3 mt-1">
@@ -20,7 +20,6 @@
         <div><dt class="label !mb-0">Email</dt><dd class="font-semibold break-all">{{ $business->email }}</dd></div>
         <div><dt class="label !mb-0">WhatsApp</dt><dd class="font-semibold">{{ $business->phone ?: '—' }}</dd></div>
         <div><dt class="label !mb-0">Lokasi · skala</dt><dd class="font-semibold">{{ $business->location ?: '—' }} · {{ $business->outlet_count }}</dd></div>
-        <div><dt class="label !mb-0">Trial berakhir</dt><dd class="font-semibold">{{ $business->trial_ends_at ? $business->trial_ends_at->translatedFormat('d M Y') : '—' }}@if ($business->status === 'trial' && $business->isTrialExpired()) <span class="pill pill-red ml-1">Lewat</span>@endif</dd></div>
         <div><dt class="label !mb-0">Pajak</dt><dd class="font-semibold">{{ $business->tax_label ?: 'Pajak' }} {{ rtrim(rtrim(number_format($business->taxRate() * 100, 2, ',', ''), '0'), ',') }}%</dd></div>
       </dl>
     </section>
@@ -63,22 +62,10 @@
           <button class="btn-primary w-full">Aktifkan kembali</button>
         </form>
       @else
-        @if ($business->status === 'trial')
-          <p class="label">Perpanjang trial</p>
-          <div class="grid grid-cols-3 gap-2 mb-2">
-            @foreach ([7, 14, 30] as $d)
-              <form method="POST" action="{{ route('platform.businesses.trial', $business) }}">@csrf<input type="hidden" name="days" value="{{ $d }}"><button class="btn-secondary w-full !px-2">+{{ $d }} hari</button></form>
-            @endforeach
-          </div>
-          <form method="POST" action="{{ route('platform.businesses.status', $business) }}" class="mb-4" onsubmit="return confirm('Jadikan {{ addslashes($business->name) }} berlangganan (Aktif)?')">
-            @csrf<input type="hidden" name="action" value="activate"><button class="btn-primary w-full">Jadikan Aktif</button>
-          </form>
-        @endif
-
         <form method="POST" action="{{ route('platform.businesses.status', $business) }}" onsubmit="return confirm('Tangguhkan {{ addslashes($business->name) }}? Semua penggunanya langsung terkunci.')">
           @csrf<input type="hidden" name="action" value="suspend">
           <label for="reason" class="label">Alasan penangguhan (wajib)</label>
-          <textarea id="reason" name="reason" rows="2" maxlength="200" required minlength="5" class="input" placeholder="Contoh: pembayaran belum masuk"></textarea>
+          <textarea id="reason" name="reason" rows="2" maxlength="200" required minlength="5" class="input" placeholder="Contoh: pelanggaran ketentuan layanan"></textarea>
           <button class="btn-danger w-full mt-2">Tangguhkan toko</button>
         </form>
       @endif

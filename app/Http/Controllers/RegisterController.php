@@ -52,9 +52,9 @@ class RegisterController extends Controller
                 'phone' => $data['phone'],
                 'location' => $data['location'],
                 'outlet_count' => $data['outlet_count'],
-                'status' => 'trial',
+                'status' => 'active',
                 'mode' => $category->default_mode ?? 'fnb',
-                'trial_ends_at' => now()->addDays(14),
+                'trial_ends_at' => null,
             ]);
 
             $owner = User::create([

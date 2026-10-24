@@ -27,15 +27,11 @@ class DashboardController extends Controller
             'byStatus' => $byStatus,
             'signups7' => Business::where('created_at', '>=', $now->copy()->subDays(7))->count(),
             'signups30' => Business::where('created_at', '>=', $now->copy()->subDays(30))->count(),
-            'trialEndingSoon' => Business::where('status', 'trial')->whereBetween('trial_ends_at', [$now, $now->copy()->addDays(7)])->count(),
-            'trialExpired' => Business::where('status', 'trial')->where('trial_ends_at', '<', $now)->count(),
             'activeUsers' => User::withoutGlobalScope('business')->where('is_active', true)->count(),
             'monthOrders' => $monthOrders()->count(),
             'monthRevenue' => (float) $monthOrders()->sum('total'),
             'top' => $top->map(fn ($r) => (object) ['name' => $names[$r->business_id] ?? '(toko dihapus)', 'id' => $r->business_id, 'orders' => $r->orders, 'revenue' => (float) $r->revenue]),
             'recent' => Business::with('category')->latest()->limit(8)->get(),
-            'ending' => Business::where('status', 'trial')->whereNotNull('trial_ends_at')->orderBy('trial_ends_at')->limit(8)->get(),
-            'enforceTrial' => (bool) config('pos.enforce_trial'),
         ]);
     }
 }
