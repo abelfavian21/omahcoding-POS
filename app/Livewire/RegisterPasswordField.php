@@ -3,30 +3,16 @@
 namespace App\Livewire;
 
 use App\Rules\StrongPassword;
-use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\On;
 use Livewire\Component;
-use Illuminate\Support\Facades\Validator;
 
 class RegisterPasswordField extends Component
 {
-    public bool $passwordValid = false;
     public string $password = '';
-    public string $name = '';
-    public string $email = '';
 
-    protected function rules(): array
-    {
-        return [
-            'password' => [
-                'required',
-                'string',
-                'min:8',
-                'max:100',
-                new StrongPassword($this->email, $this->name),
-            ],
-        ];
-    }
+    public string $ownerName = '';
+
+    public string $email = '';
 
     public function updatedPassword(): void
     {
@@ -34,45 +20,34 @@ class RegisterPasswordField extends Component
     }
 
     #[On('registration-context-updated')]
-    public function updateContext(
-        string $name = '',
-        string $email = ''
-    ): void {
-        $this->name = $name;
+    public function syncContext(string $name = '', string $email = ''): void
+    {
+        $this->ownerName = $name;
         $this->email = $email;
 
-        $this->checkPassword();
-    }
-
-    private function checkPassword(): void
-    {
-        $this->resetValidation('password');
-        $this->passwordValid = false;
-
         if ($this->password !== '') {
-            $validator = Validator::make(
-                ['password' => $this->password],
-                $this->rules()
-            );
-
-            if ($validator->fails()) {
-                $this->setErrorBag($validator->errors());
-            } else {
-                $this->passwordValid = true;
-            }
+            $this->checkPassword();
         }
-
-        $this->dispatch('password-validation-updated', valid: $this->passwordValid);
-    }
-
-    #[On('clear-password-error')]
-    public function clearPasswordError(): void
-    {
-        $this->resetValidation('password');
     }
 
     public function render()
     {
         return view('livewire.register-password-field');
+    }
+
+    private function checkPassword(): void
+    {
+        $validator = validator(
+            ['password' => $this->password],
+            ['password' => ['required', 'string', 'max:100', new StrongPassword($this->email, $this->ownerName)]],
+        );
+
+        $this->resetErrorBag('password');
+
+        if ($validator->fails()) {
+            $this->addError('password', $validator->errors()->first('password'));
+        }
+
+        $this->dispatch('password-validation-updated', valid: ! $validator->fails());
     }
 }

@@ -45,6 +45,17 @@ class AppServiceProvider extends ServiceProvider
             ];
         });
 
+        /* ---- Login admin platform: lebih ketat dari login toko ---- */
+        RateLimiter::for('platform-login', function (Request $r) {
+            $email = Str::lower(trim((string) $r->input('email')));
+
+            return [
+                Limit::perMinute(5)->by('plogin|' . $email . '|' . $r->ip()),
+                Limit::perMinute(15)->by('plogin-ip|' . $r->ip()),
+                Limit::perHour(10)->by('plogin-acct|' . $email),
+            ];
+        });
+
         RateLimiter::for('register', function (Request $request) {
             return [
                 // cegah spam cepat

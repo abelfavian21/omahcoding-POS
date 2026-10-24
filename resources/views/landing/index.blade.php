@@ -1535,7 +1535,7 @@
                     e.textContent = msg;
                     e.classList.remove('hidden');
                 };
-                
+
                 window.nextStep = from => {
                     if (from === 1) {
                         if (!checkStep(1, true)) {
