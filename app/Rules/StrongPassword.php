@@ -28,8 +28,6 @@ class StrongPassword implements ValidationRule
             $fail('Kata sandi terlalu mudah ditebak.');
         } elseif ($this->email && $lower === mb_strtolower($this->email)) {
             $fail('Kata sandi tidak boleh sama dengan email.');
-        } elseif ($this->name && mb_strlen($this->name) >= 4 && str_contains($lower, mb_strtolower($this->name))) {
-            $fail('Kata sandi tidak boleh memuat nama Anda.');
         }
     }
 }

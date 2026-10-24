@@ -911,8 +911,8 @@
                             <div id="step-2-content" class="max-w-4xl mx-auto space-y-6 hidden">
                                 <div class="text-center space-y-1">
                                     <h3 class="text-xl font-black text-slate-900">Langkah 2: Pilih Kategori Usaha</h3>
-                                    <p class="text-xs text-slate-500">Kategori menentukan kategori produk bawaan di
-                                        toko Anda. Saat ini tersedia untuk usaha F&amp;B.</p>
+                                    <p class="text-xs text-slate-500">Kategori menentukan alur kasir dan kategori produk bawaan di toko Anda.</p>
+
                                 </div>
                                 <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
                                     @foreach ($categories as $c)

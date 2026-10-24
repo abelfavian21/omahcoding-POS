@@ -11,17 +11,17 @@
 
   {{-- ============ MENU ============ --}}
   <div class="pb-24 xl:pb-0 min-w-0">
-    <div class="text-xs text-slate-400 font-semibold mb-1">Order Line › <span class="text-slate-700">Pilih Menu</span></div>
+    <div class="text-xs text-slate-400 font-semibold mb-1">Order Line › <span class="text-slate-700">{{ ($isRetail ?? false) ? 'Katalog Produk' : 'Pilih Menu' }}</span></div>
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-      <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">{{ (auth()->user()?->business?->name ?? config('pos.store_name')) }} Menu</h1>
+      <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">{{ (auth()->user()?->business?->name ?? config('pos.store_name')) }} {{ ($isRetail ?? false) ? 'Katalog' : 'Menu' }}</h1>
       <div class="relative w-full sm:w-72">
         <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" style="font-size:19px">search</span>
-        <input id="search" class="input input-pill" placeholder="Cari menu…" autocomplete="off">
+        <input id="search" class="input input-pill" placeholder="{{ ($isRetail ?? false) ? 'Cari produk / barcode…' : 'Cari menu…' }}" autocomplete="off">
       </div>
     </div>
     <div id="cats" class="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-4 -mx-4 px-4 sm:mx-0 sm:px-0"></div>
     <div id="grid" class="grid grid-cols-1 min-[560px]:grid-cols-2 md:grid-cols-3 2xl:grid-cols-4 gap-2.5 sm:gap-4"></div>
-    <p id="empty" class="hidden text-center text-slate-500 py-16">Menu tidak ditemukan.</p>
+    <p id="empty" class="hidden text-center text-slate-500 py-16">{{ ($isRetail ?? false) ? 'Produk tidak ditemukan.' : 'Menu tidak ditemukan.' }}</p>
   </div>
 
   {{-- ============ KERANJANG ============ --}}
@@ -50,6 +50,7 @@
       </div>
       <div id="allergy" class="hidden mt-3 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold px-3 py-2"></div>
 
+      @if (! ($isRetail ?? false))
       <div class="flex items-center gap-2 mt-3">
         <div class="inline-flex p-1 rounded-full bg-slate-100 flex-1" id="typeTabs">
           <button data-t="dine_in" class="flex-1 h-10 sm:h-9 rounded-full text-sm font-semibold">Dine-in</button>
@@ -57,12 +58,20 @@
         </div>
         <input id="table" class="input !w-24 shrink-0 text-center" placeholder="No. meja" inputmode="numeric" aria-label="Nomor meja">
       </div>
+      @endif
     </div>
 
     <div class="p-4 sm:p-5 xl:flex-1 xl:overflow-y-auto xl:min-h-[120px]">
-      <div class="text-xs font-bold text-slate-500 mb-3">Pesanan <span class="text-slate-900">{{ $nextInvoice }}</span></div>
+      <div class="flex items-center justify-between text-xs font-bold text-slate-500 mb-3">
+        <span>Pesanan <span class="text-slate-900">{{ $nextInvoice }}</span></span>
+        @if ($isRetail ?? false)
+          <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400">
+            <span class="material-symbols-outlined !text-[14px]">storefront</span> Ritel
+          </span>
+        @endif
+      </div>
       <div id="lines" class="space-y-3"></div>
-      <p id="noLines" class="text-sm text-slate-400 text-center py-8">Keranjang kosong.<br>Ketuk menu untuk menambah.</p>
+      <p id="noLines" class="text-sm text-slate-400 text-center py-8">Keranjang kosong.<br>{{ ($isRetail ?? false) ? 'Pilih produk untuk menambah.' : 'Ketuk menu untuk menambah.' }}</p>
     </div>
 
     <div class="p-4 sm:p-5 border-t border-slate-100 space-y-3 text-sm xl:shrink-0">
@@ -231,6 +240,7 @@ function ico(v, size = 20, fb = 'restaurant', cls = '') {
 const QRIS_MANUAL_URL = @json($qrisManualUrl ?? null);   // gambar QRIS statis bisnis (Pengaturan); null = belum diunggah
 const QRIS_NEEDS_REF = @json($qrisNeedsRef ?? false);     // di modal QRIS manual: tampilkan input kode konfirmasi (opsi admin, default mati)
 const QRIS_DYNAMIC = @json($qrisDynamic ?? false);   // true bila MIDTRANS_SERVER_KEY terisi; false = QRIS manual seperti sebelumnya
+const IS_RETAIL = @json($isRetail ?? false);         // true untuk minimarket / kelontong: tanpa dine-in & nomor meja
 const CSRF = document.querySelector('meta[name=csrf-token]').content;
 
 const $ = id => document.getElementById(id);
@@ -242,7 +252,7 @@ let idemKey = null;       // kunci anti-dobel: dipakai ulang HANYA bila respons 
 const uuid = () => ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
 let cat = 0, q = '';
 let customer = @json($customer);
-let orderType = 'dine_in', method = 'cash';
+let orderType = IS_RETAIL ? 'takeaway' : 'dine_in', method = 'cash';
 const needsRef = () => method === 'card' || (method === 'qris' && !QRIS_DYNAMIC && !QRIS_MANUAL_URL && QRIS_NEEDS_REF);
 const byId = Object.fromEntries(PRODUCTS.map(p => [p.id, p]));
 
@@ -260,7 +270,7 @@ function getProductTotalQty(productId) {
 
 /* ---------- Menu ---------- */
 function renderCats() {
-  const all = [{id: 0, name: 'Semua Menu', emoji: 'restaurant_menu'}, ...CATEGORIES];
+  const all = [{id: 0, name: IS_RETAIL ? 'Semua Produk' : 'Semua Menu', emoji: IS_RETAIL ? 'inventory_2' : 'restaurant_menu'}, ...CATEGORIES];
   $('cats').innerHTML = all.map(c => `<button data-c="${c.id}" class="chip shrink-0 inline-flex items-center gap-1.5 ${cat === c.id ? 'chip-on' : ''}">${ico(c.emoji, 18)}${esc(c.name)}</button>`).join('');
 }
 function renderGrid() {
@@ -354,7 +364,7 @@ function renderMeta() {
   if (customer && customer.allergy) a.innerHTML = ico('warning', 16) + ' ' + esc(customer.allergy);
   document.querySelectorAll('#typeTabs button').forEach(b => { const on = b.dataset.t === orderType; b.className = `flex-1 h-9 rounded-full text-sm font-semibold ${on ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`; });
   document.querySelectorAll('#payTabs button').forEach(b => { const on = b.dataset.m === method; b.className = `h-10 rounded-2xl text-sm font-bold border ${on ? 'chip-on' : 'bg-white text-slate-700 border-slate-200'}`; });
-  $('table').classList.toggle('hidden', orderType !== 'dine_in');
+  if ($('table')) $('table').classList.toggle('hidden', orderType !== 'dine_in');
   $('cashBox').classList.toggle('hidden', method !== 'cash');
   $('refBox').classList.toggle('hidden', !needsRef());
 }
@@ -545,7 +555,7 @@ $('grid').addEventListener('click', e => {
   }
   if (inc || dec) { $('err').classList.add('hidden'); refresh(); }
 });
-$('typeTabs').addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (b) { orderType = b.dataset.t; renderMeta(); } });
+if ($('typeTabs')) $('typeTabs').addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (b) { orderType = b.dataset.t; renderMeta(); } });
 $('payTabs').addEventListener('click', e => { const b = e.target.closest('[data-m]'); if (b) { method = b.dataset.m; renderMeta(); renderCart(); } });
 $('discount').addEventListener('input', renderCart);
 $('paid').addEventListener('input', renderCart);
@@ -632,7 +642,7 @@ async function runCheckout(refValue, err, btn) {
           qty: item.qty,
           variant_ids: item.variant_ids || [],
         })),
-        customer_id: customer?.id ?? null, order_type: orderType, table_no: $('table').value || null,
+        customer_id: customer?.id ?? null, order_type: orderType, table_no: $('table') ? ($('table').value || null) : null,
         discount: t.disc, payment_method: method, paid_amount: method === 'cash' ? (+$('paid').value || 0) : t.total,
         payment_ref: refValue || null,
       }),
@@ -685,7 +695,7 @@ async function startQris() {
         qty: item.qty,
         variant_ids: item.variant_ids || [],
       })),
-      customer_id: customer?.id ?? null, order_type: orderType, table_no: $('table').value || null, discount: t.disc,
+      customer_id: customer?.id ?? null, order_type: orderType, table_no: $('table') ? ($('table').value || null) : null, discount: t.disc,
     }) });
     const d = await r.json();
     if (!r.ok) { idemKey = null; throw new Error(d.errors ? Object.values(d.errors)[0][0] : (d.message || 'Gagal membuat QRIS')); }
@@ -825,12 +835,16 @@ if (window.Voice) {
       cart = {}; $('discount').value = 0; $('paid').value = ''; touch(); V.say('Keranjang dikosongkan'); return true;
     }
     if (/\b(takeaway|take away|bawa pulang|dibungkus)\b/.test(t)) { orderType = 'takeaway'; renderMeta(); V.say('Takeaway'); return true; }
-    if (/\b(dine in|dinein|makan (di )?sini|makan (di )?tempat)\b/.test(t)) { orderType = 'dine_in'; renderMeta(); V.say('Dine in'); return true; }
+    if (/\b(dine in|dinein|makan (di )?sini|makan (di )?tempat)\b/.test(t)) {
+      if (IS_RETAIL) { V.say('Toko ritel tidak memakai dine in'); return true; }
+      orderType = 'dine_in'; renderMeta(); V.say('Dine in'); return true;
+    }
     const mejaM = t.match(/\bmeja(?: nomor)?\s+(.+)$/);
     if (mejaM) {
+      if (IS_RETAIL) { V.say('Toko ritel tidak memakai nomor meja'); return true; }
       const tk = V.tokens(mejaM[1]), nr = V.numbers(tk);
       const val = nr.length && nr[0].start === 0 ? String(nr[0].value) : (tk[0] || '').toUpperCase();
-      if (val) { orderType = 'dine_in'; $('table').value = val; renderMeta(); V.say('Meja ' + val); return true; }
+      if (val) { orderType = 'dine_in'; if ($('table')) $('table').value = val; renderMeta(); V.say('Meja ' + val); return true; }
     }
     if (/\b(diskon|potongan|discount)\b/.test(t)) {
       const nr = V.numbers(V.tokens(t)), v = /\b(tanpa|hapus|nol)\b/.test(t) ? 0 : (nr.length ? nr[nr.length - 1].value : null);

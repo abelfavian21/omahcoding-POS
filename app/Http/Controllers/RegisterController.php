@@ -53,6 +53,7 @@ class RegisterController extends Controller
                 'location' => $data['location'],
                 'outlet_count' => $data['outlet_count'],
                 'status' => 'trial',
+                'mode' => $category->default_mode ?? 'fnb',
                 'trial_ends_at' => now()->addDays(14),
             ]);
 

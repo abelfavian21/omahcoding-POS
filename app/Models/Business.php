@@ -10,7 +10,7 @@ class Business extends Model
 {
     protected $fillable = [
         'business_category_id', 'code', 'name', 'owner_name', 'email', 'phone',
-        'location', 'outlet_count', 'status', 'trial_ends_at',
+        'location', 'outlet_count', 'status', 'mode', 'trial_ends_at',
         'tax_rate', 'tax_label', 'receipt_footer',
     ];
 
@@ -77,6 +77,16 @@ class Business extends Model
     public function taxRate(): float
     {
         return (float) ($this->tax_rate ?? config('pos.tax_rate'));
+    }
+
+    public function isRetail(): bool
+    {
+        return $this->mode === 'retail';
+    }
+
+    public function isFnb(): bool
+    {
+        return ! $this->isRetail();
     }
 
     public function isUsable(): bool
