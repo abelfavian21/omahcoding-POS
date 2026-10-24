@@ -16,43 +16,36 @@
     setTimeout(() => rv.forEach(e => e.classList.add('in')), 2500);
   }
 
-  /* ---------- Board: the open row moves down the list ---------- */
-  const rows = [...document.querySelectorAll('.trow')];
-  if (rows.length && !reduce) {
-    let cur = rows.findIndex(r => r.classList.contains('open'));
-    setInterval(() => {
-      if (document.hidden) return;
-      rows[cur].classList.remove('open');
-      do { cur = (cur + 1) % rows.length; } while (rows[cur].classList.contains('void'));
-      rows[cur].classList.add('open');
-    }, 2600);
-  }
-
-  /* ---------- QRIS countdown (illustration of the ~15 minute expiry) ---------- */
-  const qt = $('qr-time');
-  if (qt && !reduce) {
-    let left = 899;
-    setInterval(() => {
-      if (document.hidden) return;
-      left = left <= 0 ? 899 : left - 1;
-      qt.textContent = String(Math.floor(left / 60)).padStart(2, '0') + ':' + String(left % 60).padStart(2, '0');
-    }, 1000);
-  }
-
-  /* ---------- Tutup kas: the live calculation ---------- */
-  const inp = $('kas-count');
-  if (inp) {
-    const expected = parseInt(inp.dataset.expected, 10), out = $('kas-result');
+  /* ---------- Order demo: tap menu, pick money, see change ---------- */
+  const demo = $('demo');
+  if (demo) {
+    const qty = {}, prices = {};
+    let cash = 0;
+    const lines = $('o-lines'), tot = $('o-total'), chg = $('o-change');
     const paint = () => {
-      const digits = inp.value.replace(/\D/g, '');
-      inp.value = digits ? parseInt(digits, 10).toLocaleString('id-ID') : '';
-      if (!digits) { out.className = 'pill dim'; out.textContent = 'Isi uang di laci'; return; }
-      const d = parseInt(digits, 10) - expected;
-      if (d === 0) { out.className = 'pill'; out.textContent = 'Kas sesuai.'; }
-      else if (d > 0) { out.className = 'pill info'; out.textContent = 'Kas lebih ' + rp(d); }
-      else { out.className = 'pill warn'; out.textContent = 'Kas kurang ' + rp(d); }
+      const names = Object.keys(qty).filter(n => qty[n] > 0);
+      lines.innerHTML = '';
+      if (!names.length) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = 'Belum ada pesanan.'; lines.appendChild(li); }
+      names.forEach(n => {
+        const li = document.createElement('li');
+        const a = document.createElement('span'), b = document.createElement('span');
+        a.textContent = qty[n] + ' × ' + n; b.textContent = rp(qty[n] * prices[n]);
+        li.append(a, b); lines.appendChild(li);
+      });
+      const total = names.reduce((s, n) => s + qty[n] * prices[n], 0);
+      tot.textContent = rp(total);
+      chg.className = 'chg';
+      if (!total) chg.textContent = 'Pilih menu dulu';
+      else if (!cash) chg.textContent = 'Pilih uang diterima';
+      else if (cash < total) { chg.classList.add('low'); chg.textContent = 'Uang kurang ' + rp(total - cash); }
+      else { chg.classList.add('ok'); chg.textContent = 'Kembalian ' + rp(cash - total); }
+      demo.querySelectorAll('[data-cash]').forEach(b => b.classList.toggle('on', +b.dataset.cash === cash));
     };
-    inp.addEventListener('input', paint);
+    demo.querySelectorAll('.menu button').forEach(b => b.addEventListener('click', () => {
+      prices[b.dataset.name] = +b.dataset.price; qty[b.dataset.name] = (qty[b.dataset.name] || 0) + 1; paint();
+    }));
+    demo.querySelectorAll('[data-cash]').forEach(b => b.addEventListener('click', () => { cash = +b.dataset.cash; paint(); }));
+    $('o-clear').addEventListener('click', () => { Object.keys(qty).forEach(n => delete qty[n]); cash = 0; paint(); });
     paint();
   }
 

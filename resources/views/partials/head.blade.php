@@ -84,6 +84,7 @@
     .chip-on, .chip-on:hover { background: var(--chip-on-bg); color: var(--chip-on-fg); border-color: transparent; }
 
     .pill { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide border; }
+    .pill-brand { @apply bg-slate-950/90 text-lime-accent border-lime-accent/50; }
     .pill-green { @apply bg-emerald-50 text-emerald-600 border-emerald-200; }
     .pill-amber { @apply bg-amber-50 text-amber-700 border-amber-200; }
     .pill-blue  { background:#F3FDE0; color:#3E4C00; border-color:rgba(177,213,1,.5); }

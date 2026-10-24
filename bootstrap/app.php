@@ -3,6 +3,7 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -12,7 +13,10 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         // user yang sudah login & membuka halaman tamu -> admin ke dashboard, kasir ke POS
-        $middleware->redirectUsersTo(fn () => auth()->user()?->isAdmin() ? route('dashboard') : route('pos'));
+        // (admin platform yang sudah login & membuka /platform/login -> ke ringkasan platform)
+        $middleware->redirectUsersTo(fn (Request $request) => $request->routeIs('platform.*')
+            ? route('platform.dashboard')
+            : (auth()->user()?->isAdmin() ? route('dashboard') : route('pos')));
 
         // ganti password / nonaktifkan akun -> sesi di perangkat lain ikut tidak berlaku
         $middleware->authenticateSessions();
@@ -26,10 +30,12 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => \App\Http\Middleware\RoleMiddleware::class,
             'account' => \App\Http\Middleware\EnsureAccountActive::class,
+            'platform.ip' => \App\Http\Middleware\PlatformIpAllowlist::class,
+            'platform.auth' => \App\Http\Middleware\EnsurePlatformAdmin::class,
         ]);
 
-        // Di belakang Nginx/Cloudflare/load balancer: isi TRUSTED_PROXIES di .env (lihat config/trustedproxy.php)
-        // supaya IP asli (rate limit) dan skema https (cookie secure, HSTS) terbaca benar.
+        // Di belakang Nginx/Cloudflare/load balancer: percayai proxy supaya IP asli (rate limit)
+        // dan skema https (cookie secure, HSTS) terbaca benar. Lihat catatan di SECURITY_REVIEW.md.
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
