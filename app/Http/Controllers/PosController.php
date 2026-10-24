@@ -46,6 +46,7 @@ class PosController extends Controller
             'taxLabel' => $request->user()->business?->tax_label ?? config('pos.tax_label'),
             'shiftOpen' => (bool) CashShift::currentFor($request->user()),
             'shiftRequired' => (bool) $request->user()->business?->requiresShift(),
+            'isRetail' => (bool) $request->user()->business?->isRetail(),
             'nextInvoice' => Order::nextInvoiceNo(),
             'qrisDynamic' => MidtransClient::forBusiness($request->user()->business)->enabled(),
             'qrisManualUrl' => $request->user()->business?->hasManualQris()
@@ -82,6 +83,10 @@ class PosController extends Controller
         // Nomor referensi: kartu selalu wajib; QRIS manual wajib bila bisnis belum mengunggah gambar QRIS atau admin mewajibkannya
         $needsRef = $request->input('payment_method') === 'card'
             || ($request->input('payment_method') === 'qris' && $request->user()->business->qrisManualNeedsRef());
+
+        if ($request->user()->business?->isRetail()) {
+            $request->merge(['order_type' => 'takeaway', 'table_no' => null]);
+        }
 
         $data = $request->validate([
             'idempotency_key' => ['required', 'uuid'],

@@ -23,6 +23,11 @@ class QrisController extends Controller
         }
 
         $bid = $request->user()->business_id;
+
+        if ($request->user()->business?->isRetail()) {
+            $request->merge(['order_type' => 'takeaway', 'table_no' => null]);
+        }
+
         $data = $request->validate([
             'idempotency_key' => ['required', 'uuid'],
             'items' => ['required', 'array', 'min:1', 'max:100'],
