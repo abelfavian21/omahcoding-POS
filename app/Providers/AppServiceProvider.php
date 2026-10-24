@@ -17,7 +17,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         // Pemakaian di Blade: @rupiah($angka)  =>  Rp 25.000
-        Blade::directive('rupiah', fn ($e) => "<?php echo 'Rp ' . number_format((float) ($e), 0, ',', '.'); ?>");
+        Blade::directive('rupiah', fn($e) => "<?php echo 'Rp ' . number_format((float) ($e), 0, ',', '.'); ?>");
 
         if ($this->app->isProduction()) {
             URL::forceHttps();
@@ -45,9 +45,13 @@ class AppServiceProvider extends ServiceProvider
             ];
         });
 
-        RateLimiter::for('register', fn (Request $r) => [
-            Limit::perMinute(3)->by('reg|' . $r->ip()),
-            Limit::perDay(10)->by('reg-day|' . $r->ip()),
-        ]);
+        RateLimiter::for('register', function (Request $request) {
+            return [
+                // cegah spam cepat
+                Limit::perMinute(10)->by('reg-min:' . $request->ip()),
+                // batas harian yang longgar, per IP + email
+                Limit::perHour(30)->by('reg-hour:' . $request->ip() . '|' . strtolower((string) $request->input('email'))),
+            ];
+        });
     }
 }
