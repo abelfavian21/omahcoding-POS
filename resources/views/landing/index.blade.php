@@ -864,7 +864,8 @@
                                             Lengkap Pemilik</label>
                                         <input id="reg-owner-name" name="owner_name" required maxlength="120"
                                             value="{{ old('owner_name') }}" placeholder="Contoh: Budi Santoso"
-                                            class="{{ $inp }}">
+                                            autocomplete="name" class="{{ $inp }}">
+                                        <p id="err-owner_name" class="hidden mt-1.5 text-xs font-semibold text-rose-600" role="alert"></p>
                                     </div>
                                     <div><label
                                             class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Nama
@@ -872,6 +873,7 @@
                                         <input id="reg-business-name" name="business_name" required maxlength="120"
                                             value="{{ old('business_name') }}" placeholder="Contoh: Kopi Nusantara"
                                             class="{{ $inp }}">
+                                        <p id="err-business_name" class="hidden mt-1.5 text-xs font-semibold text-rose-600" role="alert"></p>
                                     </div>
                                     <div class="grid sm:grid-cols-2 gap-4">
                                         <div><label
@@ -879,14 +881,16 @@
                                                 Bisnis</label>
                                             <input id="reg-email" type="email" name="email" required
                                                 value="{{ old('email') }}" placeholder="owner@tokomu.id"
-                                                class="{{ $inp }}">
+                                                autocomplete="email" class="{{ $inp }}">
+                                            <p id="err-email" class="hidden mt-1.5 text-xs font-semibold text-rose-600" role="alert"></p>
                                         </div>
                                         <div><label
                                                 class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Nomor
                                                 WhatsApp Aktif</label>
                                             <input id="reg-phone" type="tel" name="phone" required
                                                 minlength="8" value="{{ old('phone') }}"
-                                                placeholder="0812-xxxx-xxxx" class="{{ $inp }}">
+                                                placeholder="0812-xxxx-xxxx" autocomplete="tel" class="{{ $inp }}">
+                                            <p id="err-phone" class="hidden mt-1.5 text-xs font-semibold text-rose-600" role="alert"></p>
                                         </div>
                                     </div>
                                     <livewire:register-password-field />
@@ -952,7 +956,8 @@
                                             / Lokasi Operasional</label>
                                         <input id="reg-location" name="location" maxlength="120"
                                             value="{{ old('location') }}" placeholder="Contoh: Surakarta"
-                                            class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold bg-white outline-none">
+                                            class="w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold bg-white outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100 transition-all">
+                                        <p id="err-location" class="hidden mt-1.5 text-xs font-semibold text-rose-600" role="alert"></p>
                                     </div>
                                 </div>
                                 <p id="step2-error" class="hidden text-center text-xs font-bold text-rose-600"></p>
@@ -960,8 +965,8 @@
                                     <button type="button" onclick="goToStep(1)"
                                         class="px-6 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm rounded-xl transition-all">←
                                         Kembali</button>
-                                    <button type="button" onclick="nextStep(2)"
-                                        class="px-8 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl shadow-lg shadow-blue-600/30 transition-all">Lanjut:
+                                    <button type="button" id="btn-next-step-2" onclick="nextStep(2)" disabled
+                                        class="px-8 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl shadow-lg shadow-blue-600/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed">Lanjut:
                                         Konfirmasi Usaha →</button>
                                 </div>
                             </div>
@@ -1037,8 +1042,8 @@
                                     <button type="button" onclick="goToStep(2)"
                                         class="px-6 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm rounded-xl transition-all">←
                                         Ubah Data</button>
-                                    <button type="submit" id="btn-submit"
-                                        class="px-8 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm rounded-xl shadow-lg shadow-emerald-600/30 transition-all">Konfirmasi
+                                    <button type="submit" id="btn-submit" disabled
+                                        class="px-8 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm rounded-xl shadow-lg shadow-emerald-600/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed">Konfirmasi
                                         &amp; Buat Toko Sekarang</button>
                                 </div>
                             </div>
@@ -1297,61 +1302,142 @@
             (() => {
                 const $ = id => document.getElementById(id);
                 let passwordIsValid = false;
+                let currentStep = 1;
+                let isSubmitting = false;
+                let lockedUntil = 0;
+
+                /* ---------- Helper error per field ---------- */
+                const touched = new Set();
+
+                const setFieldError = (id, msg) => {
+                    const el = $(id);
+                    const err = $('err-' + (el?.name || id));
+                    if (el) {
+                        el.classList.toggle('border-rose-500', !!msg);
+                        el.classList.toggle('border-slate-200', !msg);
+                        el.setAttribute('aria-invalid', msg ? 'true' : 'false');
+                    }
+                    if (err) {
+                        err.textContent = msg || '';
+                        err.classList.toggle('hidden', !msg);
+                    }
+                };
+
+                /* ---------- Aturan validasi (samakan dengan RegisterController) ---------- */
+                const rules = {
+                    'reg-owner-name': v => {
+                        v = v.trim();
+                        if (!v) return 'Nama pemilik wajib diisi.';
+                        if (v.length < 3) return 'Nama pemilik minimal 3 karakter.';
+                        if (v.length > 120) return 'Nama pemilik maksimal 120 karakter.';
+                        return '';
+                    },
+                    'reg-business-name': v => {
+                        v = v.trim();
+                        if (!v) return 'Nama usaha wajib diisi.';
+                        if (v.length < 2) return 'Nama usaha minimal 2 karakter.';
+                        if (v.length > 120) return 'Nama usaha maksimal 120 karakter.';
+                        return '';
+                    },
+                    'reg-email': v => {
+                        v = v.trim();
+                        if (!v) return 'Email wajib diisi.';
+                        if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) return 'Format email tidak valid.';
+                        return '';
+                    },
+                    'reg-phone': v => {
+                        v = v.trim();
+                        if (!v) return 'Nomor WhatsApp wajib diisi.';
+                        if (!/^[0-9+\-\s()]+$/.test(v)) return 'Nomor hanya boleh berisi angka, spasi, +, - atau ().';
+                        const digits = v.replace(/\D/g, '');
+                        if (digits.length < 8) return 'Nomor WhatsApp minimal 8 digit.';
+                        if (digits.length > 15) return 'Nomor WhatsApp maksimal 15 digit.';
+                        return '';
+                    },
+                    'reg-location': v => {
+                        v = v.trim();
+                        if (!v) return 'Kota / lokasi operasional wajib diisi.';
+                        if (v.length < 3) return 'Lokasi minimal 3 karakter.';
+                        if (v.length > 120) return 'Lokasi maksimal 120 karakter.';
+                        return '';
+                    },
+                };
+
+                const step1Fields = ['reg-owner-name', 'reg-business-name', 'reg-email', 'reg-phone'];
+
+                const fieldMsg = id => rules[id]($(id)?.value ?? '');
+
+                // Hitung validitas langkah. show=true -> tampilkan pesan error di field.
+                function checkStep(step, show = false) {
+                    let ok = true;
+
+                    if (step === 1) {
+                        step1Fields.forEach(id => {
+                            const msg = fieldMsg(id);
+                            if (msg) ok = false;
+                            if (show || touched.has(id)) setFieldError(id, msg);
+                        });
+                        const pass = $('reg-pass');
+                        if (!pass || !pass.value || !passwordIsValid) ok = false;
+                    }
+
+                    if (step === 2) {
+                        const hasCat = !!$('reg-category').value;
+                        const catErr = $('step2-error');
+                        if (!hasCat) ok = false;
+                        if (show || touched.has('category')) {
+                            catErr.textContent = hasCat ? '' : 'Pilih salah satu kategori usaha.';
+                            catErr.classList.toggle('hidden', hasCat);
+                        }
+                        const msg = fieldMsg('reg-location');
+                        if (msg) ok = false;
+                        if (show || touched.has('reg-location')) setFieldError('reg-location', msg);
+                    }
+
+                    if (step === 3) {
+                        const agreed = $('agree-terms').checked;
+                        if (!agreed) ok = false;
+                        if (show || touched.has('agree-terms')) {
+                            const e = $('step3-error');
+                            e.textContent = agreed ? '' : 'Centang persetujuan ketentuan layanan terlebih dahulu.';
+                            e.classList.toggle('hidden', agreed);
+                        }
+                    }
+                    return ok;
+                }
+
+                // Perbarui status tombol "lanjut" / "submit" sesuai langkah aktif.
+                function refreshButtons() {
+                    const locked = Date.now() < lockedUntil;
+                    const b1 = $('btn-next-step-1'), b2 = $('btn-next-step-2'), b3 = $('btn-submit');
+                    if (b1) b1.disabled = !checkStep(1);
+                    if (b2) b2.disabled = !checkStep(2);
+                    if (b3) b3.disabled = isSubmitting || locked || !(checkStep(1) && checkStep(2) && checkStep(3));
+                }
+
+                function onFieldInput(e) {
+                    touched.add(e.target.id);
+                    // tampilkan error langkah yang sedang aktif
+                    checkStep(currentStep);
+                    refreshButtons();
+                }
 
                 document.addEventListener('password-validation-updated', event => {
                     passwordIsValid = event.detail.valid === true;
-                    validateStep1();
+                    refreshButtons();
                 });
 
-                const step1Fields = [
-                    'reg-owner-name',
-                    'reg-business-name',
-                    'reg-email',
-                    'reg-phone',
-                    'reg-pass'
-                ];
-
-                const nextStep1Button = $('btn-next-step-1');
-
-                function validateStep1() {
-                    const fieldIds = [
-                        'reg-owner-name',
-                        'reg-business-name',
-                        'reg-email',
-                        'reg-phone'
-                    ];
-
-                    const fieldsValid = fieldIds.every(id => {
-                        const field = $(id);
-
-                        return field &&
-                            field.value.trim() !== '' &&
-                            field.checkValidity();
-                    });
-
-                    const password = $('reg-pass');
-                    const button = $('btn-next-step-1');
-
-                    if (!password || !button) return;
-
-                    const valid =
-                        fieldsValid &&
-                        password.value.trim() !== '' &&
-                        password.checkValidity() &&
-                        passwordIsValid;
-
-                    button.disabled = !valid;
-                }
-
-                step1Fields.forEach(id => {
-                    const field = $(id);
-                    if (!field) return;
-
-                    field.addEventListener('input', validateStep1);
-                    field.addEventListener('change', validateStep1);
+                [...step1Fields, 'reg-location', 'agree-terms'].forEach(id => {
+                    const f = $(id);
+                    if (!f) return;
+                    f.addEventListener('input', onFieldInput);
+                    f.addEventListener('change', onFieldInput);
+                    f.addEventListener('blur', onFieldInput);
                 });
+                // Password (Livewire): ikut hidupkan/matikan tombol saat diketik
+                $('reg-pass')?.addEventListener('input', refreshButtons);
 
-                validateStep1();
+                refreshButtons();
 
                 const auth = $('auth-section');
                 const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1426,9 +1512,6 @@
                 };
                 window.goToStep = step => {
                     ['1', '2', '3'].forEach(n => $('step-' + n + '-content').classList.add('hidden'));
-                    if (step !== 1) {
-                        Livewire.dispatch('clear-password-error');
-                    }
                     $('register-form').classList.remove('hidden');
                     $('step-success').classList.add('hidden');
                     if (step === 'success') {
@@ -1439,9 +1522,13 @@
                         return;
                     }
                     if (step === 3) fillReview();
+                    currentStep = step;
                     $('step-' + step + '-content').classList.remove('hidden');
                     $('stepper-line').style.width = ['0%', '50%', '100%'][step - 1];
                     [1, 2, 3].forEach(i => badge(i, i < step ? 'done' : i === step ? 'active' : 'idle'));
+                    if (step === 2) touched.add('category');
+                    checkStep(step);
+                    refreshButtons();
                 };
                 const fail = (id, msg) => {
                     const e = $(id);
@@ -1451,50 +1538,17 @@
                 
                 window.nextStep = from => {
                     if (from === 1) {
-                        // Periksa semua field pada langkah 1.
-                        for (const id of [
-                            'reg-owner-name',
-                            'reg-business-name',
-                            'reg-email',
-                            'reg-phone',
-                            'reg-pass'
-                        ]) {
-                            const el = $(id);
-
-                            if (!el || !el.value.trim() || !el.checkValidity()) {
-                                el?.reportValidity();
-                                el?.focus();
-                                return;
-                            }
-                        }
-
-                        // Pastikan validasi password dari Livewire sudah berhasil.
-                        if (!passwordIsValid) {
-                            $('reg-pass')?.focus();
+                        if (!checkStep(1, true)) {
+                            const bad = step1Fields.find(id => fieldMsg(id));
+                            $(bad || 'reg-pass')?.focus();
                             return;
                         }
-
                         goToStep(2);
-
                     } else if (from === 2) {
-                        $('step2-error').classList.add('hidden');
-
-                        if (!$('reg-category').value) {
-                            return fail(
-                                'step2-error',
-                                'Pilih salah satu kategori usaha.'
-                            );
+                        if (!checkStep(2, true)) {
+                            if (fieldMsg('reg-location')) $('reg-location').focus();
+                            return;
                         }
-
-                        if (!$('reg-location').value.trim()) {
-                            $('reg-location').focus();
-
-                            return fail(
-                                'step2-error',
-                                'Isi kota / lokasi operasional.'
-                            );
-                        }
-
                         goToStep(3);
                     }
                 };
@@ -1502,15 +1556,31 @@
                 const ownerName = document.getElementById('reg-owner-name');
                 const email = document.getElementById('reg-email');
 
+                // Kirim konteks (nama & email) ke Livewire: debounce + hanya jika berubah.
+                let ctxTimer = null, lastCtx = null;
+                function sendPasswordContext() {
+                    clearTimeout(ctxTimer);
+                    const name = ownerName?.value ?? '';
+                    const mail = email?.value ?? '';
+                    const key = name + '|' + mail;
+                    if (key === lastCtx) return;                 // tidak berubah
+                    if (lastCtx === null && !name && !mail) {    // masih kosong semua, tidak perlu kirim
+                        lastCtx = key;
+                        return;
+                    }
+                    lastCtx = key;
+                    Livewire.dispatch('registration-context-updated', { name, email: mail });
+                }
                 function updatePasswordContext() {
-                    Livewire.dispatch('registration-context-updated', {
-                        name: ownerName?.value ?? '',
-                        email: email?.value ?? ''
-                    });
+                    clearTimeout(ctxTimer);
+                    ctxTimer = setTimeout(sendPasswordContext, 600);
                 }
 
                 ownerName?.addEventListener('input', updatePasswordContext);
                 email?.addEventListener('input', updatePasswordContext);
+                // Pastikan konteks terbaru sudah terkirim sebelum password divalidasi
+                $('reg-pass')?.addEventListener('focus', sendPasswordContext);
+                $('reg-pass')?.addEventListener('keydown', sendPasswordContext, { once: false });
 
                 /* ---------- Kategori usaha ---------- */
                 const cards = [...document.querySelectorAll('.cat-card')];
@@ -1530,7 +1600,10 @@
                 cards.forEach(c => c.addEventListener('click', () => {
                     if (c.dataset.active !== '1') return;
                     $('reg-category').value = c.dataset.slug;
+                    touched.add('category');
                     paintCards();
+                    checkStep(2);
+                    refreshButtons();
                 }));
 
                 function fillReview() {
@@ -1547,6 +1620,17 @@
                 $('register-form').addEventListener('submit', async e => {
                     e.preventDefault();
 
+                    // Cegah submit dari Enter di langkah 1/2 & klik ganda
+                    if (currentStep !== 3 || isSubmitting || Date.now() < lockedUntil) {
+                        if (currentStep === 1 || currentStep === 2) nextStep(currentStep);
+                        return;
+                    }
+                    if (!(checkStep(1, true) && checkStep(2, true) && checkStep(3, true))) {
+                        if (!checkStep(1)) goToStep(1);
+                        else if (!checkStep(2)) goToStep(2);
+                        return;
+                    }
+
                     const form = $('register-form');
                     const button = $('btn-submit');
                     const errorBox = $('register-server-errors');
@@ -1557,15 +1641,8 @@
                     errorList.replaceChildren();
                     step3Error.classList.add('hidden');
 
-                    if (!$('agree-terms').checked) {
-                        fail(
-                            'step3-error',
-                            'Centang persetujuan ketentuan layanan terlebih dahulu.'
-                        );
-                        return;
-                    }
-
                     const originalText = button.textContent;
+                    isSubmitting = true;
                     button.disabled = true;
                     button.textContent = 'Membuat toko…';
 
@@ -1586,7 +1663,12 @@
                             if (response.status === 422 && result.errors) {
                                 const errors = result.errors;
 
+                                const map = {
+                                    owner_name: 'reg-owner-name', business_name: 'reg-business-name',
+                                    email: 'reg-email', phone: 'reg-phone', location: 'reg-location'
+                                };
                                 for (const [field, messages] of Object.entries(errors)) {
+                                    if (map[field]) { touched.add(map[field]); setFieldError(map[field], messages[0]); }
                                     for (const message of messages) {
                                         const li = document.createElement('li');
                                         li.textContent = message;
@@ -1626,6 +1708,12 @@
                                 return;
                             }
 
+                            if (response.status === 429) {
+                                const wait = parseInt(response.headers.get('Retry-After'), 10) || 60;
+                                lockedUntil = Date.now() + wait * 1000;
+                                setTimeout(refreshButtons, wait * 1000 + 50);
+                                throw new Error(`Terlalu banyak percobaan. Coba lagi dalam ${wait} detik.`);
+                            }
                             throw new Error(
                                 result.message || 'Registrasi gagal. Silakan coba lagi.'
                             );
@@ -1649,8 +1737,9 @@
                             error.message || 'Terjadi kesalahan koneksi. Silakan coba lagi.'
                         );
                     } finally {
-                        button.disabled = false;
+                        isSubmitting = false;
                         button.textContent = originalText;
+                        refreshButtons();
                     }
                 });
 
@@ -1659,6 +1748,7 @@
                 let step = auth.dataset.initialStep;
                 step = step === 'success' ? step : parseInt(step, 10);
                 goToStep(step);
+                refreshButtons();
                 switchLoginMode(auth.dataset.loginMode);
                 switchAuthTab(location.hash === '#masuk' ? 'login' : auth.dataset.initialTab);
             })
