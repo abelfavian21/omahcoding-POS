@@ -32,7 +32,16 @@
   <hr>
   <table>
     @foreach ($order->items as $i)
-      <tr><td colspan="2" class="b">{{ $i->product_name }}</td></tr>
+      <tr>
+        <td colspan="2" class="b">
+          {{ $i->product_name }}
+          @if (!empty($i->variants_json))
+            <div style="font-size:7.5px;font-weight:normal;color:#444">
+              + {{ implode(', ', array_column($i->variants_json, 'name')) }}
+            </div>
+          @endif
+        </td>
+      </tr>
       <tr><td>{{ $i->qty }} x {{ number_format($i->price, 0, ',', '.') }}</td><td class="r">{{ number_format($i->subtotal, 0, ',', '.') }}</td></tr>
     @endforeach
   </table>

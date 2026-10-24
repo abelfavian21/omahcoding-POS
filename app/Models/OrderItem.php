@@ -6,9 +6,13 @@ use Illuminate\Database\Eloquent\Model;
 
 class OrderItem extends Model
 {
-    protected $fillable = ['order_id', 'product_id', 'product_name', 'price', 'cost_price', 'qty', 'subtotal'];
+    protected $fillable = ['order_id', 'product_id', 'product_name', 'price', 'cost_price', 'qty', 'subtotal', 'variants_json'];
 
-    protected $casts = ['price' => 'decimal:2', 'subtotal' => 'decimal:2'];
+    protected $casts = [
+        'price' => 'decimal:2',
+        'subtotal' => 'decimal:2',
+        'variants_json' => 'array',
+    ];
 
     public function order()
     {

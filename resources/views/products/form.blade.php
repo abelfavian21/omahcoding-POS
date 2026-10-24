@@ -10,6 +10,16 @@
         action="{{ $editing ? route('products.update', $product) : route('products.store') }}">
     @csrf @if ($editing) @method('PUT') @endif
 
+    @if ($editing)
+      <div class="p-4 rounded-2xl bg-lime-50 border border-lime-200 flex items-center justify-between">
+        <div>
+          <div class="font-extrabold text-slate-900 text-sm">Varian & Resep Bahan Baku (BOM)</div>
+          <div class="text-xs text-slate-600">Atur opsi ukuran/topping serta bahan baku yang terpotong otomatis.</div>
+        </div>
+        <a href="{{ route('products.recipe', $product) }}" class="btn-dark !h-9 !px-4 text-xs text-lime-accent">Kelola Resep & Varian &rarr;</a>
+      </div>
+    @endif
+
     <div class="grid sm:grid-cols-2 gap-4">
       <div class="sm:col-span-2"><label class="label">Nama produk *</label>
         <input name="name" class="input" value="{{ old('name', $product->name) }}" required>

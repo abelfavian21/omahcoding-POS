@@ -96,6 +96,34 @@
   </aside>
 </div>
 
+{{-- Modal Pilih Varian Produk --}}
+<div id="variantModal" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm grid items-end sm:place-items-center p-0 sm:p-4 transition-all">
+  <div class="card w-full max-w-lg p-5 sm:p-6 !rounded-b-none sm:!rounded-3xl max-h-[92vh] flex flex-col shadow-2xl border border-slate-700/50 bg-[#181928] text-white">
+    <div class="flex items-start justify-between pb-4 border-b border-slate-800">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-lime-accent"></span>
+          <h3 class="font-extrabold text-xl tracking-tight text-white" id="varModalTitle">Pilih Varian</h3>
+        </div>
+        <p class="text-xs text-slate-400 mt-1" id="varModalBasePrice">Harga dasar: Rp 0</p>
+      </div>
+      <button type="button" id="varModalClose" class="p-2 -mr-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 transition"><span class="material-symbols-outlined">close</span></button>
+    </div>
+
+    <div id="varModalGroups" class="py-4 space-y-5 overflow-y-auto flex-1 no-scrollbar pr-1"></div>
+
+    <div class="pt-4 border-t border-slate-800 flex items-center justify-between gap-3 bg-[#181928]">
+      <div>
+        <div class="text-[11px] uppercase tracking-wider text-slate-400 font-bold">Total per item</div>
+        <div class="text-2xl font-black text-lime-accent tracking-tight" id="varModalTotal">Rp 0</div>
+      </div>
+      <button type="button" id="varModalConfirm" class="btn-primary !h-12 !px-6 text-sm font-bold shadow-lime inline-flex items-center gap-2">
+        <span class="material-symbols-outlined !text-lg">add_shopping_cart</span> Tambahkan
+      </button>
+    </div>
+  </div>
+</div>
+
 {{-- Tombol keranjang untuk layar kecil --}}
 <button id="jump" class="hidden xl:hidden fixed left-4 right-4 z-30 btn-dark !h-14 !justify-between shadow-2xl text-lime-accent sm:left-auto sm:right-6 sm:w-80" style="bottom: calc(1rem + env(safe-area-inset-bottom, 0px))" aria-label="Lihat keranjang"><span class="inline-flex items-center gap-2"><span class="material-symbols-outlined">shopping_bag</span><span><span id="jumpCount">0</span> item</span></span><span class="inline-flex items-center gap-1"><span id="jumpTotal">Rp 0</span><span class="material-symbols-outlined">expand_less</span></span></button>
 
@@ -209,14 +237,26 @@ const $ = id => document.getElementById(id);
 const rp = n => 'Rp ' + Math.round(n).toLocaleString('id-ID');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-let cart = {};            // product_id -> qty
+let cart = [];            // [{ key, product_id, variant_ids: [], qty, unit_price }]
 let idemKey = null;       // kunci anti-dobel: dipakai ulang HANYA bila respons server tidak sempat diterima
 const uuid = () => ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
 let cat = 0, q = '';
 let customer = @json($customer);
 let orderType = 'dine_in', method = 'cash';
-const needsRef = () => method === 'card' || (method === 'qris' && !QRIS_DYNAMIC && !QRIS_MANUAL_URL && QRIS_NEEDS_REF);   // dengan gambar QRIS: konfirmasi lewat modal   // QRIS dinamis diverifikasi Midtrans, tanpa input manual
+const needsRef = () => method === 'card' || (method === 'qris' && !QRIS_DYNAMIC && !QRIS_MANUAL_URL && QRIS_NEEDS_REF);
 const byId = Object.fromEntries(PRODUCTS.map(p => [p.id, p]));
+
+let modalProduct = null;
+let selectedVariants = {}; // group_name -> variant_id
+
+function makeCartKey(productId, variantIds = []) {
+  const sorted = [...variantIds].sort((a, b) => a - b);
+  return productId + ':' + sorted.join('-');
+}
+
+function getProductTotalQty(productId) {
+  return cart.filter(item => item.product_id === productId).reduce((sum, item) => sum + item.qty, 0);
+}
 
 /* ---------- Menu ---------- */
 function renderCats() {
@@ -227,9 +267,23 @@ function renderGrid() {
   const list = PRODUCTS.filter(p => (!cat || p.category_id === cat) && p.name.toLowerCase().includes(q));
   $('empty').classList.toggle('hidden', list.length > 0);
   $('grid').innerHTML = list.map(p => {
-    const n = cart[p.id] || 0, out = p.stock <= 0, max = n >= p.stock;
+    const totalQty = getProductTotalQty(p.id);
+    const hasRecipe = p.has_recipe;
+    const out = !hasRecipe && p.stock <= 0;
+    const max = !hasRecipe && totalQty >= p.stock;
     const media = p.image ? `<img src="${esc(p.image)}" class="w-full h-full object-cover" alt="" loading="lazy">` : ico(p.emoji, 0, 'restaurant', '!text-[38px] sm:!text-[64px] text-slate-400');
-    const badge = out ? '<span class="absolute top-1 left-1 sm:top-2 sm:left-2 pill pill-red !text-[10px]">Habis</span>' : (p.stock <= 5 ? `<span class="absolute top-1 left-1 sm:top-2 sm:left-2 pill pill-amber !text-[10px]">Sisa ${p.stock}</span>` : '');
+    
+    let badge = '';
+    if (hasRecipe) {
+      badge = '<span class="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider bg-slate-950/90 text-lime-accent border border-lime-accent/50 shadow-md backdrop-blur-sm">Resep BOM</span>';
+    } else if (out) {
+      badge = '<span class="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 pill pill-red !text-[10px] shadow-sm">Habis</span>';
+    } else if (p.stock <= 5) {
+      badge = `<span class="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 pill pill-amber !text-[10px] shadow-sm">Sisa ${p.stock}</span>`;
+    }
+
+    const hasVars = p.variants && p.variants.length > 0;
+
     return `<div class="card p-2.5 sm:p-3 flex sm:block items-center gap-3 ${out ? 'opacity-60' : ''}">
       <div class="w-[72px] h-[72px] sm:w-full sm:h-auto sm:aspect-square shrink-0 rounded-2xl bg-slate-100 grid place-items-center overflow-hidden relative">${media}${badge}</div>
       <div class="flex-1 min-w-0 sm:mt-3">
@@ -237,48 +291,54 @@ function renderGrid() {
         <div class="mt-1.5 sm:mt-2 sm:pt-2 sm:border-t border-slate-100 flex items-center justify-between gap-2">
           <b class="text-sm sm:text-base">${rp(p.price)}</b>
           <div class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-1 h-11 sm:h-9 shrink-0">
-            <button data-dec="${p.id}" aria-label="Kurangi ${esc(p.name)}" class="w-10 h-10 sm:w-7 sm:h-7 rounded-full text-lg sm:text-base text-slate-500 disabled:opacity-40" ${n ? '' : 'disabled'}>−</button>
-            <span class="w-6 text-center text-sm font-bold">${n}</span>
+            @if (true)
+            <button data-dec="${p.id}" aria-label="Kurangi ${esc(p.name)}" class="w-10 h-10 sm:w-7 sm:h-7 rounded-full text-lg sm:text-base text-slate-500 disabled:opacity-40" ${totalQty ? '' : 'disabled'}>−</button>
+            <span class="w-6 text-center text-sm font-bold">${totalQty}</span>
             <button data-inc="${p.id}" aria-label="Tambah ${esc(p.name)}" class="w-10 h-10 sm:w-7 sm:h-7 rounded-full text-lg sm:text-base bg-lime-accent text-slate-950 font-bold disabled:opacity-40" ${out || max ? 'disabled' : ''}>+</button>
+            @endif
           </div>
         </div>
+        ${hasVars ? `<div class="mt-2 text-center sm:text-left"><button data-var="${p.id}" class="text-[11px] font-bold text-brand-600 hover:underline inline-flex items-center gap-1"><span class="material-symbols-outlined !text-sm">tune</span> ${p.variants.length} Varian</button></div>` : ''}
       </div></div>`;
   }).join('');
 }
 
 /* ---------- Keranjang ---------- */
 function totals() {
-  const sub = Object.entries(cart).reduce((s, [id, n]) => s + byId[id].price * n, 0);
+  const sub = cart.reduce((s, item) => s + (item.unit_price * item.qty), 0);
   const disc = Math.min(Math.max(+$('discount').value || 0, 0), sub);
   const tax = Math.round((sub - disc) * TAX_RATE);
   return { sub, disc, tax, total: sub - disc + tax };
 }
+
 function renderCart() {
-  const ids = Object.keys(cart);
-  $('noLines').classList.toggle('hidden', ids.length > 0);
-  $('lines').innerHTML = ids.map(id => {
-    const p = byId[id], n = cart[id];
-    const max = n >= p.stock;
+  $('noLines').classList.toggle('hidden', cart.length > 0);
+  $('lines').innerHTML = cart.map(item => {
+    const p = byId[item.product_id];
+    const max = !p.has_recipe && getProductTotalQty(p.id) >= p.stock;
+    const varNames = item.variants_summary ? `<div class="text-[11px] text-brand-600 font-semibold line-clamp-1">${esc(item.variants_summary)}</div>` : '';
+
     return `<div class="flex items-center gap-3">
       <div class="w-12 h-12 rounded-xl bg-slate-100 grid place-items-center overflow-hidden shrink-0 text-slate-500">${p.image ? `<img src="${esc(p.image)}" class="w-full h-full object-cover" alt="">` : ico(p.emoji, 24)}</div>
       <div class="flex-1 min-w-0">
-        <div class="font-semibold text-sm leading-tight line-clamp-2">${esc(p.name)}</div>
-        <div class="text-xs text-slate-500">${rp(p.price)} × ${n} = <b class="text-slate-700">${rp(p.price * n)}</b></div>
+        <div class="font-semibold text-sm leading-tight line-clamp-1">${esc(p.name)}</div>
+        ${varNames}
+        <div class="text-xs text-slate-500">${rp(item.unit_price)} × ${item.qty} = <b class="text-slate-700">${rp(item.unit_price * item.qty)}</b></div>
       </div>
       <div class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-1 h-10 shrink-0">
-        <button data-ldec="${id}" aria-label="Kurangi ${esc(p.name)}" class="w-8 h-8 rounded-full text-lg text-slate-500">−</button>
-        <span class="w-5 text-center text-sm font-bold">${n}</span>
-        <button data-linc="${id}" aria-label="Tambah ${esc(p.name)}" class="w-8 h-8 rounded-full text-lg bg-lime-accent text-slate-950 font-bold disabled:opacity-40" ${max ? 'disabled' : ''}>+</button>
+        <button data-ldec="${item.key}" aria-label="Kurangi" class="w-8 h-8 rounded-full text-lg text-slate-500">−</button>
+        <span class="w-5 text-center text-sm font-bold">${item.qty}</span>
+        <button data-linc="${item.key}" aria-label="Tambah" class="w-8 h-8 rounded-full text-lg bg-lime-accent text-slate-950 font-bold disabled:opacity-40" ${max ? 'disabled' : ''}>+</button>
       </div></div>`;
   }).join('');
 
   const t = totals();
   $('sSub').textContent = rp(t.sub); $('sTax').textContent = rp(t.tax); $('sTotal').textContent = rp(t.total);
   $('charge').textContent = 'Bayar ' + rp(t.total); $('jumpTotal').textContent = rp(t.total);
-  const qtyAll = Object.values(cart).reduce((a, b) => a + b, 0);
+  const qtyAll = cart.reduce((a, b) => a + b.qty, 0);
   $('jumpCount').textContent = qtyAll; $('sheetCount').textContent = qtyAll + ' item';
-  if (!ids.length && sheetIsOpen()) setSheet(false);
-  else if (!sheetIsOpen()) $('jump').classList.toggle('hidden', !ids.length);
+  if (!cart.length && sheetIsOpen()) setSheet(false);
+  else if (!sheetIsOpen()) $('jump').classList.toggle('hidden', !cart.length);
 
   const paid = +$('paid').value || 0;
   $('sChange').textContent = rp(Math.max(0, paid - t.total));
@@ -300,13 +360,189 @@ function renderMeta() {
 }
 const refresh = () => { renderGrid(); renderCart(); renderMeta(); };
 
+/* ---------- Modal Varian ---------- */
+function openVariantModal(product) {
+  modalProduct = product;
+  selectedVariants = {};
+  $('varModalTitle').textContent = product.name;
+  $('varModalBasePrice').textContent = 'Harga dasar: ' + rp(product.price);
+
+  const groups = {};
+  (product.variants || []).forEach(v => {
+    if (!groups[v.group]) groups[v.group] = [];
+    groups[v.group].push(v);
+  });
+
+  const groupKeys = Object.keys(groups);
+
+  // Jika produk hanya punya 1 varian atau opsi tidak banyak (misal Large, Cheese Jumbo tanpa grouping khusus):
+  // Kasir bisa memilih 1 varian saja atau tidak memilih sama sekali (default standar)
+  let html = '';
+
+  for (const [groupName, vars] of Object.entries(groups)) {
+    // Cek apakah ada opsi default atau opsional (bisa pilih salah satu di dalam grup, atau uncheck)
+    html += `<div class="space-y-2.5">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">${esc(groupName)}</span>
+        <button type="button" onclick="clearVarGroup('${esc(groupName)}')" class="text-[11px] text-slate-400 hover:text-lime-accent transition">Reset / Tanpa varian</button>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        ${vars.map(v => {
+          const isSelected = selectedVariants[groupName] === v.id;
+          return `
+          <div onclick="selectVar('${esc(groupName)}', ${v.id})" 
+               id="var_card_${v.id}"
+               class="var-option-card cursor-pointer rounded-2xl p-3.5 border transition-all flex items-center justify-between ${isSelected ? 'border-lime-accent bg-lime-accent/10 ring-1 ring-lime-accent' : 'border-slate-800 bg-slate-900/60 hover:border-slate-700 hover:bg-slate-800/40'}">
+            <div class="min-w-0 pr-2">
+              <div class="text-sm font-bold text-white tracking-tight truncate">${esc(v.name)}</div>
+              <div class="text-xs font-semibold ${v.price > 0 ? 'text-lime-accent' : 'text-slate-400'} mt-0.5">
+                ${v.price > 0 ? '+ ' + rp(v.price) : 'Tanpa biaya tambahan'}
+              </div>
+            </div>
+            <div id="var_check_${v.id}" class="w-6 h-6 rounded-full border flex items-center justify-center shrink-0 transition-all ${isSelected ? 'border-lime-accent bg-lime-accent text-slate-950 font-black' : 'border-slate-700 bg-slate-800/80 text-transparent'}">
+              <span class="material-symbols-outlined !text-base leading-none">check</span>
+            </div>
+          </div>
+        `}).join('')}
+      </div>
+    </div>`;
+  }
+
+  $('varModalGroups').innerHTML = html;
+  calcVarTotal();
+  $('variantModal').classList.remove('hidden');
+}
+
+function selectVar(groupName, variantId) {
+  // Jika sudah dipilih, klik lagi untuk uncheck (opsional)
+  if (selectedVariants[groupName] === variantId) {
+    delete selectedVariants[groupName];
+  } else {
+    selectedVariants[groupName] = variantId;
+  }
+  updateVarUI(groupName);
+  calcVarTotal();
+}
+
+function clearVarGroup(groupName) {
+  delete selectedVariants[groupName];
+  updateVarUI(groupName);
+  calcVarTotal();
+}
+
+function updateVarUI(groupName) {
+  if (!modalProduct) return;
+  const varsInGroup = (modalProduct.variants || []).filter(v => v.group === groupName);
+  const activeId = selectedVariants[groupName];
+
+  varsInGroup.forEach(v => {
+    const card = $('var_card_' + v.id);
+    const check = $('var_check_' + v.id);
+    if (!card || !check) return;
+
+    if (v.id === activeId) {
+      card.className = 'var-option-card cursor-pointer rounded-2xl p-3.5 border transition-all flex items-center justify-between border-lime-accent bg-lime-accent/10 ring-1 ring-lime-accent';
+      check.className = 'w-6 h-6 rounded-full border flex items-center justify-center shrink-0 transition-all border-lime-accent bg-lime-accent text-slate-950 font-black';
+    } else {
+      card.className = 'var-option-card cursor-pointer rounded-2xl p-3.5 border transition-all flex items-center justify-between border-slate-800 bg-slate-900/60 hover:border-slate-700 hover:bg-slate-800/40';
+      check.className = 'w-6 h-6 rounded-full border flex items-center justify-center shrink-0 transition-all border-slate-700 bg-slate-800/80 text-transparent';
+    }
+  });
+}
+
+function calcVarTotal() {
+  if (!modalProduct) return;
+  let total = modalProduct.price;
+  const vIds = Object.values(selectedVariants);
+  (modalProduct.variants || []).forEach(v => {
+    if (vIds.includes(v.id)) total += v.price;
+  });
+  $('varModalTotal').textContent = rp(total);
+}
+
+$('varModalClose').addEventListener('click', () => {
+  $('variantModal').classList.add('hidden');
+  modalProduct = null;
+});
+
+$('varModalConfirm').addEventListener('click', () => {
+  if (!modalProduct) return;
+  const p = modalProduct;
+  const vIds = Object.values(selectedVariants);
+  let extraPrice = 0;
+  const summaries = [];
+
+  (p.variants || []).forEach(v => {
+    if (vIds.includes(v.id)) {
+      extraPrice += v.price;
+      summaries.push(v.name);
+    }
+  });
+
+  const unitPrice = p.price + extraPrice;
+  const key = makeCartKey(p.id, vIds);
+
+  const existing = cart.find(i => i.key === key);
+  if (existing) {
+    if (p.has_recipe || getProductTotalQty(p.id) < p.stock) {
+      existing.qty++;
+    }
+  } else {
+    if (p.has_recipe || getProductTotalQty(p.id) < p.stock) {
+      cart.push({
+        key,
+        product_id: p.id,
+        variant_ids: vIds,
+        variants_summary: summaries.join(', '),
+        qty: 1,
+        unit_price: unitPrice,
+      });
+    }
+  }
+
+  $('variantModal').classList.add('hidden');
+  modalProduct = null;
+  $('err').classList.add('hidden');
+  refresh();
+});
+
 /* ---------- Events ---------- */
 $('cats').addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (b) { cat = +b.dataset.c; renderCats(); renderGrid(); } });
 $('search').addEventListener('input', e => { q = e.target.value.toLowerCase(); renderGrid(); });
 $('grid').addEventListener('click', e => {
+  const varBtn = e.target.closest('[data-var]');
+  if (varBtn) {
+    const id = +varBtn.dataset.var;
+    return openVariantModal(byId[id]);
+  }
+
   const inc = e.target.closest('[data-inc]'), dec = e.target.closest('[data-dec]');
-  if (inc) { const id = inc.dataset.inc; if ((cart[id] || 0) < byId[id].stock) cart[id] = (cart[id] || 0) + 1; }
-  if (dec) { const id = dec.dataset.dec; if (--cart[id] <= 0) delete cart[id]; }
+  if (inc) {
+    const id = +inc.dataset.inc;
+    const p = byId[id];
+    if (p.variants && p.variants.length > 0) {
+      return openVariantModal(p);
+    }
+    const key = makeCartKey(id, []);
+    const existing = cart.find(i => i.key === key);
+    if (existing) {
+      if (p.has_recipe || getProductTotalQty(id) < p.stock) existing.qty++;
+    } else {
+      if (p.has_recipe || getProductTotalQty(id) < p.stock) {
+        cart.push({ key, product_id: id, variant_ids: [], variants_summary: '', qty: 1, unit_price: p.price });
+      }
+    }
+  }
+  if (dec) {
+    const id = +dec.dataset.dec;
+    // kurangi item terakhir dari produk ini
+    for (let i = cart.length - 1; i >= 0; i--) {
+      if (cart[i].product_id === id) {
+        if (--cart[i].qty <= 0) cart.splice(i, 1);
+        break;
+      }
+    }
+  }
   if (inc || dec) { $('err').classList.add('hidden'); refresh(); }
 });
 $('typeTabs').addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (b) { orderType = b.dataset.t; renderMeta(); } });
@@ -315,11 +551,24 @@ $('discount').addEventListener('input', renderCart);
 $('paid').addEventListener('input', renderCart);
 $('ref').addEventListener('input', renderCart);
 $('quick').addEventListener('click', e => { const b = e.target.closest('[data-q]'); if (b) { $('paid').value = b.dataset.q; renderCart(); } });
-$('clear').addEventListener('click', () => { cart = {}; $('discount').value = 0; $('paid').value = ''; refresh(); });
+$('clear').addEventListener('click', () => { cart = []; $('discount').value = 0; $('paid').value = ''; refresh(); });
 $('lines').addEventListener('click', e => {
   const inc = e.target.closest('[data-linc]'), dec = e.target.closest('[data-ldec]');
-  if (inc) { const id = inc.dataset.linc; if ((cart[id] || 0) < byId[id].stock) cart[id] = (cart[id] || 0) + 1; }
-  if (dec) { const id = dec.dataset.ldec; if (--cart[id] <= 0) delete cart[id]; }
+  if (inc) {
+    const key = inc.dataset.linc;
+    const item = cart.find(i => i.key === key);
+    if (item) {
+      const p = byId[item.product_id];
+      if (p.has_recipe || getProductTotalQty(p.id) < p.stock) item.qty++;
+    }
+  }
+  if (dec) {
+    const key = dec.dataset.ldec;
+    const idx = cart.findIndex(i => i.key === key);
+    if (idx !== -1) {
+      if (--cart[idx].qty <= 0) cart.splice(idx, 1);
+    }
+  }
   if (inc || dec) { $('err').classList.add('hidden'); refresh(); }
 });
 
@@ -331,7 +580,7 @@ function setSheet(open) {
   $('cartPanel').classList.toggle('translate-y-full', !open);
   $('cartBackdrop').classList.toggle('hidden', !open);
   document.body.style.overflow = open ? 'hidden' : '';
-  $('jump').classList.toggle('hidden', open || !Object.keys(cart).length);
+  $('jump').classList.toggle('hidden', open || !cart.length);
 }
 $('jump').addEventListener('click', () => setSheet(true));
 $('sheetClose').addEventListener('click', () => setSheet(false));
@@ -378,7 +627,11 @@ async function runCheckout(refValue, err, btn) {
       method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': CSRF },
       body: JSON.stringify({
         idempotency_key: (idemKey ??= uuid()),
-        items: Object.entries(cart).map(([id, qty]) => ({ product_id: +id, qty })),
+        items: cart.map(item => ({
+          product_id: item.product_id,
+          qty: item.qty,
+          variant_ids: item.variant_ids || [],
+        })),
         customer_id: customer?.id ?? null, order_type: orderType, table_no: $('table').value || null,
         discount: t.disc, payment_method: method, paid_amount: method === 'cash' ? (+$('paid').value || 0) : t.total,
         payment_ref: refValue || null,
@@ -427,7 +680,11 @@ async function startQris() {
   try {
     const r = await fetch(URLS.qris, { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({
       idempotency_key: (idemKey ??= uuid()),
-      items: Object.entries(cart).map(([id, qty]) => ({ product_id: +id, qty })),
+      items: cart.map(item => ({
+        product_id: item.product_id,
+        qty: item.qty,
+        variant_ids: item.variant_ids || [],
+      })),
       customer_id: customer?.id ?? null, order_type: orderType, table_no: $('table').value || null, discount: t.disc,
     }) });
     const d = await r.json();

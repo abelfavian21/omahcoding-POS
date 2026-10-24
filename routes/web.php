@@ -5,12 +5,14 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HelpController;
+use App\Http\Controllers\IngredientController;
 use App\Http\Controllers\LandingController;
 use App\Http\Controllers\OfficeController;
 use App\Http\Controllers\MidtransWebhookController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProductRecipeController;
 use App\Http\Controllers\QrisController;
 use App\Http\Controllers\RegisterController;
 use App\Http\Controllers\ReportController;
@@ -70,6 +72,19 @@ Route::middleware(['auth', 'account'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
         Route::resource('products', ProductController::class)->except(['index', 'show']);
+        Route::get('/products/{product}/recipe', [ProductRecipeController::class, 'show'])->name('products.recipe');
+        Route::post('/products/{product}/variants', [ProductRecipeController::class, 'storeVariant'])->name('products.variants.store');
+        Route::delete('/variants/{variant}', [ProductRecipeController::class, 'destroyVariant'])->name('products.variants.destroy');
+        Route::post('/products/{product}/recipes', [ProductRecipeController::class, 'storeRecipe'])->name('products.recipes.store');
+        Route::delete('/recipes/{recipe}', [ProductRecipeController::class, 'destroyRecipe'])->name('products.recipes.destroy');
+
+        // Bahan Baku (Ingredients & BOM)
+        Route::get('/ingredients', [IngredientController::class, 'index'])->name('ingredients.index');
+        Route::post('/ingredients', [IngredientController::class, 'store'])->name('ingredients.store');
+        Route::put('/ingredients/{ingredient}', [IngredientController::class, 'update'])->name('ingredients.update');
+        Route::post('/ingredients/{ingredient}/adjust', [IngredientController::class, 'adjust'])->name('ingredients.adjust');
+        Route::get('/ingredients/{ingredient}/history', [IngredientController::class, 'history'])->name('ingredients.history');
+
         Route::get('/stock', [StockController::class, 'index'])->name('stock.index');
         Route::post('/stock', [StockController::class, 'store'])->name('stock.store');
         Route::delete('/customers/{customer}', [CustomerController::class, 'destroy'])->name('customers.destroy');

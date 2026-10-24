@@ -58,6 +58,7 @@
             <td class="td">{!! $p->is_active ? '<span class="pill pill-blue">Aktif</span>' : '<span class="pill pill-slate">Nonaktif</span>' !!}</td>
             @if ($admin)
               <td class="td text-right whitespace-nowrap">
+                <a href="{{ route('products.recipe', $p) }}" class="btn-ghost !h-9 !px-3 text-brand-600 font-semibold" title="Varian & Resep (BOM)"><span class="material-symbols-outlined">menu_book</span></a>
                 <a href="{{ route('stock.index', ['product' => $p->id]) }}" class="btn-ghost !h-9 !px-3" title="Atur stok"><span class="material-symbols-outlined">inventory</span></a>
                 <a href="{{ route('products.edit', $p) }}" class="btn-ghost !h-9 !px-3" title="Edit"><span class="material-symbols-outlined">edit</span></a>
                 <form method="POST" action="{{ route('products.destroy', $p) }}" class="inline" onsubmit="return confirm('Hapus produk {{ addslashes($p->name) }}?')">
@@ -94,6 +95,7 @@
         </div>
         @if ($admin)
           <div class="flex gap-2 mt-3">
+            <a href="{{ route('products.recipe', $p) }}" class="btn-secondary !h-10 flex-1 !px-3"><span class="material-symbols-outlined">menu_book</span> Resep</a>
             <a href="{{ route('stock.index', ['product' => $p->id]) }}" class="btn-secondary !h-10 flex-1 !px-3"><span class="material-symbols-outlined">inventory</span> Stok</a>
             <a href="{{ route('products.edit', $p) }}" class="btn-secondary !h-10 flex-1 !px-3"><span class="material-symbols-outlined">edit</span> Edit</a>
             <form method="POST" action="{{ route('products.destroy', $p) }}" onsubmit="return confirm('Hapus produk {{ addslashes($p->name) }}?')">

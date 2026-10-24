@@ -14,6 +14,7 @@
     ['route' => 'reports.index', 'match' => 'reports.*', 'icon' => 'query_stats', 'label' => 'Laporan Penjualan', 'admin' => true, 'group' => 'Overview'],
     ['route' => 'shifts.index', 'match' => 'shifts.*', 'icon' => 'payments', 'label' => 'Shift Kasir', 'admin' => false, 'group' => 'Overview'],
     ['route' => 'products.index', 'match' => 'products.*', 'icon' => 'lunch_dining', 'label' => 'Produk', 'admin' => false, 'group' => 'Management'],
+    ['route' => 'ingredients.index', 'match' => 'ingredients.*', 'icon' => 'egg_alt', 'label' => 'Bahan Baku (BOM)', 'admin' => true, 'group' => 'Management'],
     ['route' => 'stock.index', 'match' => 'stock.*', 'icon' => 'warehouse', 'label' => 'Stok Barang', 'admin' => true, 'group' => 'Management'],
     ['route' => 'customers.index', 'match' => 'customers.*', 'icon' => 'group', 'label' => 'Pelanggan', 'admin' => false, 'group' => 'Management'],
     ['route' => 'staff.index', 'match' => 'staff.*', 'icon' => 'badge', 'label' => 'Staff', 'admin' => true, 'group' => 'Management'],

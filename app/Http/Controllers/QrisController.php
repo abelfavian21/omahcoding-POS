@@ -28,6 +28,8 @@ class QrisController extends Controller
             'items' => ['required', 'array', 'min:1', 'max:100'],
             'items.*.product_id' => ['required', 'integer', Rule::exists('products', 'id')->where('business_id', $bid)],
             'items.*.qty' => ['required', 'integer', 'min:1', 'max:999'],
+            'items.*.variant_ids' => ['nullable', 'array'],
+            'items.*.variant_ids.*' => ['integer'],
             'customer_id' => ['nullable', Rule::exists('customers', 'id')->where('business_id', $bid)],
             'order_type' => ['required', 'in:dine_in,takeaway'],
             'table_no' => ['nullable', 'string', 'max:10'],

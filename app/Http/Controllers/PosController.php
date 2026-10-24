@@ -19,14 +19,21 @@ class PosController extends Controller
 {
     public function index(Request $request)
     {
-        $products = Product::active()->orderBy('name')->get()->map(fn (Product $p) => [
+        $products = Product::active()->with(['variants', 'recipes'])->orderBy('name')->get()->map(fn (Product $p) => [
             'id' => $p->id,
             'name' => $p->name,
             'price' => (float) $p->price,
             'stock' => $p->stock,
+            'has_recipe' => $p->recipes->isNotEmpty(),
             'emoji' => $p->emoji,   // emoji lama atau nama ikon; diterjemahkan di browser
             'image' => $p->image_url,
             'category_id' => $p->category_id,
+            'variants' => $p->variants->map(fn ($v) => [
+                'id' => $v->id,
+                'group' => $v->group_name,
+                'name' => $v->name,
+                'price' => (float) $v->price_extra,
+            ])->values(),
         ])->values();
 
         $customer = $request->customer ? Customer::find($request->customer) : null;
@@ -81,6 +88,8 @@ class PosController extends Controller
             'items' => ['required', 'array', 'min:1', 'max:100'],
             'items.*.product_id' => ['required', 'integer', Rule::exists('products', 'id')->where('business_id', $bid)],
             'items.*.qty' => ['required', 'integer', 'min:1', 'max:999'],
+            'items.*.variant_ids' => ['nullable', 'array'],
+            'items.*.variant_ids.*' => ['integer'],
             'customer_id' => ['nullable', Rule::exists('customers', 'id')->where('business_id', $bid)],
             'order_type' => ['required', 'in:dine_in,takeaway'],
             'table_no' => ['nullable', 'string', 'max:10'],

@@ -20,8 +20,8 @@ class StrongPassword implements ValidationRule
         $v = (string) $value;
         $lower = mb_strtolower($v);
 
-        if (mb_strlen($v) < 10) {
-            $fail('Kata sandi minimal 10 karakter.');
+        if (mb_strlen($v) < 8) {
+            $fail('Kata sandi minimal 8 karakter.');
         } elseif (! preg_match('/[A-Za-z]/', $v) || ! preg_match('/\d/', $v)) {
             $fail('Kata sandi harus mengandung huruf dan angka.');
         } elseif (in_array($lower, self::COMMON, true) || preg_match('/^(.)\1+$/u', $v)) {
