@@ -1499,6 +1499,10 @@
         </script>
     @endverbatim
 
+
+    @if (config('chat.enabled'))
+        @include('landing.chat-widget')
+    @endif
 </body>
 
 </html>

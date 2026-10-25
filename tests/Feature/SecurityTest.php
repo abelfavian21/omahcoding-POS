@@ -181,9 +181,10 @@ class SecurityTest extends TestCase
             ->assertCreated();
     }
 
-    public function test_checkout_ditolak_tanpa_shift(): void
+    public function test_checkout_ditolak_tanpa_shift_jika_fitur_shift_aktif(): void
     {
         $b = $this->business('CS-AAA-1111');
+        $b->forceFill(['shift_enabled' => true])->save();
         $admin = $this->user($b, 'admin');
         $kasir = $this->user($b, 'kasir');
         $p = $this->product($admin);

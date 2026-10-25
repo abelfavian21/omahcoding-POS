@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuditController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ChatWidgetController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HelpController;
@@ -26,6 +27,10 @@ use Illuminate\Support\Facades\Route;
 /* ---------- Publik: landing page / company profile ---------- */
 Route::get('/', [LandingController::class, 'index'])->name('landing');
 
+/* ---------- Chat customer service di landing (publik; limiter di controller) ---------- */
+Route::post('/chat/messages', [ChatWidgetController::class, 'send'])->name('chat.send');
+Route::get('/chat/messages', [ChatWidgetController::class, 'poll'])->name('chat.poll');
+
 /* ---------- Webhook Midtrans (publik, tanpa CSRF; diverifikasi lewat signature_key) ---------- */
 Route::post('/payments/midtrans/notify', [MidtransWebhookController::class, 'notify'])->middleware('throttle:300,1')->name('midtrans.notify');
 
@@ -48,6 +53,8 @@ Route::middleware(['auth', 'account'])->group(function () {
     Route::get('/pos/customers', [PosController::class, 'customers'])->middleware('throttle:120,1')->name('pos.customers');
     Route::post('/pos/customers', [PosController::class, 'quickCustomer'])->middleware('throttle:30,1')->name('pos.customers.store');
     Route::post('/pos/checkout', [PosController::class, 'checkout'])->middleware('throttle:60,1')->name('pos.checkout');
+    // QRIS manual: gambar QRIS statis milik bisnis (disajikan hanya ke user bisnis tsb)
+    Route::get('/pos/qris-manual', [PosController::class, 'manualQris'])->middleware('throttle:120,1')->name('pos.qris.manual');
     // QRIS dinamis (Midtrans)
     Route::post('/pos/qris', [QrisController::class, 'store'])->middleware('throttle:30,1')->name('pos.qris.store');
     Route::get('/pos/qris/{payment}', [QrisController::class, 'show'])->middleware('throttle:90,1')->name('pos.qris.show');
@@ -56,9 +63,11 @@ Route::middleware(['auth', 'account'])->group(function () {
     Route::get('/orders/{order}/receipt', [OrderController::class, 'receipt'])->name('orders.receipt');
 
     // Shift kas (kasir: milik sendiri; admin: semua)
-    Route::get('/shifts', [ShiftController::class, 'index'])->name('shifts.index');
-    Route::post('/shifts', [ShiftController::class, 'store'])->name('shifts.store');
-    Route::post('/shifts/{shift}/close', [ShiftController::class, 'close'])->name('shifts.close');
+    Route::middleware(\App\Http\Middleware\EnsureShiftEnabled::class)->group(function () {
+        Route::get('/shifts', [ShiftController::class, 'index'])->name('shifts.index');
+        Route::post('/shifts', [ShiftController::class, 'store'])->name('shifts.store');
+        Route::post('/shifts/{shift}/close', [ShiftController::class, 'close'])->name('shifts.close');
+    });
 
     Route::get('/products', [ProductController::class, 'index'])->name('products.index');
     Route::resource('customers', CustomerController::class)->except(['show', 'destroy']);
@@ -95,6 +104,9 @@ Route::middleware(['auth', 'account'])->group(function () {
 
         Route::get('/settings', [SettingsController::class, 'edit'])->name('settings.edit');
         Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
+        Route::put('/settings/shift', [SettingsController::class, 'updateShift'])->middleware('throttle:20,1')->name('settings.shift');
+        Route::put('/settings/qris', [SettingsController::class, 'updateQris'])->middleware('throttle:20,1')->name('settings.qris');
+        Route::put('/settings/midtrans', [SettingsController::class, 'updateMidtrans'])->middleware('throttle:10,1')->name('settings.midtrans');
         Route::get('/audit', [AuditController::class, 'index'])->name('audit.index');
     });
 });
@@ -123,5 +135,14 @@ Route::prefix('platform')->name('platform.')->middleware('platform.ip')->group(f
         Route::post('/admins/{admin}/active', [Platform\AdminController::class, 'toggle'])->middleware('throttle:20,1')->name('admins.toggle');
 
         Route::get('/audit', [Platform\AuditController::class, 'index'])->name('audit');
+
+        Route::get('/chat', [Platform\ChatController::class, 'index'])->name('chat.index');
+        Route::get('/chat/poll', [Platform\ChatController::class, 'poll'])->name('chat.poll');
+        Route::get('/chat/{conversation}', [Platform\ChatController::class, 'show'])->name('chat.show');
+        Route::get('/chat/{conversation}/messages', [Platform\ChatController::class, 'messages'])->name('chat.messages');
+        Route::post('/chat/{conversation}/reply', [Platform\ChatController::class, 'reply'])->middleware('throttle:30,1,chat-admin')->name('chat.reply');
+        Route::post('/chat/{conversation}/takeover', [Platform\ChatController::class, 'takeover'])->middleware('throttle:30,1,chat-admin')->name('chat.takeover');
+        Route::post('/chat/{conversation}/release', [Platform\ChatController::class, 'release'])->middleware('throttle:30,1,chat-admin')->name('chat.release');
+        Route::post('/chat/{conversation}/close', [Platform\ChatController::class, 'close'])->middleware('throttle:30,1,chat-admin')->name('chat.close');
     });
 });

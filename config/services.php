@@ -42,4 +42,22 @@ return [
         ],
     ],
 
+
+    // Chat customer service di landing (AI). Format OpenAI-compatible (/chat/completions).
+    // Key kosong = tidak ada panggilan HTTP, selalu balasan fallback.
+    'ai' => [
+        'base_url' => env('AI_BASE_URL'),
+        'api_key' => env('AI_API_KEY'),
+        'model' => env('AI_MODEL'),
+        'fallback' => [
+            'base_url' => env('AI_FALLBACK_BASE_URL'),
+            'api_key' => env('AI_FALLBACK_API_KEY'),
+            'model' => env('AI_FALLBACK_MODEL'),
+        ],
+        'timeout' => (int) env('AI_TIMEOUT', 8),             // detik per panggilan; dibatasi maks 10
+        'max_tokens' => (int) env('AI_MAX_TOKENS', 400),
+        'context_messages' => (int) env('AI_CONTEXT_MESSAGES', 10),
+        'daily_limit' => (int) env('AI_DAILY_LIMIT', 200),   // panggilan HTTP ke provider per hari, global
+        'reasoning_effort' => env('AI_REASONING_EFFORT'),    // opsional, mis. "low"
+    ],
 ];
