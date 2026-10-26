@@ -107,7 +107,7 @@
 
 {{-- Modal Pilih Varian Produk --}}
 <div id="variantModal" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm grid items-end sm:place-items-center p-0 sm:p-4 transition-all">
-  <div class="card w-full max-w-lg p-5 sm:p-6 !rounded-b-none sm:!rounded-3xl max-h-[92vh] flex flex-col shadow-2xl border border-slate-700/50 bg-[#181928] text-white">
+  <div class="card w-full max-w-lg p-5 sm:p-6 !rounded-b-none sm:!rounded-3xl max-h-[92vh] flex flex-col shadow-2xl border border-slate-700/50 bg-[#181928] text-white" style="max-height:min(92vh,92dvh)">
     <div class="flex items-start justify-between pb-4 border-b border-slate-800">
       <div>
         <div class="flex items-center gap-2">
@@ -121,7 +121,7 @@
 
     <div id="varModalGroups" class="py-4 space-y-5 overflow-y-auto flex-1 no-scrollbar pr-1"></div>
 
-    <div class="pt-4 border-t border-slate-800 flex items-center justify-between gap-3 bg-[#181928]">
+    <div class="pt-4 border-t border-slate-800 flex items-center justify-between gap-3 bg-[#181928]" style="padding-bottom:calc(1.25rem + env(safe-area-inset-bottom,0px))">
       <div>
         <div class="text-[11px] uppercase tracking-wider text-slate-400 font-bold">Total per item</div>
         <div class="text-2xl font-black text-lime-accent tracking-tight" id="varModalTotal">Rp 0</div>
@@ -285,7 +285,7 @@ function renderGrid() {
     
     let badge = '';
     if (hasRecipe) {
-      badge = '<span class="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider bg-slate-950/90 text-lime-accent border border-lime-accent/50 shadow-md backdrop-blur-sm">Resep BOM</span>';
+      badge = '<span class="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider bg-slate-950/90 text-lime-accent border border-lime-accent/50 shadow-md backdrop-blur-sm"><span class="material-symbols-outlined" style="font-size:13px;text-transform:none;letter-spacing:normal">receipt_long</span><span class="hidden sm:block">Resep BOM</span></span>';
     } else if (out) {
       badge = '<span class="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 pill pill-red !text-[10px] shadow-sm">Habis</span>';
     } else if (p.stock <= 5) {
@@ -681,7 +681,7 @@ function stockBadge(p) {
   const a = p.stock_alert;
   if (!a) return '';
   const red = a.level === 'habis';
-  return `<span class="pill ${red ? 'pill-red' : 'pill-amber'} !text-[10px] shadow-sm" style="position:absolute;bottom:.375rem;left:.375rem">${red ? 'Bahan habis' : 'Bahan menipis'}</span>`;
+  return `<span class="pill ${red ? 'pill-red' : 'pill-amber'} !text-[10px] shadow-sm" style="position:absolute;bottom:.375rem;left:.375rem;display:inline-flex;align-items:center;gap:.25rem"><span class="material-symbols-outlined" style="font-size:13px;text-transform:none;letter-spacing:normal">${red ? 'error' : 'warning'}</span><span class="hidden sm:block">${red ? 'Bahan habis' : 'Bahan menipis'}</span></span>`;
 }
 (function () {
   const host = document.createElement('div');
@@ -762,6 +762,21 @@ selectVar = function (groupName, variantId) {
   const a = v && varAlert(v, modalProduct);
   if (a) toast(a.level, a.level === 'habis' ? modalProduct.name + ' (' + v.name + ') tidak bisa dibuat' : modalProduct.name + ' (' + v.name + '): bahan menipis', a.text);
 };
+
+/* ---------- Sembunyikan tombol voice & bantuan saat modal varian terbuka ---------- */
+(function () {
+  const modal = $('variantModal');
+  if (!modal) return;
+  const sync = () => {
+    const open = !modal.classList.contains('hidden');
+    ['voiceHelpBtn', 'voiceMic'].forEach(id => {
+      const el = $(id);
+      if (el) el.style.display = open ? 'none' : '';
+    });
+  };
+  new MutationObserver(sync).observe(modal, { attributes: true, attributeFilter: ['class'] });
+  sync();
+})();
 
 /* ---------- Checkout ---------- */
 $('charge').addEventListener('click', () => {
@@ -963,6 +978,114 @@ if (window.Voice) {
     return true;
   }
 
+  /* ---- Perintah keranjang: keranjang berbentuk array baris + varian + stok bahan baku ---- */
+  const stockNote = (p, vars = []) => {
+    const list = [p.stock_alert, ...vars.map(v => v.stock_alert)].filter(Boolean);
+    const bad = list.find(a => a.level === 'habis') || list[0];
+    return bad ? bad.text : '';
+  };
+  // cocokkan nama varian yang ikut disebut, misalnya "roti medium dua" (satu varian per grup)
+  const pickVariants = (p, seg) => {
+    const chosen = {};
+    for (const v of (p.variants || [])) {
+      const vt = V.tokens(v.name);
+      if (vt.length && vt.every(x => seg.some(s => V.tokMatch(x, s)))) chosen[v.group] = v;
+    }
+    return Object.values(chosen);
+  };
+  const lineLabel = (p, vars) => p.name + (vars.length ? ' ' + vars.map(v => v.name).join(' ') : '');
+  const addLine = (p, vars, n) => {
+    const vIds = vars.map(v => v.id), key = makeCartKey(p.id, vIds);
+    const line = cart.find(i => i.key === key);
+    if (line) line.qty += n;
+    else cart.push({ key, product_id: p.id, variant_ids: vIds, variants_summary: vars.map(v => v.name).join(', '), qty: n, unit_price: p.price + vars.reduce((s, v) => s + v.price, 0) });
+  };
+  const dropLines = (p, key) => { for (let i = cart.length - 1; i >= 0; i--) if (cart[i].product_id === p.id && (!key || cart[i].key === key)) cart.splice(i, 1); };
+
+  // "cek stok roti" Â· "stok menipis" Â· "bahan apa yang habis"
+  function stockQuery(t) {
+    const listAsk = (/\b(menipis|tipis|habis|abis)\b/.test(t) && /\b(stok|bahan)\b/.test(t)) || /^(?:cek |lihat )?(?:sisa )?stok(?: bahan(?: baku)?)?$/.test(t);
+    const qm = t.match(/^(?:cek |lihat )?(?:sisa )?stok\s+(.+)$/);
+    if (!listAsk && !qm) return false;
+    if (listAsk) {
+      const seen = new Set(), items = [];
+      const push = txt => { if (txt && !seen.has(txt)) { seen.add(txt); items.push(txt); } };
+      PRODUCTS.forEach(p => {
+        push(p.stock_alert && p.stock_alert.text);
+        (p.variants || []).forEach(v => push(v.stock_alert && v.stock_alert.text));
+        if (!p.has_recipe && p.stock <= 0) push('Stok ' + p.name + ' habis');
+      });
+      if (!items.length) { V.say('Semua bahan baku dan stok aman'); return true; }
+      V.say('Perlu perhatian: ' + items.slice(0, 5).join(', ') + (items.length > 5 ? ', dan ' + (items.length - 5) + ' lainnya' : ''));
+      return true;
+    }
+    const m = V.matchProduct(V.tokens(qm[1]), PRODUCTS);
+    if (!m) { V.say('Produk tidak ditemukan'); return true; }
+    if (m.ambiguous) { V.say('Maksudnya ' + m.ambiguous.map(p => p.name).join(' atau ') + '?'); return true; }
+    const p = m.product;
+    if (p.has_recipe) {
+      const notes = [...new Set([p.stock_alert, ...(p.variants || []).map(v => v.stock_alert)].filter(Boolean).map(a => a.text))];
+      V.say(p.name + ': ' + (notes.length ? notes.join(', ') : 'bahan cukup'));
+    } else V.say('Stok ' + p.name + ' ' + p.stock);
+    return true;
+  }
+
+  function itemCommandV2(t) {
+    if (stockQuery(t)) return true;
+    const removing = /\b(hapus|buang|batalkan|batal|kurangi|kurangin|kurang|keluarkan|cancel)\b/.test(t);
+    const setting = /\b(ubah|ganti|jadikan)\b/.test(t) && /\bjadi\b/.test(t);
+    const segs = t.split(/\b(?:dan|sama|lalu|terus|kemudian|juga)\b/).map(x => x.trim()).filter(Boolean);
+    const done = [], problems = [], notes = []; let matched = 0;
+    for (const seg of segs) {
+      const toks = V.tokens(seg), runs = V.numbers(toks);
+      const rest = toks.filter((_, i) => !runs.some(r => i >= r.start && i < r.end) && !FILL.has(toks[i]));
+      if (!rest.length) continue;
+      const m = V.matchProduct(rest, PRODUCTS);
+      if (!m) continue;
+      matched++;
+      if (m.ambiguous) { problems.push('Maksudnya ' + m.ambiguous.map(p => p.name).join(' atau ') + '?'); continue; }
+      const p = m.product, vars = pickVariants(p, rest), key = makeCartKey(p.id, vars.map(v => v.id));
+      const lines = cart.filter(i => i.product_id === p.id);
+      const target = cart.find(i => i.key === key) || (vars.length ? null : lines[lines.length - 1]);
+      const qty = runs.length ? Math.min(Math.max(runs[runs.length - (setting ? 1 : runs.length)].value, 0), 99) : 1;
+      const label = lineLabel(p, vars);
+
+      if (setting) {
+        if (!target) { problems.push(label + ' belum ada di keranjang'); continue; }
+        if (qty <= 0) { dropLines(p, target.key); done.push(label + ' dihapus'); continue; }
+        const others = getProductTotalQty(p.id) - target.qty;
+        if (!p.has_recipe && others + qty > p.stock) {
+          target.qty = p.stock - others;
+          if (target.qty <= 0) dropLines(p, target.key);
+          problems.push('Stok ' + p.name + ' hanya ' + p.stock);
+        } else { target.qty = qty; done.push(label + ' jadi ' + qty); }
+      } else if (removing) {
+        if (!target) { problems.push(label + ' belum ada di keranjang'); continue; }
+        const hapusSemua = /\b(hapus|buang|batalkan|batal|keluarkan|cancel)\b/.test(t) && !runs.length;
+        const left = hapusSemua ? 0 : target.qty - qty;
+        if (left <= 0) dropLines(p, hapusSemua && !vars.length ? null : target.key); else target.qty = left;
+        done.push(label + (left <= 0 ? ' dihapus' : ' dikurangi'));
+      } else {
+        const n = qty || 1, room = p.has_recipe ? n : p.stock - getProductTotalQty(p.id);
+        if (room <= 0) { problems.push(p.stock <= 0 ? p.name + ' habis' : 'Stok ' + p.name + ' sudah maksimal'); continue; }
+        const add = Math.min(n, room);
+        addLine(p, vars, add); done.push(add + ' ' + label);
+        if (add < n) problems.push('Stok ' + p.name + ' hanya cukup ' + add);
+        const note = stockNote(p, vars);
+        if (note) notes.push(p.name + ': ' + note);
+      }
+    }
+    if (!matched) return false;
+    touch();
+    const tot = sayTotal();
+    const extra = [...problems, ...notes.map(n => 'Perhatian, ' + n)];
+    const lines = [];
+    if (done.length) lines.push((removing || setting ? 'Diubah: ' : 'Ditambahkan: ') + done.join(', ') + '. ' + tot.show);
+    if (extra.length) lines.push(extra.join('. '));
+    V.say(lines.join(' Â· '), (done.length ? (removing || setting ? 'Diubah. ' : 'Ditambahkan. ') + done.join(', ') + '. ' + tot.say + '. ' : '') + extra.join('. '));
+    return true;
+  }
+
   V.register((t) => {
     // Setelah pembayaran berhasil
     if (!$('doneModal').classList.contains('hidden')) {
@@ -975,7 +1098,7 @@ if (window.Voice) {
     if (!$('qrisManualModal').classList.contains('hidden')) return false;
 
     if (/\b(kosongkan|bersihkan|reset)\b|\b(hapus|batalkan|batal) (semua|keranjang|pesanan)\b/.test(t)) {
-      cart = {}; $('discount').value = 0; $('paid').value = ''; touch(); V.say('Keranjang dikosongkan'); return true;
+      cart = []; $('discount').value = 0; $('paid').value = ''; touch(); V.say('Keranjang dikosongkan'); return true;
     }
     if (/\b(takeaway|take away|bawa pulang|dibungkus)\b/.test(t)) { orderType = 'takeaway'; renderMeta(); V.say('Takeaway'); return true; }
     if (/\b(dine in|dinein|makan (di )?sini|makan (di )?tempat)\b/.test(t)) {
@@ -1049,7 +1172,7 @@ if (window.Voice) {
     }
     const sm = t.match(/\bcari(?: menu)?\s+(.+)$/);
     if (sm) { q = sm[1]; $('search').value = sm[1]; renderGrid(); V.say('Mencari ' + sm[1]); return true; }
-    return itemCommand(t);
+    return itemCommandV2(t);
   });
 }
 

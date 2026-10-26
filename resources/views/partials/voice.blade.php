@@ -45,10 +45,13 @@
           <li>"bayar" lalu jawab "ya" atau "batal"</li>
           <li>"cari kopi" · "kategori minuman" · "tampilkan semua"</li>
           <li>"pesanan baru" (setelah pembayaran berhasil)</li>
+          <li>"roti medium dua" (sebut nama varian setelah nama produk)</li>
+          <li>"cek stok roti" Â· "stok menipis" Â· "bahan apa yang habis"</li>
         </ul></div>
       <div><div class="font-bold mb-1">Semua halaman</div>
         <ul class="list-disc pl-5 space-y-1 text-slate-600">
-          <li>"buka dashboard / kasir / produk / stok / pelanggan / laporan / staff / kantor"</li>
+          <li>"buka dashboard / kasir / laporan / shift / produk / bahan baku / stok barang / pelanggan / staff / pengaturan / audit log / kantor / panduan"</li>
+          <li>"kembali" Â· "muat ulang"</li>
           <li>"mode gelap" · "mode terang"</li>
           <li>"bantuan" · "berhenti mendengarkan"</li>
         </ul></div>
@@ -176,7 +179,42 @@
     'reports.index': ['laporan', 'report', 'penjualan'], 'products.index': ['produk', 'barang', 'menu'], 'stock.index': ['stok', 'stock', 'persediaan'],
     'customers.index': ['pelanggan', 'customer', 'member'], 'staff.index': ['staff', 'staf', 'karyawan', 'pegawai'], office: ['kantor', 'office', 'kantor virtual'] };
 
-  function globalCommand(t) {
+  /* ---- Navigasi suara: semua tab sidebar, pilih alias terpanjang yang cocok ---- */
+  Object.assign(NAV_ALIAS, {
+    dashboard: ['dashboard', 'beranda', 'utama', 'ringkasan'],
+    pos: ['kasir', 'pos', 'order line', 'order', 'pesanan', 'transaksi'],
+    'reports.index': ['laporan penjualan', 'laporan', 'report', 'penjualan'],
+    'shifts.index': ['shift kasir', 'shift', 'sif'],
+    'products.index': ['produk', 'barang', 'menu', 'daftar menu'],
+    'ingredients.index': ['stok bahan baku', 'stok bahan', 'bahan baku', 'bahan', 'resep', 'bom'],
+    'stock.index': ['stok barang', 'stok', 'stock', 'persediaan', 'gudang'],
+    'customers.index': ['pelanggan', 'customer', 'member'],
+    'staff.index': ['staff', 'staf', 'karyawan', 'pegawai'],
+    'settings.edit': ['pengaturan', 'setelan', 'setting', 'settings', 'seting'],
+    'audit.index': ['audit log', 'audit', 'log aktivitas', 'riwayat aktivitas'],
+    office: ['kantor virtual', 'kantor', 'office'],
+    help: ['buku panduan', 'panduan', 'tutorial', 'manual'],
+  });
+  const NAV_TRIGGER = /\b(?:buka|bukakan|bukain|pergi ke|masuk ke|pindah ke|menuju|ke halaman|ke tab|halaman|tab)\s+(?:halaman\s+|tab\s+|menu\s+)?(.+)$/;
+  const navHit = (route, text) => (NAV_ALIAS[route] || []).reduce((best, a) => (new RegExp('\\b' + a).test(text) && a.length > best ? a.length : best), 0);
+  function navCommand(t) {
+    if (/^(?:kembali|balik|mundur|halaman sebelumnya)$/.test(t)) { say('Kembali'); setTimeout(() => history.back(), 500); return true; }
+    if (/^(?:muat ulang|refresh|segarkan)(?: halaman)?$/.test(t)) { say('Memuat ulang'); setTimeout(() => location.reload(), 500); return true; }
+    const m = t.match(NAV_TRIGGER);
+    if (!m) return false;
+    let best = null, bestLen = 0;
+    for (const n of (window.VOICE_NAV || [])) {
+      const len = navHit(n.route, m[1]);
+      if (len > bestLen) { best = n; bestLen = len; }
+    }
+    if (best) { say('Membuka ' + best.label); setTimeout(() => { location.href = best.url; }, 700); return true; }
+    // menu dikenali tapi tidak boleh dibuka akun ini (khusus admin / shift nonaktif)
+    const known = Object.keys(NAV_ALIAS).some(r => !(window.VOICE_NAV || []).some(n => n.route === r) && navHit(r, m[1]) > 0);
+    if (known) { say('Menu itu tidak tersedia untuk akun ini'); return true; }
+    return false;
+  }
+
+  function globalCommand(t) { if (navCommand(t)) return true;
     if (/\b(berhenti|matikan|stop|setop)\b.*\b(mendengar|mendengarkan|mikrofon|suara|mic)\b/.test(t)) { stop('Mikrofon dimatikan'); return true; }
     if (/\b(bantuan|perintah suara|help)\b/.test(t)) { openHelp(); return true; }
     if (/\bmode (gelap|dark|terang|light)\b/.test(t)) {
