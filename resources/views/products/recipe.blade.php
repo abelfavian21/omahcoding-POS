@@ -20,13 +20,6 @@
     </div>
   </div>
 
-  @if (session('success'))
-    <div class="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-semibold flex items-center justify-between">
-      <span>{{ session('success') }}</span>
-      <button onclick="this.parentElement.remove()" class="text-emerald-600 hover:text-emerald-900">&times;</button>
-    </div>
-  @endif
-
   {{-- ================= TABEL VARIAN / MODIFIER ================= --}}
   <div class="card p-5 sm:p-6 space-y-4">
     <div class="flex items-center justify-between">

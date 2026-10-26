@@ -14,12 +14,7 @@
     </div>
   </div>
 
-  @if (session('success'))
-    <div class="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-semibold flex items-center justify-between">
-      <span>{{ session('success') }}</span>
-      <button onclick="this.parentElement.remove()" class="text-emerald-600 hover:text-emerald-900">&times;</button>
-    </div>
-  @endif
+  {{-- Notifikasi sukses ditampilkan oleh layout (banner paling atas); jangan diulang di sini. --}}
   @if ($errors->any())
     <div class="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-800 text-sm font-semibold">
       {{ $errors->first() }}
@@ -53,22 +48,28 @@
         </thead>
         <tbody class="divide-y divide-slate-100">
           @forelse ($ingredients as $ing)
+            @php
+              // [label, warna teks/titik, latar, border]. Warna dipilih agar terbaca di tema terang maupun gelap.
+              $st = $ing->stock <= 0
+                  ? ['Habis', '#ef4444', 'rgba(239,68,68,.14)', 'rgba(239,68,68,.45)']
+                  : ($ing->stock <= $ing->min_stock
+                      ? ['Menipis', '#d97706', 'rgba(217,119,6,.14)', 'rgba(217,119,6,.45)']
+                      : ['Aman', '#059669', 'rgba(5,150,105,.14)', 'rgba(5,150,105,.45)']);
+              $warn = $ing->stock <= $ing->min_stock;
+            @endphp
             <tr class="hover:bg-slate-50/70 transition">
               <td class="px-5 py-3.5 font-bold text-slate-900">{{ $ing->name }}</td>
               <td class="px-5 py-3.5 text-slate-600"><span class="pill pill-slate !py-0.5">{{ $ing->unit }}</span></td>
-              <td class="px-5 py-3.5 font-extrabold text-base {{ $ing->stock <= $ing->min_stock ? 'text-amber-600' : 'text-slate-900' }}">
+              <td class="px-5 py-3.5 font-extrabold text-base {{ $warn ? '' : 'text-slate-900' }}" @if ($warn) style="color:{{ $st[1] }}" @endif>
                 {{ number_format($ing->stock, 2) }} <span class="text-xs font-normal text-slate-500">{{ $ing->unit }}</span>
               </td>
               <td class="px-5 py-3.5 text-slate-500">{{ number_format($ing->min_stock, 2) }} {{ $ing->unit }}</td>
               <td class="px-5 py-3.5 text-slate-700 font-medium">Rp {{ number_format($ing->cost_per_unit, 0, ',', '.') }} / {{ $ing->unit }}</td>
               <td class="px-5 py-3.5">
-                @if ($ing->stock <= 0)
-                  <span class="pill bg-red-100 text-red-700">Habis</span>
-                @elseif ($ing->stock <= $ing->min_stock)
-                  <span class="pill bg-amber-100 text-amber-700">Menipis</span>
-                @else
-                  <span class="pill bg-emerald-100 text-emerald-700">Aman</span>
-                @endif
+                <span class="inline-flex items-center gap-1.5 rounded-full text-[11px] font-bold tracking-wide"
+                      style="padding:.25rem .7rem;color:{{ $st[1] }};background:{{ $st[2] }};border:1px solid {{ $st[3] }}">
+                  <span style="width:6px;height:6px;border-radius:9999px;background:{{ $st[1] }}"></span>{{ $st[0] }}
+                </span>
               </td>
               <td class="px-5 py-3.5 text-right space-x-1 whitespace-nowrap">
                 <button onclick="openAdjust({{ json_encode($ing) }})" class="btn-secondary !h-8 !px-3 text-xs" title="Sesuaikan Stok">

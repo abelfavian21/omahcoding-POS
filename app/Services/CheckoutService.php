@@ -181,6 +181,39 @@ class CheckoutService
         return ['subtotal' => $subtotal, 'discount' => $discount, 'tax' => $tax, 'total' => $subtotal - $discount + $tax];
     }
 
+    /**
+     * Cek kecukupan stok untuk isi keranjang TANPA menyimpan apa pun (peringatan dini di POS).
+     * Memakai kalkulasi yang sama dengan checkout, jadi aturan resep/varian tidak bisa berbeda.
+     */
+    public function stockShortages(array $items): array
+    {
+        try {
+            $calc = $this->calculateItems($items, false);
+        } catch (RuntimeException $e) {
+            return ['ok' => false, 'messages' => [$e->getMessage()]];
+        }
+
+        $needs = $calc['ingredient_deductions'];
+        $messages = [];
+
+        if ($needs) {
+            $fmt = fn (float $v) => rtrim(rtrim(number_format($v, 2, ',', '.'), '0'), ',');
+            $ingredients = Ingredient::whereIn('id', array_keys($needs))->get()->keyBy('id');
+
+            foreach ($needs as $id => $need) {
+                $ing = $ingredients[$id] ?? null;
+                if ($ing && $need > (float) $ing->stock + 0.0001) {
+                    $messages[] = sprintf(
+                        'Stok bahan baku %s tidak cukup (butuh %s %s, tersisa %s %s).',
+                        $ing->name, $fmt((float) $need), $ing->unit, $fmt((float) $ing->stock), $ing->unit
+                    );
+                }
+            }
+        }
+
+        return ['ok' => empty($messages), 'messages' => $messages];
+    }
+
     public function hold(User $user, array $data): Order
     {
         return DB::transaction(function () use ($user, $data) {
