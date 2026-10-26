@@ -1,4 +1,4 @@
-# CashierStore POS
+# CashierStore POS :)
 
 Aplikasi kasir (Point of Sale) multi-bisnis berbasis **Laravel**, dengan manajemen produk, stok, pelanggan loyalty, shift kasir, laporan penjualan, audit log, dan pembayaran **QRIS dinamis (Midtrans)**. Tampilan memakai desain *Luminescent Fintech* (sidebar gelap, aksen lime, mode terang/gelap) dan responsif untuk desktop, tablet, dan mobile.
 
