@@ -107,7 +107,7 @@
 
 {{-- Modal Pilih Varian Produk --}}
 <div id="variantModal" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm grid items-end sm:place-items-center p-0 sm:p-4 transition-all">
-  <div class="card w-full max-w-lg p-5 sm:p-6 !rounded-b-none sm:!rounded-3xl max-h-[92vh] flex flex-col shadow-2xl border border-slate-700/50 bg-[#181928] text-white">
+  <div class="card w-full max-w-lg p-5 sm:p-6 !rounded-b-none sm:!rounded-3xl max-h-[92vh] flex flex-col shadow-2xl border border-slate-700/50 bg-[#181928] text-white" style="max-height:min(92vh,92dvh)">
     <div class="flex items-start justify-between pb-4 border-b border-slate-800">
       <div>
         <div class="flex items-center gap-2">
@@ -121,7 +121,7 @@
 
     <div id="varModalGroups" class="py-4 space-y-5 overflow-y-auto flex-1 no-scrollbar pr-1"></div>
 
-    <div class="pt-4 border-t border-slate-800 flex items-center justify-between gap-3 bg-[#181928]">
+    <div class="pt-4 border-t border-slate-800 flex items-center justify-between gap-3 bg-[#181928]" style="padding-bottom:calc(1.25rem + env(safe-area-inset-bottom,0px))">
       <div>
         <div class="text-[11px] uppercase tracking-wider text-slate-400 font-bold">Total per item</div>
         <div class="text-2xl font-black text-lime-accent tracking-tight" id="varModalTotal">Rp 0</div>
@@ -285,7 +285,7 @@ function renderGrid() {
     
     let badge = '';
     if (hasRecipe) {
-      badge = '<span class="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider bg-slate-950/90 text-lime-accent border border-lime-accent/50 shadow-md backdrop-blur-sm">Resep BOM</span>';
+      badge = '<span class="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider bg-slate-950/90 text-lime-accent border border-lime-accent/50 shadow-md backdrop-blur-sm"><span class="material-symbols-outlined" style="font-size:13px;text-transform:none;letter-spacing:normal">receipt_long</span><span class="hidden sm:block">Resep BOM</span></span>';
     } else if (out) {
       badge = '<span class="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 pill pill-red !text-[10px] shadow-sm">Habis</span>';
     } else if (p.stock <= 5) {
@@ -681,7 +681,7 @@ function stockBadge(p) {
   const a = p.stock_alert;
   if (!a) return '';
   const red = a.level === 'habis';
-  return `<span class="pill ${red ? 'pill-red' : 'pill-amber'} !text-[10px] shadow-sm" style="position:absolute;bottom:.375rem;left:.375rem">${red ? 'Bahan habis' : 'Bahan menipis'}</span>`;
+  return `<span class="pill ${red ? 'pill-red' : 'pill-amber'} !text-[10px] shadow-sm" style="position:absolute;bottom:.375rem;left:.375rem;display:inline-flex;align-items:center;gap:.25rem"><span class="material-symbols-outlined" style="font-size:13px;text-transform:none;letter-spacing:normal">${red ? 'error' : 'warning'}</span><span class="hidden sm:block">${red ? 'Bahan habis' : 'Bahan menipis'}</span></span>`;
 }
 (function () {
   const host = document.createElement('div');
@@ -762,6 +762,21 @@ selectVar = function (groupName, variantId) {
   const a = v && varAlert(v, modalProduct);
   if (a) toast(a.level, a.level === 'habis' ? modalProduct.name + ' (' + v.name + ') tidak bisa dibuat' : modalProduct.name + ' (' + v.name + '): bahan menipis', a.text);
 };
+
+/* ---------- Sembunyikan tombol voice & bantuan saat modal varian terbuka ---------- */
+(function () {
+  const modal = $('variantModal');
+  if (!modal) return;
+  const sync = () => {
+    const open = !modal.classList.contains('hidden');
+    ['voiceHelpBtn', 'voiceMic'].forEach(id => {
+      const el = $(id);
+      if (el) el.style.display = open ? 'none' : '';
+    });
+  };
+  new MutationObserver(sync).observe(modal, { attributes: true, attributeFilter: ['class'] });
+  sync();
+})();
 
 /* ---------- Checkout ---------- */
 $('charge').addEventListener('click', () => {
