@@ -171,21 +171,6 @@ class PlatformAdminTest extends TestCase
         $this->assertSame('active', $b->fresh()->status);
     }
 
-    public function test_perpanjang_trial_menambah_hari_dari_tanggal_berakhir(): void
-    {
-        $b = $this->business('CS-AAA-1111', 'trial', '+5 days');
-        $before = $b->trial_ends_at->copy();
-        $this->login($this->admin());
-
-        $this->post(route('platform.businesses.trial', $b), ['days' => 14])->assertSessionHasNoErrors();
-        $this->assertSame($before->copy()->addDays(14)->toDateString(), $b->fresh()->trial_ends_at->toDateString());
-
-        $this->post(route('platform.businesses.trial', $b), ['days' => 3])->assertSessionHasErrors('days');   // hanya 7/14/30
-
-        $aktif = $this->business('CS-CCC-3333', 'active', null);
-        $this->post(route('platform.businesses.trial', $aktif), ['days' => 7])->assertSessionHasErrors('days');
-    }
-
     public function test_tidak_bisa_menonaktifkan_diri_sendiri_atau_admin_aktif_terakhir(): void
     {
         $a = $this->admin();

@@ -70,37 +70,38 @@ class ShiftSettingTest extends TestCase
         ];
     }
 
-    public function test_default_shift_aktif_dan_checkout_tanpa_shift_ditolak(): void
+    public function test_default_shift_nonaktif_dan_checkout_tanpa_shift_bisa_langsung_berhasil(): void
     {
         $b = $this->business('CS-AAA-1111');
-        $this->assertTrue($b->refresh()->requiresShift());
-        $admin = $this->user($b, 'admin');
-        $kasir = $this->user($b, 'kasir');
-        $p = $this->product($admin);
-
-        $res = $this->actingAs($kasir)->postJson(route('pos.checkout'), $this->cash($p))->assertStatus(422);
-        $this->assertStringContainsString('shift', strtolower((string) $res->json('message')));   // ditolak KARENA shift, bukan karena hal lain
-        $this->assertSame(0, Order::withoutGlobalScopes()->count());
-    }
-
-    public function test_admin_menonaktifkan_shift_kasir_bisa_bayar_tanpa_shift(): void
-    {
-        $b = $this->business('CS-AAA-1111');
-        $admin = $this->user($b, 'admin');
-        $kasir = $this->user($b, 'kasir');
-        $p = $this->product($admin);
-
-        $this->actingAs($admin)->put(route('settings.shift'), [])->assertRedirect(route('settings.edit'));   // checkbox tidak dicentang = nonaktif
         $this->assertFalse($b->refresh()->requiresShift());
+        $admin = $this->user($b, 'admin');
+        $kasir = $this->user($b, 'kasir');
+        $p = $this->product($admin);
 
-        $this->as($kasir)->postJson(route('pos.checkout'), $this->cash($p))->assertCreated();
+        $res = $this->actingAs($kasir)->postJson(route('pos.checkout'), $this->cash($p))->assertCreated();
         $this->assertSame(1, Order::withoutGlobalScopes()->count());
         $this->assertNull(Order::withoutGlobalScopes()->first()->cash_shift_id);
+    }
+
+    public function test_admin_mengaktifkan_shift_maka_checkout_tanpa_shift_ditolak(): void
+    {
+        $b = $this->business('CS-AAA-1111');
+        $admin = $this->user($b, 'admin');
+        $kasir = $this->user($b, 'kasir');
+        $p = $this->product($admin);
+
+        $this->actingAs($admin)->put(route('settings.shift'), ['shift_enabled' => '1'])->assertRedirect(route('settings.edit'));
+        $this->assertTrue($b->refresh()->requiresShift());
+
+        $res = $this->as($kasir)->postJson(route('pos.checkout'), $this->cash($p))->assertStatus(422);
+        $this->assertStringContainsString('shift', strtolower((string) $res->json('message')));
+        $this->assertSame(0, Order::withoutGlobalScopes()->count());
     }
 
     public function test_menonaktifkan_shift_ditolak_selama_ada_shift_terbuka(): void
     {
         $b = $this->business('CS-AAA-1111');
+        $b->forceFill(['shift_enabled' => true])->save();
         $admin = $this->user($b, 'admin');
         $kasir = $this->user($b, 'kasir');
         Auth::setUser($kasir);
@@ -114,15 +115,16 @@ class ShiftSettingTest extends TestCase
     public function test_halaman_shift_disembunyikan_saat_fitur_dinonaktifkan(): void
     {
         $b = $this->business('CS-AAA-1111');
+        $b->forceFill(['shift_enabled' => true])->save();
         $kasir = $this->user($b, 'kasir');
 
         $this->actingAs($kasir)->get(route('shifts.index'))->assertOk();                 // aktif: halaman terbuka
 
         $b->forceFill(['shift_enabled' => false])->save();
-        $this->as($kasir)->get(route('shifts.index'))->assertRedirect(route('pos'));      // nonaktif: diarahkan ke Order Line
-        $this->as($kasir)->post(route('shifts.store'), ['opening_cash' => 0])->assertRedirect(route('pos'));
+        $this->as($kasir->fresh())->get(route('shifts.index'))->assertRedirect(route('pos'));      // nonaktif: diarahkan ke Order Line
+        $this->as($kasir->fresh())->post(route('shifts.store'), ['opening_cash' => 0])->assertRedirect(route('pos'));
         $this->assertSame(0, CashShift::withoutGlobalScopes()->count());
-        $this->as($kasir)->get(route('pos'))->assertOk()->assertDontSee(route('shifts.index'));   // tautan menu juga hilang
+        $this->as($kasir->fresh())->get(route('pos'))->assertOk()->assertDontSee(route('shifts.index'));   // tautan menu juga hilang
     }
 
     public function test_kasir_tidak_bisa_mengubah_pengaturan_shift(): void
@@ -130,8 +132,8 @@ class ShiftSettingTest extends TestCase
         $b = $this->business('CS-AAA-1111');
         $kasir = $this->user($b, 'kasir');
 
-        $this->actingAs($kasir)->put(route('settings.shift'), [])->assertForbidden();
-        $this->assertTrue($b->refresh()->requiresShift());
+        $this->actingAs($kasir)->put(route('settings.shift'), ['shift_enabled' => '1'])->assertForbidden();
+        $this->assertFalse($b->refresh()->requiresShift());
     }
 
     public function test_pengaturan_di_satu_bisnis_tidak_mempengaruhi_bisnis_lain(): void
@@ -140,8 +142,8 @@ class ShiftSettingTest extends TestCase
         $bb = $this->business('CS-BBB-2222');
         $adminA = $this->user($a, 'admin');
 
-        $this->actingAs($adminA)->put(route('settings.shift'), []);
-        $this->assertFalse($a->refresh()->requiresShift());
-        $this->assertTrue($bb->refresh()->requiresShift());
+        $this->actingAs($adminA)->put(route('settings.shift'), ['shift_enabled' => '1']);
+        $this->assertTrue($a->refresh()->requiresShift());
+        $this->assertFalse($bb->refresh()->requiresShift());
     }
 }

@@ -294,8 +294,8 @@ function renderGrid() {
 
     const hasVars = p.variants && p.variants.length > 0;
 
-    return `<div class="card p-2.5 sm:p-3 flex sm:block items-center gap-3 ${out ? 'opacity-60' : ''}">
-      <div class="w-[72px] h-[72px] sm:w-full sm:h-auto sm:aspect-square shrink-0 rounded-2xl bg-slate-100 grid place-items-center overflow-hidden relative">${media}${badge}</div>
+    return `<div class="card p-2.5 sm:p-3 flex sm:block items-center gap-3 ${out ? 'opacity-60' : ''}" style="${stockStyle(p)}">
+      <div class="w-[72px] h-[72px] sm:w-full sm:h-auto sm:aspect-square shrink-0 rounded-2xl bg-slate-100 grid place-items-center overflow-hidden relative">${media}${badge}${stockBadge(p)}</div>
       <div class="flex-1 min-w-0 sm:mt-3">
         <div class="font-bold text-sm sm:text-base leading-tight line-clamp-2 sm:min-h-[2.5rem]">${esc(p.name)}</div>
         <div class="mt-1.5 sm:mt-2 sm:pt-2 sm:border-t border-slate-100 flex items-center justify-between gap-2">
@@ -401,12 +401,12 @@ function openVariantModal(product) {
           const isSelected = selectedVariants[groupName] === v.id;
           return `
           <div onclick="selectVar('${esc(groupName)}', ${v.id})" 
-               id="var_card_${v.id}"
+               id="var_card_${v.id}" style="${varStyle(v, product)}"
                class="var-option-card cursor-pointer rounded-2xl p-3.5 border transition-all flex items-center justify-between ${isSelected ? 'border-lime-accent bg-lime-accent/10 ring-1 ring-lime-accent' : 'border-slate-800 bg-slate-900/60 hover:border-slate-700 hover:bg-slate-800/40'}">
             <div class="min-w-0 pr-2">
               <div class="text-sm font-bold text-white tracking-tight truncate">${esc(v.name)}</div>
               <div class="text-xs font-semibold ${v.price > 0 ? 'text-lime-accent' : 'text-slate-400'} mt-0.5">
-                ${v.price > 0 ? '+ ' + rp(v.price) : 'Tanpa biaya tambahan'}
+                ${v.price > 0 ? '+ ' + rp(v.price) : 'Tanpa biaya tambahan'}${varNote(v, product)}
               </div>
             </div>
             <div id="var_check_${v.id}" class="w-6 h-6 rounded-full border flex items-center justify-center shrink-0 transition-all ${isSelected ? 'border-lime-accent bg-lime-accent text-slate-950 font-black' : 'border-slate-700 bg-slate-800/80 text-transparent'}">
@@ -619,6 +619,149 @@ $('newBtn').addEventListener('click', async () => {
   if (!r.ok) { err.textContent = d.errors ? Object.values(d.errors)[0][0] : (d.message || 'Gagal menyimpan'); err.classList.remove('hidden'); return; }
   $('newName').value = $('newPhone').value = ''; pick(d);
 });
+
+/* ---------- Peringatan stok bahan baku saat isi keranjang berubah ---------- */
+URLS.stockCheck = @json(route('pos.stock.check'));
+let stockBlocked = false, stockSig = '', stockTimer = null, stockReq = 0;
+(function () {
+  const box = document.createElement('div');
+  box.id = 'stockAlert';
+  box.className = 'hidden text-xs font-semibold text-red-500 space-y-1';
+  $('err').insertAdjacentElement('beforebegin', box);
+})();
+function showStock(messages) {
+  const box = $('stockAlert');
+  box.innerHTML = messages.map(m => `<p>${esc(m)}</p>`).join('');
+  box.classList.toggle('hidden', !messages.length);
+}
+async function checkStock() {
+  if (!cart.length) {
+    const was = stockBlocked;
+    stockSig = ''; stockBlocked = false; showStock([]);
+    if (was) renderCart();
+    return;
+  }
+  const items = cart.map(i => ({ product_id: i.product_id, qty: i.qty, variant_ids: i.variant_ids || [] }));
+  const sig = JSON.stringify(items);
+  if (sig === stockSig) return;
+  stockSig = sig;
+  const my = ++stockReq;
+  let blocked = false, messages = [];
+  try {
+    const r = await fetch(URLS.stockCheck, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': CSRF },
+      body: JSON.stringify({ items }),
+    });
+    if (r.ok) {
+      const d = await r.json();
+      blocked = !d.ok; messages = d.messages || [];
+    }
+    // gagal jaringan / validasi: jangan blokir kasir; server tetap mengecek lagi saat Bayar
+  } catch (e) { /* abaikan */ }
+  if (my !== stockReq) return;   // ada perubahan keranjang yang lebih baru
+  stockBlocked = blocked;
+  showStock(messages);
+  renderCart();
+}
+const _renderCart = renderCart;
+renderCart = function () {
+  _renderCart();
+  if (stockBlocked && cart.length) $('charge').disabled = true;
+  clearTimeout(stockTimer);
+  stockTimer = setTimeout(checkStock, 250);
+};
+
+/* ---------- Tampilan stok bahan baku: kartu merah + notifikasi bubble ---------- */
+function stockStyle(p) {
+  const a = p.stock_alert;
+  return '';
+}
+function stockBadge(p) {
+  const a = p.stock_alert;
+  if (!a) return '';
+  const red = a.level === 'habis';
+  return `<span class="pill ${red ? 'pill-red' : 'pill-amber'} !text-[10px] shadow-sm" style="position:absolute;bottom:.375rem;left:.375rem">${red ? 'Bahan habis' : 'Bahan menipis'}</span>`;
+}
+(function () {
+  const host = document.createElement('div');
+  host.id = 'stockToasts';
+  host.setAttribute('aria-live', 'polite');
+  host.style.cssText = 'position:fixed;top:calc(1rem + env(safe-area-inset-top,0px));right:1rem;z-index:70;display:flex;flex-direction:column;gap:.5rem;width:min(20rem,calc(100vw - 2rem));pointer-events:none';
+  document.body.appendChild(host);
+})();
+function toast(level, title, text) {
+  const host = $('stockToasts');
+  const key = level + '|' + title + '|' + text;
+  if ([...host.children].some(el => el.dataset.key === key)) return;
+  while (host.children.length >= 3) host.firstElementChild.remove();
+  const red = level === 'habis';
+  const el = document.createElement('div');
+  el.dataset.key = key;
+  el.setAttribute('role', 'alert');
+  el.style.cssText = 'pointer-events:auto;cursor:pointer;display:flex;gap:.625rem;align-items:flex-start;padding:.75rem .875rem;border-radius:1rem;color:#fff;box-shadow:0 10px 30px rgba(0,0,0,.35);transition:opacity .25s,transform .25s;opacity:0;transform:translateX(1rem);background:' + (red ? '#b91c1c' : '#b45309');
+  el.innerHTML = `<span class="material-symbols-outlined" style="font-size:20px;flex:none">${red ? 'error' : 'warning'}</span><div style="min-width:0"><div style="font-weight:800;font-size:.8125rem;line-height:1.2">${esc(title)}</div><div style="font-size:.75rem;opacity:.92;margin-top:2px">${esc(text)}</div></div>`;
+  host.appendChild(el);
+  requestAnimationFrame(() => { el.style.opacity = '1'; el.style.transform = 'none'; });
+  const close = () => { el.style.opacity = '0'; el.style.transform = 'translateX(1rem)'; setTimeout(() => el.remove(), 250); };
+  el.addEventListener('click', close);
+  setTimeout(close, 5000);
+}
+// Toast saat produk bermasalah ditambahkan ke keranjang
+let prevQty = {}, qtyReady = false;
+function trackStockToasts() {
+  const now = {};
+  cart.forEach(i => { now[i.product_id] = (now[i.product_id] || 0) + i.qty; });
+  if (qtyReady) {
+    for (const id in now) {
+      if (now[id] > (prevQty[id] || 0)) {
+        const p = byId[id], a = p && p.stock_alert;
+        if (a) toast(a.level, a.level === 'habis' ? p.name + ' tidak bisa dibuat' : p.name + ': bahan menipis', a.text);
+      }
+    }
+  }
+  qtyReady = true; prevQty = now;
+}
+const _renderCart2 = renderCart;
+renderCart = function () { _renderCart2(); trackStockToasts(); };
+// Toast saat jumlah di keranjang melebihi stok bahan (hasil cek server)
+let lastShortage = '';
+function toastShortage(messages) {
+  const first = messages && messages[0] ? messages[0] : '';
+  if (first && first !== lastShortage) {
+    const informed = cart.some(i => byId[i.product_id]?.stock_alert?.level === 'habis');
+    if (!informed) toast('habis', 'Stok tidak cukup', first);
+  }
+  lastShortage = first;
+}
+const _showStock = showStock;
+showStock = function (m) { _showStock(m); toastShortage(m); };
+
+/* ---------- Kartu varian merah bila bahan resep varian habis ---------- */
+function varAlert(v, p) {
+  const own = v.stock_alert, base = p.stock_alert;
+  if (own && own.level === 'habis') return own;
+  if (base && base.level === 'habis') return base;   // bahan dasar produk habis: semua varian ikut tidak bisa dibuat
+  return own || null;
+}
+function varStyle(v, p) {
+  const a = varAlert(v, p);
+  if (!a) return '';
+  return a.level === 'habis' ? 'border-color:#ef4444;background:rgba(239,68,68,.12)' : 'border-color:#f59e0b';
+}
+function varNote(v, p) {
+  const a = varAlert(v, p);
+  if (!a) return '';
+  return `<span style="display:block;margin-top:2px;font-size:.6875rem;font-weight:700;color:${a.level === 'habis' ? '#f87171' : '#fbbf24'}">${esc(a.text)}</span>`;
+}
+const _selectVar = selectVar;
+selectVar = function (groupName, variantId) {
+  _selectVar(groupName, variantId);
+  if (!modalProduct || selectedVariants[groupName] !== variantId) return;
+  const v = (modalProduct.variants || []).find(x => x.id === variantId);
+  const a = v && varAlert(v, modalProduct);
+  if (a) toast(a.level, a.level === 'habis' ? modalProduct.name + ' (' + v.name + ') tidak bisa dibuat' : modalProduct.name + ' (' + v.name + '): bahan menipis', a.text);
+};
 
 /* ---------- Checkout ---------- */
 $('charge').addEventListener('click', () => {

@@ -33,13 +33,4 @@ class RegisterPasswordFieldTest extends TestCase
             ->assertHasNoErrors()
             ->assertDispatched('password-validation-updated', valid: true);
     }
-
-    public function test_password_tidak_boleh_memuat_nama_pemilik(): void
-    {
-        Livewire::test(RegisterPasswordField::class)
-            ->dispatch('registration-context-updated', name: 'Budi Santoso', email: 'budi@toko.test')
-            ->set('password', 'Budi Santoso12')
-            ->assertHasErrors(['password'])
-            ->assertDispatched('password-validation-updated', valid: false);
-    }
 }

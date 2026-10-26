@@ -96,9 +96,10 @@ class ManualQrisTest extends TestCase
         return $path;
     }
 
-    public function test_qris_manual_tanpa_gambar_tetap_wajib_referensi(): void
+    public function test_qris_manual_tanpa_gambar_mengikuti_pengaturan_referensi(): void
     {
         $b = $this->business('CS-AAA-1111');
+        $b->forceFill(['qris_require_ref' => true])->save();
         $admin = $this->user($b, 'admin');
         $kasir = $this->user($b, 'kasir');
         $p = $this->product($admin);
@@ -107,6 +108,10 @@ class ManualQrisTest extends TestCase
         $this->actingAs($kasir)->postJson(route('pos.checkout'), $this->qrisPayload($p))
             ->assertStatus(422)->assertJsonValidationErrors('payment_ref');
         $this->assertSame(0, Order::withoutGlobalScopes()->count());
+
+        $b->forceFill(['qris_require_ref' => false])->save();
+        $this->actingAs($kasir->fresh())->postJson(route('pos.checkout'), $this->qrisPayload($p))->assertCreated();
+        $this->assertSame(1, Order::withoutGlobalScopes()->count());
     }
 
     public function test_qris_manual_dengan_gambar_tidak_wajib_referensi(): void
@@ -192,7 +197,7 @@ class ManualQrisTest extends TestCase
 
         $this->assertNull($b->refresh()->qris_image);
         Storage::disk('local')->assertMissing($path);
-        $this->assertTrue($b->qrisManualNeedsRef());   // kembali ke perilaku lama
+        $this->assertFalse($b->qrisManualNeedsRef());   // default qris_require_ref false
     }
 
     public function test_file_bukan_gambar_dan_svg_ditolak(): void

@@ -23,6 +23,7 @@
     ['platform.businesses.index', 'platform.businesses.*', 'storefront', 'Toko'],
     ['platform.admins.index', 'platform.admins.*', 'admin_panel_settings', 'Admin platform'],
     ['platform.audit', 'platform.audit', 'policy', 'Audit log'],
+    ['platform.chat.index', 'platform.chat.*', 'forum', 'Chat'],
     ['platform.account', 'platform.account*', 'key', 'Akun saya'],
   ];
 @endphp

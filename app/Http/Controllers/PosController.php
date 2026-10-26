@@ -19,12 +19,13 @@ class PosController extends Controller
 {
     public function index(Request $request)
     {
-        $products = Product::active()->with(['variants', 'recipes'])->orderBy('name')->get()->map(fn (Product $p) => [
+        $products = Product::active()->with(['variants', 'recipes.ingredient'])->orderBy('name')->get()->map(fn (Product $p) => [
             'id' => $p->id,
             'name' => $p->name,
             'price' => (float) $p->price,
             'stock' => $p->stock,
             'has_recipe' => $p->recipes->isNotEmpty(),
+            'stock_alert' => $this->recipeAlert($p->recipes->whereNull('product_variant_id')),
             'emoji' => $p->emoji,   // emoji lama atau nama ikon; diterjemahkan di browser
             'image' => $p->image_url,
             'category_id' => $p->category_id,
@@ -33,6 +34,7 @@ class PosController extends Controller
                 'group' => $v->group_name,
                 'name' => $v->name,
                 'price' => (float) $v->price_extra,
+                'stock_alert' => $this->recipeAlert($p->recipes->where('product_variant_id', $v->id)),
             ])->values(),
         ])->values();
 
@@ -133,6 +135,24 @@ class PosController extends Controller
         ], 201);
     }
 
+    /**
+     * Cek stok (produk jadi + bahan baku/BOM) untuk isi keranjang SAAT INI, tanpa menyimpan apa pun.
+     * Dipanggil POS setiap keranjang berubah, supaya peringatan muncul sebelum kasir menekan Bayar.
+     */
+    public function stockCheck(Request $request, CheckoutService $checkout)
+    {
+        $bid = $request->user()->business_id;
+        $data = $request->validate([
+            'items' => ['required', 'array', 'min:1', 'max:100'],
+            'items.*.product_id' => ['required', 'integer', Rule::exists('products', 'id')->where('business_id', $bid)],
+            'items.*.qty' => ['required', 'integer', 'min:1', 'max:999'],
+            'items.*.variant_ids' => ['nullable', 'array'],
+            'items.*.variant_ids.*' => ['integer'],
+        ]);
+
+        return response()->json($checkout->stockShortages($data['items']));
+    }
+
     /** Gambar QRIS manual milik bisnis kasir yang login (disk privat, tidak pernah publik). */
     public function manualQris(Request $request)
     {
@@ -140,6 +160,33 @@ class PosController extends Controller
         abort_unless($business && $business->hasManualQris(), 404);
 
         return Storage::disk('local')->response($business->qris_image, null, ['Cache-Control' => 'private, max-age=3600']);
+    }
+
+    /** Status bahan baku dari sekumpulan resep: "habis" (tidak cukup untuk 1 porsi) mengalahkan "menipis" (di bawah batas minimum). */
+    private function recipeAlert($recipes): ?array
+    {
+        $fmt = fn (float $v) => rtrim(rtrim(number_format($v, 2, ',', '.'), '0'), ',');
+        $found = null;
+
+        foreach ($recipes as $r) {
+            $ing = $r->ingredient;
+            if (! $ing) {
+                continue;
+            }
+            $stock = (float) $ing->stock;
+            $left = $fmt($stock).' '.$ing->unit;
+
+            if ($stock + 0.0001 < (float) $r->amount) {
+                $text = $stock <= 0 ? "{$ing->name} habis" : "{$ing->name} kurang (sisa {$left})";
+
+                return ['level' => 'habis', 'text' => $text];
+            }
+            if ($found === null && $stock <= (float) $ing->min_stock) {
+                $found = ['level' => 'menipis', 'text' => "{$ing->name} menipis (sisa {$left})"];
+            }
+        }
+
+        return $found;
     }
 
     private function customerJson(Customer $c): array

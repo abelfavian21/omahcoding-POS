@@ -66,6 +66,7 @@ class RetailCategoryTest extends TestCase
             'email' => 'budi@barokah.test',
             'status' => 'active',
             'mode' => 'retail',
+            'tax_rate' => 0,
             'shift_enabled' => false,
         ]);
 
