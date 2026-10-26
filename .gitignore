@@ -19,3 +19,11 @@
 /.github
 /.junie
 /.vscode
+
+# Backup & skrip sekali pakai
+/.*-backup/
+/bundle*.txt
+/apply-*.ps1
+/fix-*.ps1
+*.bak
+/*.zip
