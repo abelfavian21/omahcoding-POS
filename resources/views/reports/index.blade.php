@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Laporan Penjualan')
 @section('content')
+<div data-live-region="page">
 @php
   $pay = \App\Models\Order::PAYMENTS;
   $lbl = 'text-xs font-bold text-slate-400 tracking-wide uppercase';
@@ -57,19 +58,44 @@
 </div>
 
 <div class="grid xl:grid-cols-3 gap-5 mb-5">
-  <div class="card p-5 sm:p-6 xl:col-span-2 min-w-0">
-    <h2 class="font-extrabold text-base mb-1">Pendapatan Harian</h2>
-    <p class="text-xs text-slate-400 font-medium mb-4">Ketuk atau arahkan kursor ke bar untuk melihat detail.</p>
-    <div class="overflow-x-auto no-scrollbar"><div class="flex items-end gap-1 h-48 border-b border-slate-100" style="min-width: {{ count($daily) * 22 }}px">
-      @foreach ($daily as $d)
-        <div class="flex-1 h-full flex items-end group relative outline-none" tabindex="0">
-          <div class="w-full rounded-full {{ $d['total'] > 0 ? 'bg-lime-accent' : 'bg-slate-200' }}" style="height: {{ max(2, $d['total'] / $dailyMax * 100) }}%"></div>
-          <div class="hidden group-hover:block group-focus:block absolute bottom-full mb-1 left-1/2 -translate-x-1/2 z-10 bg-[#181829] text-white text-[11px] rounded-xl px-2.5 py-1.5 whitespace-nowrap shadow-lg">{{ $d['date']->format('d M') }} · @rupiah($d['total']) · {{ $d['orders'] }} trx</div>
-        </div>
-      @endforeach
+  @php
+    $dRows = collect($daily)->map(fn ($d) => [
+      'date' => $d['date']->format('Y-m-d'),
+      'j' => $d['date']->format('j'),
+      'sm' => $d['date']->translatedFormat('j M'),
+      'full' => $d['date']->translatedFormat('j F Y'),
+      'total' => $d['total'],
+      'orders' => $d['orders'],
+    ])->values()->all();
+    $dTotal = array_sum(array_column($daily, 'total'));
+    $dAvg = $dTotal / max(1, count($daily));
+    $dBest = collect($daily)->sortByDesc('total')->first();
+    $dPayload = ['today' => now()->format('Y-m-d'), 'rows' => $dRows];
+  @endphp
+  <link rel="stylesheet" href="{{ asset('css/trend-chart.css') }}?v={{ @filemtime(public_path('css/trend-chart.css')) }}">
+  <div class="card p-5 sm:p-6 xl:col-span-2 min-w-0 hc-card">
+    <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-4 mb-4">
+      <div class="min-w-0">
+        <h2 class="font-extrabold text-base">Pendapatan Harian</h2>
+        <p class="text-xs text-slate-400 font-medium">Arahkan kursor atau ketuk grafik untuk melihat detail tiap hari.</p>
+      </div>
+      <dl class="flex flex-wrap gap-3">
+        <div class="hc-chip"><dt>Rata-rata / hari</dt><dd>@rupiah($dAvg)</dd></div>
+        <div class="hc-chip"><dt>Hari terbaik</dt><dd>@if ($dBest && $dBest['total'] > 0){{ $dBest['date']->translatedFormat('j M') }} &middot; @rupiah($dBest['total'])@else &mdash; @endif</dd></div>
+      </dl>
     </div>
-    <div class="flex gap-1 mt-1.5" style="min-width: {{ count($daily) * 22 }}px">@foreach ($daily as $d)<div class="flex-1 text-center text-[9px] font-bold text-slate-400">{{ $d['date']->format('j') }}</div>@endforeach</div></div>
+    <div class="hc-leg"><span><i class="hc-dot-leg d"></i>Pendapatan harian</span><span><i class="dash"></i>Rata-rata 7 hari</span></div>
+    <div id="hcDaily" class="hc" data-kind="daily" data-src="hcDailyData" tabindex="0" role="img"
+         aria-label="Grafik pendapatan harian. Gunakan panah kiri dan kanan untuk melihat tiap hari.">
+      <div class="hc-plot"></div>
+      <div class="hc-x"></div>
+    </div>
+    <script type="application/json" id="hcDailyData">@json($dPayload)</script>
   </div>
+
+  @push('scripts')
+  <script src="{{ asset('js/trend-chart.js') }}?v={{ @filemtime(public_path('js/trend-chart.js')) }}" defer></script>
+  @endpush
 
   <div class="space-y-5 min-w-0">
     <div class="card p-5 sm:p-6"><h2 class="font-extrabold text-base mb-4">Metode Pembayaran</h2>
@@ -150,4 +176,5 @@
     @foreach ($voids as $o)<div class="flex justify-between gap-3 text-sm py-2 border-b border-slate-50 last:border-0"><span class="min-w-0">{{ $o->invoice_no }} <span class="text-slate-400">· {{ $o->note }}</span></span><b class="line-through text-slate-400 shrink-0">@rupiah($o->total)</b></div>@endforeach
   </div>
 @endif
+</div>
 @endsection

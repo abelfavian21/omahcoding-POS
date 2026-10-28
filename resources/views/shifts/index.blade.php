@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Shift Kasir')
 @section('content')
+<div data-live-region="page">
 @php $isAdmin = auth()->user()->isAdmin(); @endphp
 <div class="max-w-5xl">
   <div class="text-xs text-slate-400 font-semibold mb-1">Dashboard › <span class="text-slate-700">Shift Kasir</span></div>
@@ -105,5 +106,6 @@
     </ul>
   </div>
   <div class="mt-4 overflow-x-auto">{{ $shifts->links() }}</div>
+</div>
 </div>
 @endsection

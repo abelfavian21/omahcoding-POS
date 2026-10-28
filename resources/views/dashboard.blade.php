@@ -114,239 +114,56 @@
 
 <div class="grid grid-cols-1 xl:grid-cols-12 gap-5">
   {{-- Grafik per jam --}}
-  <section class="card p-5 sm:p-6 xl:col-span-8 min-w-0 hc-card">
+  @php
+    $hf = $hourFrom ?? 8;
+    $ht = $hourTo ?? 20;
+    $hMode = ($hf === 8 && $ht === 20) ? 'work' : (($hf === 0 && $ht === 23) ? 'full' : 'custom');
+    $hcPayload = [
+      'now' => (int) now()->hour,
+      'rows' => $chart->values()->map(fn ($r) => ['label' => $r['label'], 'dine' => $r['dine'], 'take' => $r['take'], 'count' => $r['count']])->all(),
+    ];
+  @endphp
+  <link rel="stylesheet" href="{{ asset('css/trend-chart.css') }}?v={{ @filemtime(public_path('css/trend-chart.css')) }}">
+  <section class="card p-5 sm:p-6 xl:col-span-8 min-w-0 hc-card" data-live-region="hours">
     <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-4 mb-4">
       <div class="min-w-0">
         <h2 class="text-base font-extrabold text-slate-900">Pendapatan per jam</h2>
-        <p class="text-xs text-slate-400 font-medium">Hari ini, dine-in dan takeaway.@if ($peak) <span class="text-slate-700 font-bold">Tersibuk {{ $peak['label'] }} &middot; {{ $peak['count'] }} pesanan.</span>@endif</p>
+        <p class="text-xs text-slate-400 font-medium">Hari ini, dine-in dan takeaway &middot; {{ sprintf('%02d:00', $hf) }}&ndash;{{ sprintf('%02d:59', $ht) }}.@if ($peak) <span class="text-slate-700 font-bold">Tersibuk {{ $peak['label'] }} &middot; {{ $peak['count'] }} pesanan.</span>@endif</p>
         <div class="hc-total text-slate-900">@rupiah($mixTotal)</div>
       </div>
       <dl class="flex gap-3">
-        <div class="hc-chip"><dt><span class="hc-dot-leg" style="background:var(--hc-dine)"></span>Dine-in</dt><dd>@rupiah($dineTotal)</dd></div>
-        <div class="hc-chip"><dt><span class="hc-dot-leg" style="background:var(--hc-take)"></span>Takeaway</dt><dd>@rupiah($takeTotal)</dd></div>
+        <div class="hc-chip"><dt><span class="hc-dot-leg d"></span>Dine-in</dt><dd>@rupiah($dineTotal)</dd></div>
+        <div class="hc-chip"><dt><span class="hc-dot-leg t"></span>Takeaway</dt><dd>@rupiah($takeTotal)</dd></div>
       </dl>
     </div>
 
-    <div id="hourChart" class="hc" tabindex="0" role="img" data-now="{{ now()->hour }}"
-         aria-label="Grafik pendapatan per jam hari ini. Gunakan panah kiri dan kanan untuk melihat tiap jam."
-         data-points="{{ json_encode($chart->values()) }}">
+    <div class="hc-ctl">
+      <div class="hc-seg" role="group" aria-label="Rentang jam grafik">
+        <a href="{{ route('dashboard', ['dari' => 8, 'sampai' => 20]) }}" class="{{ $hMode === 'work' ? 'on' : '' }}">08&ndash;20</a>
+        <a href="{{ route('dashboard', ['dari' => 0, 'sampai' => 23]) }}" class="{{ $hMode === 'full' ? 'on' : '' }}">24 jam</a>
+        <details class="hc-custom {{ $hMode === 'custom' ? 'on' : '' }}">
+          <summary>Kustom{{ $hMode === 'custom' ? ' Â· '.sprintf('%02d', $hf).'â€“'.sprintf('%02d', $ht) : '' }}</summary>
+          <form method="GET" action="{{ route('dashboard') }}" class="hc-pop">
+            <div><label for="hcFrom">Dari jam</label><select id="hcFrom" name="dari">@for ($i = 0; $i <= 23; $i++)<option value="{{ $i }}" @selected($i === $hf)>{{ sprintf('%02d:00', $i) }}</option>@endfor</select></div>
+            <div><label for="hcTo">Sampai jam</label><select id="hcTo" name="sampai">@for ($i = 0; $i <= 23; $i++)<option value="{{ $i }}" @selected($i === $ht)>{{ sprintf('%02d:59', $i) }}</option>@endfor</select></div>
+            <div class="row2"><a href="{{ route('dashboard', ['dari' => 8, 'sampai' => 20]) }}">Atur ulang</a><button type="submit">Terapkan</button></div>
+          </form>
+        </details>
+      </div>
+    </div>
+
+    <div id="hcHours" class="hc" data-kind="hours" data-src="hcHoursData" tabindex="0" role="img"
+         aria-label="Grafik pendapatan per jam hari ini. Gunakan panah kiri dan kanan untuk melihat tiap jam.">
       <div class="hc-plot"></div>
       <div class="hc-x"></div>
     </div>
-
-    <style>
-      .hc-card { --hc-dine:#9ec400; --hc-dine-glow:rgba(158,196,0,.35); --hc-take:#0ea5e9; --hc-grid:rgba(100,116,139,.20); --hc-axis:#94a3b8; --hc-card:#ffffff; --hc-chip:#f1f5f9; --hc-now-bg:#181829; --hc-now-fg:#ffffff; }
-      .dark .hc-card { --hc-dine:#D2F839; --hc-dine-glow:rgba(210,248,57,.40); --hc-take:#7dd3fc; --hc-grid:rgba(148,163,184,.16); --hc-axis:#7c86a2; --hc-card:#181829; --hc-chip:rgba(255,255,255,.05); --hc-now-bg:#D2F839; --hc-now-fg:#10101c; }
-      .hc-total { margin-top:.65rem; font-size:1.9rem; line-height:1; font-weight:800; letter-spacing:-.02em; }
-      .hc-chip { background:var(--hc-chip); border-radius:.9rem; padding:.5rem .8rem; min-width:7rem; }
-      .hc-chip dt { display:flex; align-items:center; gap:.45rem; font-size:.72rem; font-weight:600; color:var(--hc-axis); }
-      .hc-chip dd { margin:.15rem 0 0; font-size:.88rem; font-weight:800; }
-      .hc-dot-leg { width:.6rem; height:.6rem; border-radius:9999px; display:inline-block; }
-      .hc { outline:none; border-radius:1rem; }
-      .hc:focus-visible { box-shadow:0 0 0 2px var(--hc-dine); }
-      .hc-plot { position:relative; height:236px; touch-action:pan-y; cursor:crosshair; }
-      .hc-plot svg { display:block; overflow:visible; }
-      .hc-grid { stroke:var(--hc-grid); stroke-width:1; }
-      .hc-grid-0 { stroke:var(--hc-axis); stroke-opacity:.45; }
-      .hc-yl { fill:var(--hc-axis); font-size:10px; font-weight:700; }
-      .hc-line { fill:none; stroke-linecap:round; stroke-linejoin:round; }
-      .hc-l-dine { stroke:var(--hc-dine); stroke-width:3; filter:drop-shadow(0 6px 10px var(--hc-dine-glow)); }
-      .hc-l-take { stroke:var(--hc-take); stroke-width:2.25; stroke-dasharray:6 5; }
-      .hc-guide { stroke:var(--hc-axis); stroke-width:1; stroke-dasharray:3 4; opacity:0; transition:opacity .12s; }
-      .hc-dot { opacity:0; stroke:var(--hc-card); stroke-width:3; transition:opacity .12s; }
-      .hc-dot-d { fill:var(--hc-dine); }
-      .hc-dot-t { fill:var(--hc-take); }
-      .hc-pdot { fill:var(--hc-dine); stroke:var(--hc-card); stroke-width:3; }
-      .hc-pulse { fill:var(--hc-dine); opacity:.35; transform-box:fill-box; transform-origin:center; animation:hc-pulse 2s ease-out infinite; }
-      .hc-peaklab { position:absolute; transform:translateX(-50%); pointer-events:none; background:var(--hc-dine); color:#10101c; font-size:10.5px; font-weight:800; padding:.2rem .55rem; border-radius:9999px; white-space:nowrap; box-shadow:0 6px 16px var(--hc-dine-glow); transition:opacity .12s; }
-      .hc-peaklab::after { content:""; position:absolute; left:50%; bottom:-4px; width:8px; height:8px; background:inherit; transform:translateX(-50%) rotate(45deg); border-radius:2px; }
-      .hc-tip { position:absolute; top:6px; opacity:0; pointer-events:none; background:#181829; color:#fff; border:1px solid rgba(255,255,255,.08); border-radius:.9rem; padding:.55rem .75rem; min-width:9.5rem; box-shadow:0 12px 28px rgba(0,0,0,.35); transition:opacity .12s; font-size:11px; }
-      .hc-tip-h { font-weight:800; font-size:11.5px; margin-bottom:.35rem; }
-      .hc-tip-r { display:flex; align-items:center; gap:.4rem; margin-top:.2rem; color:#cbd5e1; font-weight:600; }
-      .hc-tip-r i { width:.5rem; height:.5rem; border-radius:9999px; display:inline-block; }
-      .hc-tip-r b { margin-left:auto; padding-left:.8rem; color:#fff; font-weight:800; }
-      .hc-empty { position:absolute; inset:0; display:grid; place-items:center; pointer-events:none; font-size:12px; font-weight:700; color:var(--hc-axis); }
-      .hc-x { display:flex; margin-top:.45rem; padding-left:46px; padding-right:10px; }
-      .hc-xl { flex:1; min-width:0; text-align:center; font-size:10px; font-weight:700; color:var(--hc-axis); }
-      .hc-xl span { display:inline-block; padding:.12rem .42rem; border-radius:9999px; }
-      .hc-xl.fut { opacity:.55; }
-      .hc-xl.pk { color:inherit; font-weight:800; }
-      .hc-xl.on span { background:var(--hc-now-bg); color:var(--hc-now-fg); }
-      .hc-xl.act span { box-shadow:0 0 0 2px var(--hc-dine); }
-      .hc-sparse .hc-xl:nth-child(even):not(.on):not(.pk) span { visibility:hidden; }
-      .hc-sparse .hc-xl span { padding:.12rem .3rem; }
-      @keyframes hc-pulse { from { transform:scale(1); opacity:.4; } to { transform:scale(2.6); opacity:0; } }
-      @keyframes hc-draw { from { stroke-dashoffset:1; } to { stroke-dashoffset:0; } }
-      @keyframes hc-fade { from { opacity:0; } to { opacity:1; } }
-      .hc-anim .hc-l-dine { stroke-dasharray:1; stroke-dashoffset:1; animation:hc-draw 1.1s .1s ease-out forwards; }
-      .hc-anim .hc-area, .hc-anim .hc-l-take { animation:hc-fade .9s .35s ease-out backwards; }
-      @media (prefers-reduced-motion: reduce) { .hc-pulse { animation:none; opacity:0; } }
-    </style>
+    <script type="application/json" id="hcHoursData">@json($hcPayload)</script>
   </section>
 
   @push('scripts')
-  <script>
-  (function () {
-    var root = document.getElementById('hourChart');
-    if (!root) return;
-    var data = [];
-    try { data = JSON.parse(root.dataset.points || '[]'); } catch (e) { console.error('Grafik: data tidak terbaca', e); }
-    if (!data.length) return;
-
-    var nowH = parseInt(root.dataset.now, 10);
-    var rows = data.map(function (r) {
-      return { label: String(r.label), h: parseInt(r.label, 10), dine: +r.dine || 0, take: +r.take || 0, count: +r.count || 0 };
-    });
-    var plot = root.querySelector('.hc-plot'), xr = root.querySelector('.hc-x');
-    var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-    var H = 236, PL = 46, PR = 10, PT = 30, PB = 6, n = rows.length;
-
-    var fmtRp = function (v) { return 'Rp ' + Math.round(v).toLocaleString('id-ID'); };
-    var fmtShort = function (v) {
-      if (v >= 1e6) return (Math.round(v / 1e5) / 10).toString().replace('.', ',') + ' jt';
-      if (v >= 1e3) return Math.round(v / 1e3) + ' rb';
-      return String(Math.round(v));
-    };
-    var niceStep = function (v) {
-      if (v <= 0) return 25000;
-      var p = Math.pow(10, Math.floor(Math.log10(v))), m = v / p;
-      return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10) * p;
-    };
-    var maxVal = Math.max.apply(null, [0].concat(rows.map(function (r) { return Math.max(r.dine, r.take); })));
-    var step = niceStep(maxVal / 4), top = step * 4;
-    var empty = maxVal === 0;
-
-    var peak = -1, pv = 0;
-    rows.forEach(function (r, i) { var t = r.dine + r.take; if (r.count > 0 && t >= pv) { pv = t; peak = i; } });
-
-    // Kurva halus yang tidak melewati nilai (tidak "turun" di bawah nol): monotone cubic
-    function curve(p) {
-      var k = p.length;
-      if (k < 2) return '';
-      var dx = [], m = [], t = [], i;
-      for (i = 0; i < k - 1; i++) { dx[i] = p[i + 1].x - p[i].x; m[i] = (p[i + 1].y - p[i].y) / dx[i]; }
-      t[0] = m[0]; t[k - 1] = m[k - 2];
-      for (i = 1; i < k - 1; i++) t[i] = m[i - 1] * m[i] <= 0 ? 0 : (m[i - 1] + m[i]) / 2;
-      for (i = 0; i < k - 1; i++) {
-        if (m[i] === 0) { t[i] = 0; t[i + 1] = 0; continue; }
-        var a = t[i] / m[i], b = t[i + 1] / m[i], s = a * a + b * b;
-        if (s > 9) { var q = 3 / Math.sqrt(s); t[i] = q * a * m[i]; t[i + 1] = q * b * m[i]; }
-      }
-      var d = 'M' + p[0].x + ',' + p[0].y;
-      for (i = 0; i < k - 1; i++) {
-        var h = dx[i] / 3;
-        d += ' C' + (p[i].x + h) + ',' + (p[i].y + t[i] * h) + ' ' + (p[i + 1].x - h) + ',' + (p[i + 1].y - t[i + 1] * h) + ' ' + p[i + 1].x + ',' + p[i + 1].y;
-      }
-      return d;
-    }
-
-    // Label jam di bawah grafik
-    xr.innerHTML = rows.map(function (r, i) {
-      var c = 'hc-xl' + (r.h === nowH ? ' on' : '') + (i === peak ? ' pk' : '') + (r.h > nowH ? ' fut' : '');
-      return '<div class="' + c + '" data-i="' + i + '"><span>' + r.label.slice(0, 2) + '</span></div>';
-    }).join('');
-
-    var ctx = null, active = null, first = true;
-
-    function draw() {
-      var W = Math.max(280, plot.clientWidth), ph = H - PT - PB, base = PT + ph;
-      var slot = (W - PL - PR) / n;
-      var X = function (i) { return PL + (i + 0.5) * slot; };
-      var Y = function (v) { return PT + ph - (v / top) * ph; };
-      var pd = rows.map(function (r, i) { return { x: X(i), y: Y(r.dine) }; });
-      var pt = rows.map(function (r, i) { return { x: X(i), y: Y(r.take) }; });
-      var dl = curve(pd), tl = curve(pt);
-      var close = function (line, p) { return line + ' L' + p[p.length - 1].x + ',' + base + ' L' + p[0].x + ',' + base + ' Z'; };
-
-      var grid = '';
-      for (var g = 0; g <= 4; g++) {
-        var gy = Y(step * g);
-        grid += '<line class="hc-grid' + (g === 0 ? ' hc-grid-0' : '') + '" x1="' + PL + '" x2="' + (W - PR) + '" y1="' + gy + '" y2="' + gy + '"' + (g === 0 ? '' : ' stroke-dasharray="2 5"') + '/>' +
-                '<text class="hc-yl" x="' + (PL - 10) + '" y="' + (gy + 3.5) + '" text-anchor="end">' + fmtShort(step * g) + '</text>';
-      }
-
-      var pk = '';
-      if (peak >= 0) {
-        var pyv = Math.max(rows[peak].dine, rows[peak].take);
-        pk = '<g transform="translate(' + X(peak) + ',' + Y(pyv) + ')"><circle class="hc-pulse" r="6"/><circle class="hc-pdot" r="5.5"/></g>';
-      }
-
-      var svg = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true">' +
-        '<defs>' +
-        '<linearGradient id="hcGd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--hc-dine);stop-opacity:.42"/><stop offset="1" style="stop-color:var(--hc-dine);stop-opacity:0"/></linearGradient>' +
-        '<linearGradient id="hcGt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--hc-take);stop-opacity:.22"/><stop offset="1" style="stop-color:var(--hc-take);stop-opacity:0"/></linearGradient>' +
-        '</defs>' + grid +
-        '<path class="hc-area" fill="url(#hcGt)" d="' + close(tl, pt) + '"/>' +
-        '<path class="hc-line hc-l-take" d="' + tl + '"/>' +
-        '<path class="hc-area" fill="url(#hcGd)" d="' + close(dl, pd) + '"/>' +
-        '<path class="hc-line hc-l-dine" pathLength="1" d="' + dl + '"/>' +
-        '<line class="hc-guide" x1="0" x2="0" y1="' + PT + '" y2="' + base + '"/>' +
-        pk +
-        '<circle class="hc-dot hc-dot-t" r="5"/><circle class="hc-dot hc-dot-d" r="6"/>' +
-        '</svg>' +
-        (peak >= 0 ? '<div class="hc-peaklab" style="left:' + Math.min(Math.max(X(peak), 44), W - 44) + 'px;top:' + (Y(Math.max(rows[peak].dine, rows[peak].take)) - 32) + 'px">Tersibuk ' + rows[peak].label + '</div>' : '') +
-        (empty ? '<div class="hc-empty">Belum ada penjualan hari ini</div>' : '') +
-        '<div class="hc-tip"></div>';
-
-      plot.innerHTML = svg;
-      xr.classList.toggle('hc-sparse', W < 520);
-      ctx = { W: W, slot: slot, X: X, Y: Y };
-      if (first && !reduce) root.classList.add('hc-anim');
-      first = false;
-      if (active !== null) show(active);
-    }
-
-    function show(i) {
-      if (!ctx || i === null) return;
-      active = i;
-      var r = rows[i], x = ctx.X(i);
-      var guide = plot.querySelector('.hc-guide'), dd = plot.querySelector('.hc-dot-d'), dt = plot.querySelector('.hc-dot-t');
-      var tip = plot.querySelector('.hc-tip'), lab = plot.querySelector('.hc-peaklab');
-      guide.setAttribute('x1', x); guide.setAttribute('x2', x); guide.style.opacity = 1;
-      dd.setAttribute('cx', x); dd.setAttribute('cy', ctx.Y(r.dine)); dd.style.opacity = 1;
-      dt.setAttribute('cx', x); dt.setAttribute('cy', ctx.Y(r.take)); dt.style.opacity = 1;
-      if (lab) lab.style.opacity = 0;
-      tip.innerHTML = '<div class="hc-tip-h">' + r.label + ' &middot; ' + r.count + ' pesanan</div>' +
-        '<div class="hc-tip-r"><i style="background:var(--hc-dine)"></i>Dine-in<b>' + fmtRp(r.dine) + '</b></div>' +
-        '<div class="hc-tip-r"><i style="background:var(--hc-take)"></i>Takeaway<b>' + fmtRp(r.take) + '</b></div>';
-      var w = tip.offsetWidth, left = x + 14;
-      if (left + w > ctx.W - 4) left = x - w - 14;
-      tip.style.left = Math.max(4, left) + 'px'; tip.style.opacity = 1;
-      xr.querySelectorAll('.hc-xl').forEach(function (el, k) { el.classList.toggle('act', k === i); });
-    }
-
-    function hide() {
-      active = null;
-      var q = function (s) { return plot.querySelector(s); };
-      ['.hc-guide', '.hc-dot-d', '.hc-dot-t', '.hc-tip'].forEach(function (s) { if (q(s)) q(s).style.opacity = 0; });
-      if (q('.hc-peaklab')) q('.hc-peaklab').style.opacity = 1;
-      xr.querySelectorAll('.hc-xl').forEach(function (el) { el.classList.remove('act'); });
-    }
-
-    var at = function (e) {
-      var rect = plot.getBoundingClientRect();
-      return Math.min(n - 1, Math.max(0, Math.floor((e.clientX - rect.left - PL) / ctx.slot)));
-    };
-    plot.addEventListener('pointermove', function (e) { if (ctx) show(at(e)); });
-    plot.addEventListener('pointerdown', function (e) { if (ctx) show(at(e)); });
-    plot.addEventListener('pointerleave', hide);
-    xr.addEventListener('pointerover', function (e) { var c = e.target.closest('.hc-xl'); if (c) show(+c.dataset.i); });
-    xr.addEventListener('pointerleave', hide);
-    root.addEventListener('keydown', function (e) {
-      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
-        e.preventDefault();
-        var i = active === null ? (peak >= 0 ? peak : 0) : active + (e.key === 'ArrowRight' ? 1 : -1);
-        show(Math.min(n - 1, Math.max(0, i)));
-      } else if (e.key === 'Escape') hide();
-    });
-    root.addEventListener('blur', hide);
-
-    draw();
-    if (window.ResizeObserver) new ResizeObserver(function () { draw(); }).observe(plot);
-    else window.addEventListener('resize', draw);
-  })();
-  </script>
+  <script src="{{ asset('js/trend-chart.js') }}?v={{ @filemtime(public_path('js/trend-chart.js')) }}" defer></script>
   @endpush
+
   {{-- Menu terlaris --}}
   <section class="card p-5 sm:p-6 xl:col-span-4 min-w-0">
     <div class="flex justify-between items-baseline mb-5">

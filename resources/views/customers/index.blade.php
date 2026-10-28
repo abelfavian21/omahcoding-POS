@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Pelanggan')
 @section('content')
+<div data-live-region="page">
 @php
   $admin = auth()->user()->isAdmin();
   $tierPill = ['bronze' => 'pill-slate', 'silver' => 'pill-blue', 'gold' => 'pill-amber', 'vip' => 'pill-green'];
@@ -178,5 +179,6 @@
       <div><div class="font-bold">Ulang tahun minggu ini</div><div class="text-sm text-slate-500">{{ $birthdays }} pelanggan berulang tahun dalam 7 hari ke depan.</div></div>
     </div>
   </div>
+</div>
 </div>
 @endsection

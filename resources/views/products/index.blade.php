@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Produk')
 @section('content')
+<div data-live-region="page">
 @php
   $admin = auth()->user()->isAdmin();
   $stockPill = ['aman' => 'pill-green', 'menipis' => 'pill-amber', 'habis' => 'pill-red'];
@@ -110,5 +111,6 @@
     @endforelse
   </ul>
   <div class="px-4 py-3 border-t border-slate-100 overflow-x-auto">{{ $products->links() }}</div>
+</div>
 </div>
 @endsection

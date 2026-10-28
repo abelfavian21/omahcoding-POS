@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Riwayat Stok ' . $ingredient->name)
 @section('content')
+<div data-live-region="page">
 <div class="space-y-6 max-w-4xl">
   <div>
     <a href="{{ route('ingredients.index') }}" class="inline-flex items-center gap-1 h-9 px-3 -ml-3 rounded-full text-sm font-semibold text-slate-500 hover:bg-white hover:text-slate-900 transition">
@@ -68,5 +69,6 @@
       </div>
     @endif
   </div>
+</div>
 </div>
 @endsection

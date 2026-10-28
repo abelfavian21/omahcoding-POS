@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Bahan Baku & Resep (BOM)')
 @section('content')
+<div data-live-region="page">
 <div class="space-y-6">
   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
     <div>
@@ -180,4 +181,5 @@
     document.getElementById('adjustModal').classList.remove('hidden');
   }
 </script>
+</div>
 @endsection

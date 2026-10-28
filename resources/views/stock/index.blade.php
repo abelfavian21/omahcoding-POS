@@ -32,7 +32,7 @@
     <button class="btn-primary w-full">Simpan Perubahan</button>
   </form>
 
-  <div class="lg:col-span-2 card overflow-hidden min-w-0">
+  <div class="lg:col-span-2 card overflow-hidden min-w-0" data-live-region="movements">
     <form method="GET" class="grid sm:grid-cols-2 gap-3 p-4 border-b border-slate-100">
       <select name="product" class="input" onchange="this.form.submit()">
         <option value="">Semua produk</option>
