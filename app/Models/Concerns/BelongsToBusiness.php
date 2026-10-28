@@ -3,43 +3,67 @@
 namespace App\Models\Concerns;
 
 use App\Models\Business;
+use App\Support\TenantContext;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use LogicException;
 
 /**
- * Data otomatis terisolasi per bisnis (FAIL-CLOSED):
- *  - user login dengan business_id  -> query difilter ke bisnisnya
- *  - user login TANPA business_id   -> TIDAK melihat data apa pun (dulu: melihat semua tenant!)
- *  - record baru otomatis diberi business_id; user tanpa bisnis tidak boleh membuat data
+ * Isolasi per bisnis, FAIL-CLOSED sungguhan (konteks diambil dari TenantContext, bukan Auth::hasUser()):
+ *  - ada konteks bisnis        -> query difilter ke bisnis itu
+ *  - withoutTenant()           -> tanpa filter (sadar, terdaftar di tes)
+ *  - TIDAK ada konteks         -> 0 baris (tenant.strict=false: hanya log peringatan, untuk masa migrasi)
+ *  - create tanpa konteks dan tanpa business_id -> LogicException (dulu: tersimpan dengan business_id NULL)
+ *  - business_id eksplisit yang beda dari konteks -> LogicException
  *  - business_id tidak boleh dipindah setelah record dibuat
- *
- * Auth::hasUser() (bukan Auth::check()) dipakai supaya saat Laravel sendiri
- * mengambil user dari session/login tidak terjadi rekursi.
+ *  - Model boleh melonggarkan create dengan method allowsNullBusiness(): true (dipakai AuditLog: catatan sistem seperti
+ *    "login gagal / kode toko tidak dikenal" sah tanpa bisnis, dan platform/webhook menulis untuk bisnis lain secara eksplisit)
  */
 trait BelongsToBusiness
 {
     protected static function bootBelongsToBusiness(): void
     {
         static::addGlobalScope('business', function (Builder $q) {
-            if (! Auth::hasUser()) {
-                return; // konteks tanpa login: halaman login/registrasi, console, seeder
+            $ctx = app(TenantContext::class);
+
+            if ($ctx->isUnscoped()) {
+                return;
             }
 
-            $column = $q->getModel()->getTable() . '.business_id';
-            $bid = Auth::user()->business_id;
+            if ($ctx->id() !== null) {
+                $q->where($q->getModel()->getTable() . '.business_id', $ctx->id());
 
-            $bid ? $q->where($column, $bid) : $q->whereRaw('1 = 0');
+                return;
+            }
+
+            if (config('tenant.strict', true)) {
+                $q->whereRaw('1 = 0');
+            } else {
+                Log::warning('tenant.unscoped_query', ['model' => $q->getModel()::class]);
+            }
         });
 
         static::creating(function ($model) {
-            if ($model->business_id || ! Auth::hasUser()) {
+            $ctx = app(TenantContext::class);
+            $lenient = method_exists($model, 'allowsNullBusiness') && $model->allowsNullBusiness();
+
+            if ($model->business_id) {
+                if (! $lenient && ! $ctx->isUnscoped() && $ctx->id() !== null && (int) $model->business_id !== $ctx->id()) {
+                    throw new LogicException('Tidak boleh membuat data untuk bisnis lain.');
+                }
+
                 return;
             }
-            if (! Auth::user()->business_id) {
-                throw new LogicException('Akun tanpa bisnis tidak boleh membuat data.');
+
+            if ($ctx->id() === null) {
+                if ($lenient) {
+                    return;
+                }
+
+                throw new LogicException('Tidak ada konteks bisnis. Pakai TenantContext::run($businessId, ...) atau isi business_id.');
             }
-            $model->business_id = Auth::user()->business_id;
+
+            $model->business_id = $ctx->id();
         });
 
         static::updating(function ($model) {

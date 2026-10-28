@@ -35,7 +35,7 @@
       <div><label for="n" class="label">Nama</label><input id="n" class="input" name="name" value="{{ old('name') }}" required maxlength="120"></div>
       <div><label for="e" class="label">Email</label><input id="e" class="input" type="email" name="email" value="{{ old('email') }}" required maxlength="255"></div>
       <div><label for="p" class="label">Password sementara</label><input id="p" class="input" type="password" name="password" required autocomplete="new-password">
-        <p class="text-xs text-slate-500 mt-1.5">Minimal 12 karakter, huruf besar dan kecil, angka. Admin baru wajib menggantinya saat login pertama.</p></div>
+        <p class="text-xs text-slate-500 mt-1.5">Minimal 14 karakter, huruf besar dan kecil, angka, simbol. Admin baru wajib menggantinya saat login pertama.</p></div>
       <button class="btn-primary w-full">Buat admin</button>
     </form>
   </section>

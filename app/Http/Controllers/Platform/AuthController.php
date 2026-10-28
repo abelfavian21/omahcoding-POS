@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Platform;
 
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\EnsurePlatformAdmin;
 use App\Models\PlatformAdmin;
 use App\Models\PlatformAuditLog;
 use Illuminate\Http\Request;
@@ -17,7 +18,7 @@ class AuthController extends Controller
         return view('platform.login');
     }
 
-    /** Email + password. Tanpa "ingat saya". Rate limit: limiter "platform-login". */
+    /** Email + password. Tanpa "ingat saya". Rate limit: limiter "platform-login". Bila 2FA aktif: lanjut ke tantangan. */
     public function login(Request $request)
     {
         $request->merge(['email' => Str::lower(trim((string) $request->input('email')))]);
@@ -41,10 +42,17 @@ class AuthController extends Controller
         }
 
         $request->session()->regenerate();
+        // bukti 2FA dari sesi sebelumnya tidak boleh ikut terbawa ke login baru
+        $request->session()->forget(EnsurePlatformAdmin::TWO_FACTOR_OK);
+        $request->session()->put(EnsurePlatformAdmin::LAST_ACTIVITY, now()->timestamp);
 
         $admin = $guard->user();
         $admin->forceFill(['last_login_at' => now(), 'last_login_ip' => $request->ip()])->saveQuietly();
-        PlatformAuditLog::record('login.success', $admin->email, [], null, $admin->id);
+        PlatformAuditLog::record('login.success', $admin->email, ['2fa_pending' => $admin->hasTwoFactor()], null, $admin->id);
+
+        if ($admin->hasTwoFactor()) {
+            return redirect()->route('platform.2fa.challenge');
+        }
 
         // sengaja BUKAN redirect()->intended(): kunci "intended" dipakai bersama login toko
         return redirect()->route('platform.dashboard');
@@ -56,6 +64,7 @@ class AuthController extends Controller
         PlatformAuditLog::record('logout', $admin?->email, [], null, $admin?->id);
 
         Auth::guard('platform')->logout();
+        $request->session()->forget([EnsurePlatformAdmin::TWO_FACTOR_OK, EnsurePlatformAdmin::LAST_ACTIVITY, 'platform_2fa_pending_secret']);
 
         // sesi yang sama bisa dipakai login toko di browser ini: hanya dihapus total bila tidak ada user toko
         Auth::guard('web')->check() ? $request->session()->regenerate() : $request->session()->invalidate();

@@ -23,7 +23,10 @@ class MidtransWebhookController extends Controller
         // Tanpa login -> tidak ada filter bisnis. order_id kita unik secara global (memuat id bisnis + acak),
         // jadi dari sini diketahui bisnis mana (dan Server Key mana) yang berhak memverifikasi notifikasi ini.
         $orderId = $n['order_id'] ?? null;
-        $payment = is_string($orderId) && $orderId !== '' ? QrisPayment::with('business')->where('midtrans_order_id', $orderId)->first() : null;
+        $payment = is_string($orderId) && $orderId !== ''
+            ? app(\App\Support\TenantContext::class)->withoutTenant(
+                fn () => QrisPayment::with('business')->where('midtrans_order_id', $orderId)->first())
+            : null;
         if (! $payment) {
             return response()->json(['message' => 'ignored']);   // mis. tombol "Test notification" di dashboard
         }

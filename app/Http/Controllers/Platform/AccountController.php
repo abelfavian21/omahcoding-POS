@@ -22,7 +22,7 @@ class AccountController extends Controller
 
         $data = $request->validate([
             'current_password' => ['required', 'string', 'max:200'],
-            'password' => ['required', 'string', 'max:200', 'confirmed', Password::min(12)->letters()->mixedCase()->numbers(), 'different:current_password'],
+            'password' => ['required', 'string', 'max:200', 'confirmed', Password::min(14)->letters()->mixedCase()->numbers()->symbols(), 'different:current_password'],
         ], [
             'password.different' => 'Password baru harus berbeda dari password saat ini.',
             'password.confirmed' => 'Konfirmasi password tidak sama.',

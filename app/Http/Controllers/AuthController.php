@@ -69,7 +69,7 @@ class AuthController extends Controller
 
         $user = null;
         if ($business && $business->isUsable()) {
-            $user = User::where('business_id', $business->id)
+            $user = User::withoutGlobalScope('business')->where('business_id', $business->id)
                 ->where('role', 'kasir')->where('is_active', true)->whereNotNull('pin')
                 ->get()->first(fn (User $u) => Hash::check($data['pin'], $u->pin));
         } else {

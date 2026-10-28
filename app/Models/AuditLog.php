@@ -17,6 +17,12 @@ class AuditLog extends Model
 
     protected $fillable = ['action', 'target', 'meta'];
 
+    /** Catatan sistem (login gagal, kode toko tidak dikenal) sah tanpa business_id; trait BelongsToBusiness melonggarkan model ini. */
+    public function allowsNullBusiness(): bool
+    {
+        return true;
+    }
+
     protected function casts(): array
     {
         return ['meta' => 'array', 'created_at' => 'datetime'];
