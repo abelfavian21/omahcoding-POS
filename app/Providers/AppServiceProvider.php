@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
@@ -53,6 +54,16 @@ class AppServiceProvider extends ServiceProvider
                 Limit::perMinute(5)->by('plogin|' . $email . '|' . $r->ip()),
                 Limit::perMinute(15)->by('plogin-ip|' . $r->ip()),
                 Limit::perHour(10)->by('plogin-acct|' . $email),
+            ];
+        });
+
+        /* ---- 2FA admin platform: per admin+IP dan per admin (tebak kode 6 digit) ---- */
+        RateLimiter::for('platform-2fa', function (Request $r) {
+            $id = Auth::guard('platform')->id() ?? 'x';
+
+            return [
+                Limit::perMinute(5)->by('p2fa|' . $id . '|' . $r->ip()),
+                Limit::perHour(15)->by('p2fa-acct|' . $id),
             ];
         });
 

@@ -69,7 +69,7 @@ return [
 
     'providers' => [
         'users' => [
-            'driver' => 'eloquent',
+            'driver' => 'tenant',   // = eloquent, tapi pencarian user tanpa filter tenant (lihat App\Auth\TenantUserProvider)
             'model' => env('AUTH_MODEL', User::class),
         ],
 

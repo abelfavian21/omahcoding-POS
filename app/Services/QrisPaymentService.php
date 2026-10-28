@@ -202,15 +202,20 @@ class QrisPaymentService
 
         // Webhook tidak punya sesi login: jalankan sebagai kasir pembuat transaksi supaya
         // isolasi per bisnis (BelongsToBusiness) dan shift kas berlaku persis seperti checkout biasa.
-        $previous = Auth::hasUser() ? Auth::user() : null;
-        Auth::setUser($user);
-
+        // Konteks bisnis dipasang eksplisit lewat TenantContext::run (otomatis pulih, juga saat exception).
         try {
-            $order = $this->checkout->checkout($user, $data);
+            $order = app(\App\Support\TenantContext::class)->run((int) $p->business_id, function () use ($user, $data) {
+                $previous = Auth::hasUser() ? Auth::user() : null;
+                Auth::setUser($user);
+
+                try {
+                    return $this->checkout->checkout($user, $data);
+                } finally {
+                    $previous ? Auth::setUser($previous) : Auth::forgetUser();
+                }
+            });
         } catch (RuntimeException $e) {
             return $this->flag($p, mb_substr($e->getMessage(), 0, 200));
-        } finally {
-            $previous ? Auth::setUser($previous) : Auth::forgetUser();
         }
 
         $p->update(['status' => QrisPayment::SETTLED, 'order_id' => $order->id, 'settled_at' => now(), 'transaction_id' => $mt['transaction_id'] ?? $p->transaction_id]);

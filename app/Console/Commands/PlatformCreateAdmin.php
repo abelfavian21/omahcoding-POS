@@ -50,8 +50,8 @@ class PlatformCreateAdmin extends Command
             return self::FAILURE;
         }
 
-        $password = (string) $this->secret('Password (minimal 12 karakter, huruf besar+kecil, angka)');
-        $v = Validator::make(['password' => $password], ['password' => ['required', 'max:200', Password::min(12)->letters()->mixedCase()->numbers()]]);
+        $password = (string) $this->secret('Password (minimal 14 karakter, huruf besar+kecil, angka, simbol)');
+        $v = Validator::make(['password' => $password], ['password' => ['required', 'max:200', Password::min(14)->letters()->mixedCase()->numbers()->symbols()]]);
         if ($v->fails()) {
             $this->error(implode(' ', $v->errors()->all()));
 

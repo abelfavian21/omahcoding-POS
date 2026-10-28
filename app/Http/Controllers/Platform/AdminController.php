@@ -25,7 +25,7 @@ class AdminController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:255', 'unique:platform_admins,email'],
-            'password' => ['required', 'string', 'max:200', Password::min(12)->letters()->mixedCase()->numbers()],
+            'password' => ['required', 'string', 'max:200', Password::min(14)->letters()->mixedCase()->numbers()->symbols()],
         ], ['email.unique' => 'Email ini sudah terdaftar sebagai admin platform.']);
 
         $admin = PlatformAdmin::create($data + ['is_active' => true, 'must_change_password' => true]);

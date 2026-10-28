@@ -125,6 +125,14 @@ Route::prefix('platform')->name('platform.')->middleware('platform.ip')->group(f
         Route::get('/account', [Platform\AccountController::class, 'edit'])->name('account');
         Route::put('/account', [Platform\AccountController::class, 'update'])->middleware('throttle:10,1')->name('account.update');
 
+        // 2FA (TOTP): tantangan saat login, pendaftaran, kelola kode pemulihan
+        Route::get('/2fa/challenge', [Platform\TwoFactorController::class, 'challenge'])->name('2fa.challenge');
+        Route::post('/2fa/challenge', [Platform\TwoFactorController::class, 'verify'])->middleware('throttle:platform-2fa')->name('2fa.verify');
+        Route::get('/2fa/setup', [Platform\TwoFactorController::class, 'setup'])->name('2fa.setup');
+        Route::post('/2fa/setup', [Platform\TwoFactorController::class, 'confirm'])->middleware('throttle:platform-2fa')->name('2fa.confirm');
+        Route::get('/2fa', [Platform\TwoFactorController::class, 'manage'])->name('2fa.manage');
+        Route::post('/2fa/recovery', [Platform\TwoFactorController::class, 'regenerate'])->middleware('throttle:platform-2fa')->name('2fa.regenerate');
+
         Route::get('/', [Platform\DashboardController::class, 'index'])->name('dashboard');
 
         Route::get('/businesses', [Platform\BusinessController::class, 'index'])->name('businesses.index');
