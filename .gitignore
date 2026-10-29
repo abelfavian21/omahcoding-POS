@@ -26,4 +26,5 @@
 /apply-*.ps1
 /fix-*.ps1
 *.bak
+.bak-*/
 /*.zip
