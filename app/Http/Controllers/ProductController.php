@@ -87,11 +87,13 @@ class ProductController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:1000'],
             'price' => ['required', 'numeric', 'min:0'],
-            'cost_price' => ['nullable', 'numeric', 'min:0'],
+            'cost_price' => ['nullable', 'numeric', 'min:0', 'lte:price'],
             'stock' => ['nullable', 'integer', 'min:0'],
             'min_stock' => ['required', 'integer', 'min:0'],
             'emoji' => ['nullable', 'string', 'max:40', Rule::in(array_keys(\App\Support\Icons::picker()))],
             'image' => ['nullable', 'image', 'max:2048'],
+        ], [
+            'cost_price.lte' => 'Harga modal/HPP tidak boleh lebih besar dari harga jual.',
         ]);
         $data['is_active'] = $request->boolean('is_active');
         $data['cost_price'] = $data['cost_price'] ?? 0;

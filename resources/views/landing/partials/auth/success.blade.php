@@ -7,8 +7,8 @@
         <h3 class="text-2xl font-black text-slate-900">Selamat! Usaha Anda Berhasil Didaftarkan
         </h3>
         <p class="text-sm text-slate-600">Akun untuk <strong id="success-business-name"
-                class="text-blue-600">{{ $reg['name'] ?? '' }}</strong> sudah aktif dengan
-            masa uji coba 14 hari.</p>
+                class="text-blue-600">{{ $reg['name'] ?? '' }}</strong> sudah aktif dan bisa dipakai
+            gratis selamanya.</p>
     </div>
     <div
         class="p-4 bg-blue-50 rounded-2xl border border-blue-200 text-xs text-blue-800 space-y-1.5">

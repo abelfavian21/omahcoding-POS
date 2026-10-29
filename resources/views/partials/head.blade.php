@@ -83,7 +83,7 @@
     .chip:hover { background: var(--line); }
     .chip-on, .chip-on:hover { background: var(--chip-on-bg); color: var(--chip-on-fg); border-color: transparent; }
 
-    .pill { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide border; }
+    .pill { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide border whitespace-nowrap; }
     .pill-brand { @apply bg-slate-950/90 text-lime-accent border-lime-accent/50; }
     .pill-green { @apply bg-emerald-50 text-emerald-600 border-emerald-200; }
     .pill-amber { @apply bg-amber-50 text-amber-700 border-amber-200; }
@@ -159,6 +159,8 @@
   .dark .pill-blue  { background-color:rgba(210,248,57,.12); color:#D2F839; border-color:rgba(210,248,57,.3); }
   .dark .pill-red   { background-color:rgba(239,68,68,.13);  color:#F87171; border-color:rgba(239,68,68,.35); }
   .dark .pill-slate { background-color:#272942; color:#C5C8D8; border-color:#34364F; }
+  .dark .bg-lime-50 { background-color:rgba(210,248,57,.10); }
+  .dark .border-lime-200 { border-color:rgba(210,248,57,.3); }
   .dark .th { color:#8F94AB; }
   .dark ::-webkit-scrollbar-thumb { background:#34364F; }
 </style>

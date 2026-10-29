@@ -5,6 +5,26 @@
 @endphp
 <script>window.VOICE_NAV = @json($voiceNav);</script>
 
+<style>
+  /* Mic suara: kecil di HP, dan menyingkir ke atas saat keranjang (bottom sheet) / modal terbuka supaya tidak menutupi tombol. */
+  @media (max-width: 1023px) {
+    #voiceRoot { bottom: calc(5rem + env(safe-area-inset-bottom, 0px)); }
+    #voiceRoot #voiceHelpBtn { width: 2.25rem; height: 2.25rem; }
+    #voiceRoot #voiceHelpBtn .material-symbols-outlined { font-size: 20px; }
+    #voiceRoot #voiceMic { width: 3rem; height: 3rem; }
+    #voiceRoot #voiceMicIcon { font-size: 24px !important; }
+  }
+  @media (max-width: 1279px) {
+    body:has(#cartPanel:not(.translate-y-full)) #voiceRoot { bottom: auto; top: calc(0.5rem + env(safe-area-inset-top, 0px)); right: 0.5rem; flex-direction: column-reverse; align-items: flex-end; }
+  }
+  @media (max-width: 639px) {
+    body:has(#doneModal:not(.hidden), #qrisModal:not(.hidden), #qrisManualModal:not(.hidden), #variantModal:not(.hidden), #custModal:not(.hidden)) #voiceRoot { bottom: auto; top: calc(0.5rem + env(safe-area-inset-top, 0px)); right: 0.5rem; flex-direction: column-reverse; align-items: flex-end; }
+  }
+  @media (max-width: 1279px) {
+    body:has(#cartPanel:not(.translate-y-full)) #voiceRoot #voiceMic,
+    body:has(#doneModal:not(.hidden), #qrisModal:not(.hidden), #qrisManualModal:not(.hidden), #variantModal:not(.hidden), #custModal:not(.hidden)) #voiceRoot #voiceMic { width: 2.5rem; height: 2.5rem; }
+  }
+</style>
 <div id="voiceRoot" class="fixed z-[60] bottom-20 right-4 lg:bottom-6 lg:right-6 flex flex-col items-end gap-2 pointer-events-none">
   <div id="voiceToast" class="hidden pointer-events-auto max-w-[min(22rem,calc(100vw-2rem))] rounded-2xl bg-slate-900 text-white shadow-2xl border border-slate-700 px-4 py-3 text-sm">
     <div id="voiceToastText" class="font-semibold leading-snug"></div>

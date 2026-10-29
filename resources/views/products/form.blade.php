@@ -33,10 +33,12 @@
           @foreach ($categories as $c)<option value="{{ $c->id }}" @selected(old('category_id', $product->category_id) == $c->id)>{{ $c->name }}</option>@endforeach
         </select></div>
       <div><label class="label">Harga jual (Rp) *</label>
-        <input name="price" type="number" min="0" step="100" class="input" value="{{ old('price', $product->price !== null ? (int) $product->price : '') }}" required>
+        <input id="price" name="price" type="number" min="0" step="100" class="input" value="{{ old('price', $product->price !== null ? (int) $product->price : '') }}" required>
         @error('price')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror</div>
       <div><label class="label">Harga modal / HPP (Rp)</label>
-        <input name="cost_price" type="number" min="0" step="100" class="input" value="{{ old('cost_price', (int) $product->cost_price) }}"></div>
+        <input id="cost_price" name="cost_price" type="number" min="0" step="100" class="input" value="{{ old('cost_price', (int) $product->cost_price) }}">
+        <p id="cost_price_hint" class="text-xs mt-1 hidden"></p>
+        @error('cost_price')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror</div>
 
       @unless ($editing)
         <div><label class="label">Stok awal</label>
@@ -87,4 +89,50 @@
     </div>
   </form>
 </div>
+
+<script>
+(function () {
+  const price = document.getElementById('price');
+  const cost = document.getElementById('cost_price');
+  const hint = document.getElementById('cost_price_hint');
+  if (!price || !cost || !hint) return;
+  const form = cost.closest('form');
+
+  function fmt(n) { return 'Rp' + Number(n || 0).toLocaleString('id-ID'); }
+
+  function check() {
+    const p = parseFloat(price.value) || 0;
+    const c = parseFloat(cost.value) || 0;
+
+    if (c > p && p > 0) {
+      cost.setCustomValidity('Harga modal/HPP tidak boleh lebih besar dari harga jual.');
+      hint.textContent = 'âš  HPP (' + fmt(c) + ') lebih besar dari harga jual (' + fmt(p) + '). Cek, mungkin typo.';
+      hint.className = 'text-xs mt-1 text-red-600 font-semibold';
+    } else {
+      cost.setCustomValidity('');
+      if (p > 0 && c > 0) {
+        const margin = p - c;
+        const pct = ((margin / p) * 100).toFixed(1);
+        hint.textContent = 'Margin: ' + fmt(margin) + ' (' + pct + '%)';
+        hint.className = 'text-xs mt-1 text-slate-500';
+      } else {
+        hint.textContent = '';
+        hint.className = 'text-xs mt-1 hidden';
+      }
+    }
+    hint.classList.toggle('hidden', hint.textContent === '');
+  }
+
+  price.addEventListener('input', check);
+  cost.addEventListener('input', check);
+  form.addEventListener('submit', function (e) {
+    check();
+    if (!cost.checkValidity()) {
+      e.preventDefault();
+      cost.reportValidity();
+    }
+  });
+  check();
+})();
+</script>
 @endsection
