@@ -6,11 +6,23 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\User;
+use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        // Rentang jam grafik: ?dari=0&sampai=23 (disimpan di sesi; bawaan 08-20)
+        if ($request->hasAny(['dari', 'sampai'])) {
+            $hf = max(0, min(23, (int) $request->query('dari', 8)));
+            $ht = max(0, min(23, (int) $request->query('sampai', 20)));
+            if ($ht < $hf) {
+                [$hf, $ht] = [$ht, $hf];
+            }
+            session(['dashboard.hours' => [$hf, $ht]]);
+        }
+        [$hourFrom, $hourTo] = session('dashboard.hours', [8, 20]);
+
         $today = Order::paid()->whereDate('paid_at', today())->get();
         $yesterday = Order::paid()->whereDate('paid_at', today()->subDay())->get();
 
@@ -22,7 +34,7 @@ class DashboardController extends Controller
         $avgY = $ordersY ? $revenueY / $ordersY : 0;
 
         // Grafik per jam (08:00 - 20:00), dine-in vs takeaway
-        $chart = collect(range(8, 20))->map(function ($h) use ($today) {
+        $chart = collect(range($hourFrom, $hourTo))->map(function ($h) use ($today) {
             $slice = $today->filter(fn ($o) => $o->paid_at->hour === $h);
             return [
                 'label' => sprintf('%02d:00', $h),
@@ -51,6 +63,8 @@ class DashboardController extends Controller
             'avgTrend' => $this->trend($avg, $avgY),
             'revenueY' => $revenueY,
             'chart' => $chart,
+            'hourFrom' => $hourFrom,
+            'hourTo' => $hourTo,
             'chartMax' => $chartMax,
             'dineTotal' => (float) $today->where('order_type', 'dine_in')->sum('total'),
             'takeTotal' => (float) $today->where('order_type', 'takeaway')->sum('total'),

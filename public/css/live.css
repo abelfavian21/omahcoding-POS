@@ -1,0 +1,6 @@
+/* Penanda saat bagian halaman diperbarui tanpa muat ulang (lihat live.js) */
+[data-live-region].live-busy { opacity:.55; transition:opacity .15s; pointer-events:none; }
+.live-bar { position:fixed; top:0; left:0; right:0; height:3px; z-index:9999; background:#D2F839; transform:scaleX(0); transform-origin:left; opacity:0; pointer-events:none; transition:opacity .25s; }
+.live-bar.on { opacity:1; animation:live-go 1.4s ease-out forwards; }
+@keyframes live-go { from { transform:scaleX(.05); } to { transform:scaleX(.9); } }
+@media (prefers-reduced-motion: reduce) { .live-bar.on { animation:none; transform:scaleX(.6); } }

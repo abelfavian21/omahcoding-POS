@@ -178,6 +178,8 @@
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && isOpen()) setMenu(false); });
 </script>
 @include('partials.voice')
+<link rel="stylesheet" href="{{ asset('css/live.css') }}?v={{ @filemtime(public_path('css/live.css')) }}">
+<script src="{{ asset('js/live.js') }}?v={{ @filemtime(public_path('js/live.js')) }}" defer></script>
 @stack('scripts')
 </body>
 </html>

@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title', 'Audit Log')
 @section('content')
+<div data-live-region="page">
 <div class="max-w-6xl">
   <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-5">
     <div>
@@ -58,5 +59,6 @@
     </ul>
   </div>
   <div class="mt-4 overflow-x-auto">{{ $logs->links() }}</div>
+</div>
 </div>
 @endsection
