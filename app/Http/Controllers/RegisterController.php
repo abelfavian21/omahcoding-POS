@@ -21,7 +21,33 @@ class RegisterController extends Controller
     /** Registrasi bisnis: pemilik + usaha + kategori -> akun aktif -> masuk dashboard */
     public function store(Request $request)
     {
-        $request->merge(['email' => Str::lower(trim((string) $request->input('email')))]);
+        $email = Str::lower(trim((string) $request->input('email')));
+        $request->merge(['email' => $email]);
+
+        // Pastikan email sudah diverifikasi menggunakan OTP
+        $otpData = $request->session()->get('registration_otp');
+
+        if (
+            ! $otpData ||
+            ! ($otpData['verified'] ?? false) ||
+            $otpData['email'] !== $email
+        ) {
+            $message = 'Verifikasi email terlebih dahulu sebelum menyelesaikan registrasi.';
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $message,
+                    'errors' => [
+                        'email' => [$message],
+                    ],
+                ], 422);
+            }
+
+            return back()
+                ->withInput($request->except('password'))
+                ->withErrors(['email' => $message]);
+        }
 
         $data = $request->validate([
             'owner_name' => ['required', 'string', 'max:120'],
@@ -65,6 +91,7 @@ class RegisterController extends Controller
                 'role' => 'admin',
                 'phone' => $data['phone'],
                 'is_active' => true,
+                'email_verified_at' => now(),
             ]);
 
             // set user sementara supaya kategori produk bawaan otomatis milik bisnis ini
@@ -77,6 +104,9 @@ class RegisterController extends Controller
 
             return $owner;
         });
+
+        $request->session()->forget('registration_otp');
+
         Auth::login($user);
         $request->session()->regenerate();
 
