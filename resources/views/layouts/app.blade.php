@@ -59,7 +59,7 @@
             @foreach ($items as $n)
               @php $on = request()->routeIs($n['match']); @endphp
               <a href="{{ route($n['route']) }}" title="{{ $n['label'] }}" @if ($on) aria-current="page" @endif
-                 class="flex items-center gap-3.5 h-11 px-4 md:px-0 md:justify-center xl:justify-start xl:px-4 rounded-2xl text-sm transition-all
+                 class="js-nav flex items-center gap-3.5 h-11 px-4 md:px-0 md:justify-center xl:justify-start xl:px-4 rounded-2xl text-sm transition-all
                         {{ $on ? 'bg-lime-accent text-slate-950 font-bold shadow-md' : 'text-slate-400 font-medium hover:text-white hover:bg-white/5' }}">
                 <span class="material-symbols-outlined {{ $on ? 'fill-1' : '' }}">{{ $n['icon'] }}</span>
                 <span class="truncate md:hidden xl:inline">{{ $n['label'] }}</span>
@@ -124,7 +124,7 @@
     <div class="grid grid-cols-5 gap-1 px-2 pt-2 pb-2">
       @foreach ($bottom as $n)
         @php $on = request()->routeIs($n['match']); @endphp
-        <a href="{{ route($n['route']) }}" @if ($on) aria-current="page" @endif class="flex flex-col items-center gap-1 text-[10px] font-bold {{ $on ? 'text-slate-900' : 'text-slate-400' }}">
+        <a href="{{ route($n['route']) }}" @if ($on) aria-current="page" @endif class="js-nav flex flex-col items-center gap-1 text-[10px] font-bold {{ $on ? 'text-slate-900' : 'text-slate-400' }}">
           <span class="h-8 w-14 rounded-full grid place-items-center transition {{ $on ? 'bg-lime-accent text-slate-950' : '' }}"><span class="material-symbols-outlined {{ $on ? 'fill-1' : '' }}">{{ $n['icon'] }}</span></span>
           {{ $bottomShort[$n['route']] }}
         </a>
@@ -176,6 +176,28 @@
   document.getElementById('closeMenu')?.addEventListener('click', () => setMenu(false));
   bd.addEventListener('click', () => setMenu(false));
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && isOpen()) setMenu(false); });
+</script>
+{{-- Navigasi terasa instan: prefetch halaman menu saat disorot/ditekan + progress bar tipis saat pindah --}}
+<div id="navbar" aria-hidden="true"></div>
+<style>
+  #navbar { position: fixed; top: 0; left: 0; width: 100%; height: 3px; background: #D2F839; box-shadow: 0 0 8px rgba(210,248,57,.7);
+            transform: scaleX(0); transform-origin: left; opacity: 0; pointer-events: none; z-index: 9999; }
+  #navbar.run { opacity: 1; transform: scaleX(.85); transition: transform 8s cubic-bezier(.1,.6,.2,1); }
+</style>
+<script type="speculationrules">
+{"prefetch":[{"where":{"selector_matches":"a.js-nav:not([aria-current])"},"eagerness":"moderate"}]}
+</script>
+<script>
+  (() => {
+    const bar = document.getElementById('navbar');
+    document.addEventListener('click', (e) => {
+      const a = e.target.closest('a.js-nav');
+      if (!a || e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || a.target === '_blank' || a.hasAttribute('aria-current')) return;
+      bar.classList.add('run');
+    });
+    // kembali via tombol Back (bfcache): bar jangan nyangkut
+    window.addEventListener('pageshow', () => bar.classList.remove('run'));
+  })();
 </script>
 @include('partials.voice')
 <link rel="stylesheet" href="{{ asset('css/live.css') }}?v={{ @filemtime(public_path('css/live.css')) }}">

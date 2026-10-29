@@ -19,24 +19,7 @@ class PosController extends Controller
 {
     public function index(Request $request)
     {
-        $products = Product::active()->with(['variants', 'recipes.ingredient'])->orderBy('name')->get()->map(fn (Product $p) => [
-            'id' => $p->id,
-            'name' => $p->name,
-            'price' => (float) $p->price,
-            'stock' => $p->stock,
-            'has_recipe' => $p->recipes->isNotEmpty(),
-            'stock_alert' => $this->recipeAlert($p->recipes->whereNull('product_variant_id')),
-            'emoji' => $p->emoji,   // emoji lama atau nama ikon; diterjemahkan di browser
-            'image' => $p->image_url,
-            'category_id' => $p->category_id,
-            'variants' => $p->variants->map(fn ($v) => [
-                'id' => $v->id,
-                'group' => $v->group_name,
-                'name' => $v->name,
-                'price' => (float) $v->price_extra,
-                'stock_alert' => $this->recipeAlert($p->recipes->where('product_variant_id', $v->id)),
-            ])->values(),
-        ])->values();
+        $products = $this->productsJson();
 
         $customer = $request->customer ? Customer::find($request->customer) : null;
 
@@ -54,6 +37,38 @@ class PosController extends Controller
             'qrisManualUrl' => $request->user()->business?->hasManualQris()
                 ? route('pos.qris.manual', ['v' => substr(md5($request->user()->business->qris_image), 0, 8)]) : null,
             'qrisNeedsRef' => (bool) $request->user()->business?->qrisManualNeedsRef(),
+        ]);
+    }
+
+    /** Daftar produk aktif untuk POS (dipakai halaman kasir dan refresh tanpa reload). */
+    private function productsJson()
+    {
+        return Product::active()->with(['variants', 'recipes.ingredient'])->orderBy('name')->get()->map(fn (Product $p) => [
+            'id' => $p->id,
+            'name' => $p->name,
+            'price' => (float) $p->price,
+            'stock' => $p->stock,
+            'has_recipe' => $p->recipes->isNotEmpty(),
+            'stock_alert' => $this->recipeAlert($p->recipes->whereNull('product_variant_id')),
+            'emoji' => $p->emoji,
+            'image' => $p->image_url,
+            'category_id' => $p->category_id,
+            'variants' => $p->variants->map(fn ($v) => [
+                'id' => $v->id,
+                'group' => $v->group_name,
+                'name' => $v->name,
+                'price' => (float) $v->price_extra,
+                'stock_alert' => $this->recipeAlert($p->recipes->where('product_variant_id', $v->id)),
+            ])->values(),
+        ])->values();
+    }
+
+    /** Data segar untuk "Pesanan Baru" tanpa reload: stok terbaru + nomor invoice berikutnya. */
+    public function state()
+    {
+        return response()->json([
+            'products' => $this->productsJson(),
+            'next_invoice' => Order::nextInvoiceNo(),
         ]);
     }
 

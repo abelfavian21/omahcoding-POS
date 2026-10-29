@@ -63,6 +63,7 @@ Route::middleware(['auth', 'account'])->group(function () {
     Route::get('/pos', [PosController::class, 'index'])->name('pos');
     Route::get('/pos/customers', [PosController::class, 'customers'])->middleware('throttle:120,1')->name('pos.customers');
     Route::post('/pos/customers', [PosController::class, 'quickCustomer'])->middleware('throttle:30,1')->name('pos.customers.store');
+    Route::get('/pos/state', [PosController::class, 'state'])->middleware('throttle:60,1')->name('pos.state');
     Route::post('/pos/checkout', [PosController::class, 'checkout'])->middleware('throttle:60,1')->name('pos.checkout');
     Route::post('/pos/stock-check', [PosController::class, 'stockCheck'])->middleware('throttle:120,1,pos-stock')->name('pos.stock.check');
     // QRIS manual: gambar QRIS statis milik bisnis (disajikan hanya ke user bisnis tsb)

@@ -29,7 +29,8 @@ class SecurityHeaders
                 "default-src 'self'",
                 // 'unsafe-inline' diperlukan karena view memakai <script> inline & Tailwind CDN.
                 // Target jangka panjang: build Tailwind lewat Vite, lalu hapus CDN + 'unsafe-inline'.
-                "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com",
+                // 'inline-speculation-rules': izinkan <script type="speculationrules"> (prefetch menu sidebar).
+                "script-src 'self' 'unsafe-inline' 'inline-speculation-rules' https://cdn.tailwindcss.com",
                 "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
                 "font-src 'self' https://fonts.gstatic.com",
                 "img-src 'self' data: blob:",

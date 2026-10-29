@@ -6,7 +6,7 @@
         <h1 class="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.06]" style="text-wrap:balance">Aplikasi kasir yang cepat, laporan yang rapi.</h1>
         <p class="mt-6 text-lg sm:text-xl text-slate-300 leading-relaxed max-w-2xl mx-auto">Catat penjualan, pantau stok, kelola member, dan unduh laporan dalam satu aplikasi online untuk kafe, restoran, dan toko.</p>
         <div class="hero-cta mt-9 flex flex-wrap justify-center gap-3">
-            <a href="#auth-section" onclick="switchAuthTab('register')" class="btn-neon">Coba gratis 14 hari <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span></a>
+            <a href="#auth-section" onclick="switchAuthTab('register')" class="btn-neon">Gratis selamanya <span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span></a>
             <a href="#tampilan" class="btn-ghost">Lihat tampilan</a>
         </div>
         <ul class="mt-7 flex flex-wrap justify-center gap-x-7 gap-y-2 text-sm text-slate-400 font-medium">

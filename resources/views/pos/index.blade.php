@@ -63,7 +63,7 @@
 
     <div class="p-4 sm:p-5 xl:flex-1 xl:overflow-y-auto xl:min-h-[120px]">
       <div class="flex items-center justify-between text-xs font-bold text-slate-500 mb-3">
-        <span>Pesanan <span class="text-slate-900">{{ $nextInvoice }}</span></span>
+        <span>Pesanan <span id="invNo" class="text-slate-900">{{ $nextInvoice }}</span></span>
         @if ($isRetail ?? false)
           <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400">
             <span class="material-symbols-outlined !text-[14px]">storefront</span> Ritel
@@ -152,9 +152,13 @@
   </div>
 </div>
 
-{{-- Modal sukses --}}
-<div id="doneModal" class="hidden fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm grid items-end sm:place-items-center sm:p-4">
-  <div class="card w-full max-w-sm p-6 text-center !rounded-b-none sm:!rounded-3xl" style="padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px))">
+{{-- Modal sukses (di tengah layar) --}}
+<style>
+  @keyframes donePop { from { opacity: 0; transform: scale(.92) translateY(8px); } to { opacity: 1; transform: none; } }
+  .done-pop { animation: donePop .22s ease-out; }
+</style>
+<div id="doneModal" class="hidden fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm grid place-items-center p-4 overflow-y-auto">
+  <div class="done-pop card w-full max-w-sm p-6 text-center !rounded-3xl my-auto shadow-2xl">
     <div class="w-14 h-14 mx-auto rounded-full bg-lime-accent text-slate-950 grid place-items-center mb-3"><span class="material-symbols-outlined fill-1" style="font-size:32px">check_circle</span></div>
     <h3 class="text-xl font-extrabold">Pembayaran Berhasil</h3>
     <div class="text-sm text-slate-500 mt-1" id="doneInv"></div>
@@ -225,7 +229,7 @@
 const PRODUCTS = @json($products);
 const CATEGORIES = @json($categories);
 const TAX_RATE = {{ $taxRate }};
-const URLS = { customers: @json(route('pos.customers')), newCustomer: @json(route('pos.customers.store')), checkout: @json(route('pos.checkout')), qris: @json(route('pos.qris.store')) };
+const URLS = { customers: @json(route('pos.customers')), newCustomer: @json(route('pos.customers.store')), checkout: @json(route('pos.checkout')), state: @json(route('pos.state')), qris: @json(route('pos.qris.store')) };
 const ICONS = @json(\App\Support\Icons::map());   // emoji lama -> nama ikon vektor
 function iconName(v, fb = 'restaurant') {
   v = String(v || '').replace(/[\uFE0F\u200D]/g, '').trim();
@@ -778,6 +782,17 @@ selectVar = function (groupName, variantId) {
   sync();
 })();
 
+/* Modal sukses: satu kali per invoice (cegah popup ganda dari poll QRIS yang tumpang tindih / klik ganda). */
+let lastDoneInv = null;
+function showDone(o, changeText) {
+  if (lastDoneInv === o.invoice_no) return false;
+  lastDoneInv = o.invoice_no;
+  $('doneInv').textContent = o.invoice_no; $('doneTotal').textContent = rp(o.total); $('doneChange').textContent = changeText || '';
+  $('doneView').href = o.receipt_url; $('doneDl').href = o.download_url;
+  $('doneModal').classList.remove('hidden');
+  return true;
+}
+
 /* ---------- Checkout ---------- */
 $('charge').addEventListener('click', () => {
   if (method === 'qris' && QRIS_DYNAMIC) return startQris();
@@ -786,6 +801,7 @@ $('charge').addEventListener('click', () => {
 });
 
 async function runCheckout(refValue, err, btn) {
+  if (btn.disabled) return;   // sedang diproses: abaikan klik/perintah suara ganda
   err.classList.add('hidden');
   const label = btn.textContent;
   btn.disabled = true; btn.textContent = 'Memproses…';
@@ -810,10 +826,7 @@ async function runCheckout(refValue, err, btn) {
     if (!r.ok) throw new Error(d.errors ? Object.values(d.errors)[0][0] : (d.message || 'Transaksi gagal'));
     idemKey = null; $('ref').value = ''; $('mqRef').value = '';
     $('qrisManualModal').classList.add('hidden'); setSheet(false);
-    $('doneInv').textContent = d.invoice_no; $('doneTotal').textContent = rp(d.total);
-    $('doneChange').textContent = d.change > 0 ? 'Kembalian ' + rp(d.change) : '';
-    $('doneView').href = d.receipt_url; $('doneDl').href = d.download_url;
-    $('doneModal').classList.remove('hidden');
+    showDone(d, d.change > 0 ? 'Kembalian ' + rp(d.change) : '');
   } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
   btn.textContent = label; btn.disabled = false;
   renderCart();
@@ -897,18 +910,20 @@ function renderQris(d) {
 
 async function pollQris() {
   if (!qris) return;
+  const id = qris.id;
   try {
     const r = await fetch(qris.urls.show, { headers: { Accept: 'application/json' } });
-    if (r.ok) renderQris(await r.json());
+    if (!r.ok) return;
+    const d = await r.json();
+    if (!qris || qris.id !== id) return;   // respons telat: QRIS sudah selesai/diganti, abaikan
+    renderQris(d);
   } catch (e) { /* jaringan putus sesaat: coba lagi di putaran berikutnya */ }
 }
 
 function finishQris(o) {
   stopQris(); qris = null; idemKey = null; qrisImgFor = null;
   $('qrisModal').classList.add('hidden');
-  $('doneInv').textContent = o.invoice_no; $('doneTotal').textContent = rp(o.total); $('doneChange').textContent = '';
-  $('doneView').href = o.receipt_url; $('doneDl').href = o.download_url;
-  $('doneModal').classList.remove('hidden');
+  if (!showDone(o, '')) return;   // sudah pernah ditampilkan (respons poll ganda/telat)
   if (window.Voice) Voice.say('Pembayaran QRIS berhasil');
 }
 
@@ -926,7 +941,28 @@ $('qrisRegen').addEventListener('click', () => { stopQris(); $('qrisModal').clas
 $('qrisClose').addEventListener('click', () => { stopQris(); qris = null; $('qrisModal').classList.add('hidden'); });
 $('qrisCopy').addEventListener('click', () => { navigator.clipboard?.writeText($('qrisGwUrl').textContent).then(() => { $('qrisCopy').textContent = 'Tersalin'; setTimeout(() => $('qrisCopy').textContent = 'Salin', 1500); }); });
 
-$('doneNew').addEventListener('click', () => { location.href = @json(route('pos')); }); // muat ulang: stok & nomor invoice segar
+/* Pesanan baru TANPA reload: kosongkan form, lalu ambil stok & nomor invoice segar di latar belakang. */
+async function newOrder() {
+  $('doneModal').classList.add('hidden');
+  cart = []; idemKey = null; customer = null;
+  orderType = IS_RETAIL ? 'takeaway' : 'dine_in'; method = 'cash';
+  $('discount').value = 0; $('paid').value = ''; $('ref').value = '';
+  if ($('table')) $('table').value = '';
+  $('err').classList.add('hidden');
+  setSheet(false);
+  refresh();
+  try {
+    const r = await fetch(URLS.state, { headers: { Accept: 'application/json' } });
+    if (!r.ok) throw new Error();
+    const d = await r.json();
+    PRODUCTS.splice(0, PRODUCTS.length, ...d.products);
+    Object.keys(byId).forEach(k => delete byId[k]);
+    PRODUCTS.forEach(p => { byId[p.id] = p; });
+    $('invNo').textContent = d.next_invoice;
+    renderGrid();
+  } catch (e) { /* jaringan putus: form sudah bersih; stok/invoice menyegar di transaksi berikutnya atau saat halaman dimuat ulang */ }
+}
+$('doneNew').addEventListener('click', newOrder);
 
 /* ---------- Perintah suara (kasir) ---------- */
 if (window.Voice) {
