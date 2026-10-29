@@ -36,6 +36,17 @@ Route::post('/payments/midtrans/notify', [MidtransWebhookController::class, 'not
 
 /* ---------- Guest (limiter didefinisikan di AppServiceProvider) ---------- */
 Route::middleware('guest')->group(function () {
+
+    Route::post('/register/send-otp', [
+        \App\Http\Controllers\RegisterOtpController::class,
+        'send',
+    ])->middleware('throttle:5,1')->name('register.otp.send');
+
+    Route::post('/register/verify-otp', [
+        \App\Http\Controllers\RegisterOtpController::class,
+        'verify',
+    ])->middleware('throttle:10,1')->name('register.otp.verify');
+
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login')->name('login.password');
     Route::post('/register', [RegisterController::class, 'store'])->middleware('throttle:register')->name('register');

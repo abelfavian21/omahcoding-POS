@@ -1,8 +1,11 @@
 @verbatim
     <script>
         (() => {
+
             const $ = id => document.getElementById(id);
+
             let passwordIsValid = false;
+            let emailOtpVerified = false;
             let currentStep = 1;
             let isSubmitting = false;
             let lockedUntil = 0;
@@ -49,7 +52,8 @@
                 'reg-phone': v => {
                     v = v.trim();
                     if (!v) return 'Nomor WhatsApp wajib diisi.';
-                    if (!/^[0-9+\-\s()]+$/.test(v)) return 'Nomor hanya boleh berisi angka, spasi, +, - atau ().';
+                    if (!/^[0-9+\-\s()]+$/.test(v))
+                    return 'Nomor hanya boleh berisi angka, spasi, +, - atau ().';
                     const digits = v.replace(/\D/g, '');
                     if (digits.length < 8) return 'Nomor WhatsApp minimal 8 digit.';
                     if (digits.length > 15) return 'Nomor WhatsApp maksimal 15 digit.';
@@ -110,8 +114,10 @@
             // Perbarui status tombol "lanjut" / "submit" sesuai langkah aktif.
             function refreshButtons() {
                 const locked = Date.now() < lockedUntil;
-                const b1 = $('btn-next-step-1'), b2 = $('btn-next-step-2'), b3 = $('btn-submit');
-                if (b1) b1.disabled = !checkStep(1);
+                const b1 = $('btn-next-step-1'),
+                    b2 = $('btn-next-step-2'),
+                    b3 = $('btn-submit');
+                if (b1) b1.disabled = !checkStep(1) || !emailOtpVerified;
                 if (b2) b2.disabled = !checkStep(2);
                 if (b3) b3.disabled = isSubmitting || locked || !(checkStep(1) && checkStep(2) && checkStep(3));
             }
@@ -152,8 +158,10 @@
             }
 
             /* ---------- Tab Masuk / Registrasi ---------- */
-            const ON = 'py-3 px-3 sm:py-3.5 sm:px-6 rounded-2xl font-bold text-sm bg-white text-blue-600 shadow-sm transition-all';
-            const OFF = 'py-3 px-3 sm:py-3.5 sm:px-6 rounded-2xl font-bold text-sm text-slate-600 hover:text-slate-900 transition-all';
+            const ON =
+                'py-3 px-3 sm:py-3.5 sm:px-6 rounded-2xl font-bold text-sm bg-white text-blue-600 shadow-sm transition-all';
+            const OFF =
+                'py-3 px-3 sm:py-3.5 sm:px-6 rounded-2xl font-bold text-sm text-slate-600 hover:text-slate-900 transition-all';
             window.switchAuthTab = tab => {
                 const login = tab === 'login';
                 $('view-login').classList.toggle('hidden', !login);
@@ -224,6 +232,17 @@
                         $(bad || 'reg-pass')?.focus();
                         return;
                     }
+
+                    if (!emailOtpVerified) {
+                        if (otpMessage) {
+                            otpMessage.textContent = 'Verifikasi email terlebih dahulu.';
+                        }
+
+                        otpSection?.classList.remove('hidden');
+                        otpEmail?.focus();
+                        return;
+                    }
+
                     goToStep(2);
                 } else if (from === 2) {
                     if (!checkStep(2, true)) {
@@ -234,24 +253,194 @@
                 }
             };
 
+            const otpEmail = $('reg-email');
+            const sendOtpButton = $('btn-send-otp');
+            const verifyOtpButton = $('btn-verify-otp');
+            const resendOtpButton = $('btn-resend-otp');
+            const otpSection = $('otp-section');
+            const otpInput = $('reg-otp');
+            const otpMessage = $('otp-message');
+            const verifiedMessage = $('otp-verified-message');
+
+            let otpCountdownTimer = null;
+
+            function startOtpCountdown(seconds = 60) {
+                const resendButton = $('btn-resend-otp');
+
+                if (!resendButton) return;
+
+                clearInterval(otpCountdownTimer);
+
+                let remaining = seconds;
+                resendButton.disabled = true;
+                resendButton.textContent = `Kirim ulang kode (${remaining} detik)`;
+
+                otpCountdownTimer = setInterval(() => {
+                    remaining--;
+
+                    if (remaining <= 0) {
+                        clearInterval(otpCountdownTimer);
+                        otpCountdownTimer = null;
+                        resendButton.disabled = false;
+                        resendButton.textContent = 'Kirim ulang kode';
+                        return;
+                    }
+
+                    resendButton.textContent = `Kirim ulang kode (${remaining} detik)`;
+                }, 1000);
+            }
+
+            async function sendRegistrationOtp(button) {
+
+                const email = otpEmail.value.trim().toLowerCase();
+
+                if (!otpEmail.checkValidity() || !email) {
+                    otpEmail.reportValidity();
+                    return;
+                }
+
+                button.disabled = true;
+                otpSection?.classList.remove('hidden');
+
+                if (otpMessage) {
+                    otpMessage.textContent = 'Mengirim kode OTP...';
+                }
+
+                try {
+                    const response = await fetch(sendOtpButton.dataset.sendUrl, {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': $('register-form')
+                                .querySelector('input[name="_token"]').value,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({
+                            email
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(result.message || 'Gagal mengirim OTP.');
+                    }
+
+                    otpSection?.classList.remove('hidden');
+
+                    if (otpMessage) {
+                        otpMessage.textContent = result.message;
+                    }
+
+                    startOtpCountdown(60);
+
+                    if (otpInput) otpInput.focus();
+
+                } catch (error) {
+                    if (otpMessage) otpMessage.textContent = error.message;
+                    console.error('Pengiriman OTP gagal:', error);
+                } finally {
+                    button.disabled = false;
+                }
+            }
+
+            sendOtpButton?.addEventListener('click', () => {
+                sendRegistrationOtp(sendOtpButton);
+            });
+
+            resendOtpButton?.addEventListener('click', () => {
+                sendRegistrationOtp(resendOtpButton);
+            });
+
+            verifyOtpButton?.addEventListener('click', async () => {
+                const email = otpEmail.value.trim().toLowerCase();
+                const otp = otpInput.value.trim();
+
+                if (!/^\d{6}$/.test(otp)) {
+                    if (otpMessage) {
+                        otpMessage.textContent = 'Masukkan kode OTP 6 digit.';
+                    }
+                    return;
+                }
+
+                verifyOtpButton.disabled = true;
+
+                try {
+                    const response = await fetch(verifyOtpButton.dataset.verifyUrl, {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': $('register-form')
+                                .querySelector('input[name="_token"]').value,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: JSON.stringify({
+                            email,
+                            otp
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(result.message || 'Verifikasi OTP gagal.');
+                    }
+
+                    emailOtpVerified = true;
+
+                    if (otpMessage) otpMessage.textContent = result.message;
+                    verifiedMessage?.classList.remove('hidden');
+                    otpSection?.classList.add('hidden');
+
+                    refreshButtons();
+
+                } catch (error) {
+                    if (otpMessage) otpMessage.textContent = error.message;
+                    console.error('Verifikasi OTP gagal:', error);
+                } finally {
+                    verifyOtpButton.disabled = false;
+                }
+            });
+
+            otpEmail?.addEventListener('input', () => {
+                emailOtpVerified = false;
+
+                verifiedMessage?.classList.add('hidden');
+                otpSection?.classList.add('hidden');
+
+                if (otpInput) otpInput.value = '';
+
+                refreshButtons();
+            });
+
             const ownerName = document.getElementById('reg-owner-name');
             const email = document.getElementById('reg-email');
 
             // Kirim konteks (nama & email) ke Livewire: debounce + hanya jika berubah.
-            let ctxTimer = null, lastCtx = null;
+            let ctxTimer = null,
+                lastCtx = null;
+
             function sendPasswordContext() {
                 clearTimeout(ctxTimer);
                 const name = ownerName?.value ?? '';
                 const mail = email?.value ?? '';
                 const key = name + '|' + mail;
-                if (key === lastCtx) return;                 // tidak berubah
-                if (lastCtx === null && !name && !mail) {    // masih kosong semua, tidak perlu kirim
+                if (key === lastCtx) return; // tidak berubah
+                if (lastCtx === null && !name && !mail) { // masih kosong semua, tidak perlu kirim
                     lastCtx = key;
                     return;
                 }
                 lastCtx = key;
-                Livewire.dispatch('registration-context-updated', { name, email: mail });
+                Livewire.dispatch('registration-context-updated', {
+                    name,
+                    email: mail
+                });
             }
+
             function updatePasswordContext() {
                 clearTimeout(ctxTimer);
                 ctxTimer = setTimeout(sendPasswordContext, 600);
@@ -261,7 +450,9 @@
             email?.addEventListener('input', updatePasswordContext);
             // Pastikan konteks terbaru sudah terkirim sebelum password divalidasi
             $('reg-pass')?.addEventListener('focus', sendPasswordContext);
-            $('reg-pass')?.addEventListener('keydown', sendPasswordContext, { once: false });
+            $('reg-pass')?.addEventListener('keydown', sendPasswordContext, {
+                once: false
+            });
 
             /* ---------- Kategori usaha ---------- */
             const cards = [...document.querySelectorAll('.cat-card')];
@@ -345,11 +536,17 @@
                             const errors = result.errors;
 
                             const map = {
-                                owner_name: 'reg-owner-name', business_name: 'reg-business-name',
-                                email: 'reg-email', phone: 'reg-phone', location: 'reg-location'
+                                owner_name: 'reg-owner-name',
+                                business_name: 'reg-business-name',
+                                email: 'reg-email',
+                                phone: 'reg-phone',
+                                location: 'reg-location'
                             };
                             for (const [field, messages] of Object.entries(errors)) {
-                                if (map[field]) { touched.add(map[field]); setFieldError(map[field], messages[0]); }
+                                if (map[field]) {
+                                    touched.add(map[field]);
+                                    setFieldError(map[field], messages[0]);
+                                }
                                 for (const message of messages) {
                                     const li = document.createElement('li');
                                     li.textContent = message;
