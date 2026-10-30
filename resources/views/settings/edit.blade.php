@@ -45,6 +45,39 @@
     </form>
   </div>
 
+  {{-- ===== Cetak struk thermal ===== --}}
+  <div class="card p-5 sm:p-6 space-y-4 mt-5" data-setting data-keywords="cetak struk printer thermal print kertas 58 80 mm otomatis nota bluetooth usb aktif nonaktif">
+    <div class="flex items-center gap-3">
+      <span class="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 grid place-items-center shrink-0"><span class="material-symbols-outlined">print</span></span>
+      <div class="min-w-0"><h2 class="font-extrabold text-base">Cetak struk (printer thermal)</h2><p class="text-xs text-slate-500">Cetak struk ke printer thermal 58 / 80 mm dari kasir setelah pembayaran berhasil.</p></div>
+    </div>
+    <form method="POST" action="{{ route('settings.print') }}" class="space-y-3">
+      @csrf @method('PUT')
+      <label class="flex items-start gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm cursor-pointer">
+        <input type="checkbox" name="receipt_print_enabled" value="1" class="mt-1" @checked(old('receipt_print_enabled', $business->receiptPrintEnabled()))>
+        <span><b>Aktifkan cetak struk thermal</b><br><span class="text-xs text-slate-500">Aktif: tombol Cetak Struk muncul di kasir setelah pembayaran. Nonaktif: struk hanya bisa dibuka atau diunduh sebagai PDF.</span></span>
+      </label>
+      <label class="flex items-start gap-3 rounded-2xl bg-slate-50 px-4 py-3 text-sm cursor-pointer">
+        <input type="checkbox" name="receipt_auto_print" value="1" class="mt-1" @checked(old('receipt_auto_print', $business->receipt_auto_print))>
+        <span><b>Cetak otomatis setelah pembayaran berhasil</b><br><span class="text-xs text-slate-500">Dialog cetak langsung terbuka tanpa menekan tombol. Hanya berlaku bila cetak thermal aktif.</span></span>
+      </label>
+      <div>
+        <label class="label" for="rpaper">Lebar kertas</label>
+        <select id="rpaper" name="receipt_paper" class="input">
+          <option value="80" @selected((int) old('receipt_paper', $business->receiptPaperMm()) === 80)>80 mm (umum)</option>
+          <option value="58" @selected((int) old('receipt_paper', $business->receiptPaperMm()) === 58)>58 mm (kecil / portabel)</option>
+        </select>
+        @error('receipt_paper')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+      </div>
+      <div class="rounded-2xl bg-slate-50 px-4 py-3 text-xs text-slate-500 space-y-1">
+        <div class="font-bold text-slate-700">Cara pakai</div>
+        <p>Pasang printer thermal di komputer/HP kasir (USB atau Bluetooth) dan pilih ukuran kertas sama dengan printer. Dialog cetak muncul tiap transaksi; pilih printer thermal lalu <b>Cetak</b>.</p>
+        <p>Agar langsung tercetak tanpa dialog: jadikan printer thermal sebagai printer default, lalu buka Chrome / Edge dengan opsi <code>--kiosk-printing</code>.</p>
+      </div>
+      <button class="btn-primary w-full sm:w-auto">Simpan pengaturan cetak</button>
+    </form>
+  </div>
+
   {{-- ===== QRIS manual: gambar QRIS statis toko ===== --}}
   <div class="card p-5 sm:p-6 space-y-4 mt-5" data-setting data-keywords="qris manual gambar qr kode konfirmasi approval code referensi bayar scan">
     <div class="flex items-center gap-3">

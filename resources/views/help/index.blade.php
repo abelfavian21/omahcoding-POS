@@ -8,6 +8,7 @@
     ['peran',       'badge',           'Login & hak akses',    'Siapa bisa apa',           false, true],
     ['kasir',       'receipt_long',    'Melayani pelanggan',   'Catat pesanan & bayar',    false, true],
     ['bayar',       'payments',        'Cara pembayaran',      'Tunai, kartu, QRIS',       false, true],
+    ['thermal',     'print',           'Cetak struk thermal',  'Printer 58 / 80 mm',       false, true],
     ['shift',       'schedule',        'Buka & tutup shift',   'Catat uang di laci',       false, $shiftOn || $isAdmin],
     ['suara',       'mic',             'Perintah suara',       'Pesan tanpa mengetik',     false, true],
     ['produk',      'lunch_dining',    'Produk & menu',        'Daftar menu yang dijual',  false, true],
@@ -131,7 +132,7 @@
           <li>Login dengan <b>Kode Toko + PIN</b> di tab <b>PIN Kasir</b>.</li>
           @if ($shiftOn)<li>Buka menu <b>Shift Kasir</b> dan isi uang modal yang ada di laci.</li>@endif
           <li>Buka <b>Order Line</b>, ketuk menu yang dipesan, lalu tekan <b>Bayar</b>.</li>
-          <li>Berikan struk ke pelanggan (cetak atau unduh PDF).</li>
+          <li>Berikan struk ke pelanggan (cetak thermal, atau unduh PDF).</li>
           @if ($shiftOn)<li>Saat selesai bertugas, hitung uang di laci lalu <b>Tutup Shift</b>.</li>@endif
         </ol>
       @endif
@@ -173,7 +174,7 @@
         <li><i>(Opsional)</i> Isi <b>Diskon</b> dalam rupiah.@unless ($isAdmin) Batas diskon kasir: {{ $pct }}% dari subtotal.@endunless</li>
         <li>Periksa <b>Ringkasan Pembayaran</b>: subtotal − diskon + pajak ({{ $taxPct }}%) = total.</li>
         <li>Pilih <b>cara bayar</b>, lalu tekan <b>Bayar</b>.</li>
-        <li>Setelah muncul <i>Pembayaran Berhasil</i>, pilih <b>Lihat / Cetak Struk</b>, <b>Unduh Struk PDF</b>, atau <b>Pesanan Baru</b>.</li>
+        <li>Setelah muncul <i>Pembayaran Berhasil</i>, pilih <b>Cetak Struk (Thermal)</b> bila fitur itu aktif, <b>Lihat Struk PDF</b>, <b>Unduh Struk PDF</b>, atau <b>Pesanan Baru</b>.</li>
       </ol>
       <div class="mt-5 space-y-3">
         {!! $note('tip', 'Aman kalau tombol <b>Bayar</b> tertekan dua kali: transaksi tidak akan tercatat ganda. Jika stok tidak cukup, pembayaran ditolak dan akan ada pesannya.') !!}
@@ -201,6 +202,56 @@
           <div class="flex items-center gap-2 font-extrabold mb-1.5"><span class="material-symbols-outlined">qr_code</span> QRIS manual</div>
           <p class="{{ $muted }}">Dipakai bila QRIS otomatis belum aktif. Gambar QRIS toko tampil di layar. Setelah uang masuk ke rekening, tekan <b>Konfirmasi Pembayaran</b>. Kode konfirmasi perlu diisi bila admin mengaktifkannya.</p>
         </div>
+      </div>
+    </section>
+
+    {{-- ===== Cetak struk thermal ===== --}}
+    <section id="thermal" data-help data-group="all" data-kw="cetak struk thermal printer print kertas 58 80 mm otomatis nota usb bluetooth driver kiosk dialog pdf" class="{{ $sec }}">
+      {!! $head('print', 'Cetak struk thermal', 'Cetak struk ke printer kasir 58 / 80 mm setelah pembayaran.') !!}
+      <p class="{{ $body }} mb-5">Status di toko ini:
+        @if ($thermalOn)
+          <b>aktif</b>, kertas <b>{{ $paperMm }} mm</b>, @if ($thermalAuto) struk <b>otomatis dicetak</b> setelah pembayaran berhasil. @else kasir mencetak lewat tombol <b>Cetak Struk (Thermal)</b>. @endif
+        @else
+          <b>nonaktif</b>. Struk hanya bisa dibuka atau diunduh sebagai PDF.@if ($isAdmin) Aktifkan di langkah "Menyiapkan" di bawah.@else Minta admin mengaktifkannya.@endif
+        @endif
+      </p>
+
+      <div class="space-y-6">
+        @if ($isAdmin)
+        <div>
+          <h3 class="{{ $sub }}">Menyiapkan (admin, sekali saja)</h3>
+          <ol class="hl-steps">
+            <li>Pasang printer thermal di komputer atau HP kasir (USB atau Bluetooth). Pasang <b>driver</b>-nya sampai printer muncul di daftar printer perangkat.</li>
+            <li>Buka <a href="{{ route('settings.edit') }}" class="font-bold underline">Pengaturan</a>, cari kartu <b>Cetak struk (printer thermal)</b>.</li>
+            <li>Centang <b>Aktifkan cetak struk thermal</b>.</li>
+            <li>Pilih <b>Lebar kertas</b> sesuai gulungan di printer: 58 mm atau 80 mm.</li>
+            <li>Centang <b>Cetak otomatis setelah pembayaran berhasil</b> bila dialog cetak harus terbuka sendiri. Kosongkan bila kasir lebih suka menekan tombol.</li>
+            <li>Tekan <b>Simpan pengaturan cetak</b>. Hilangkan centang aktif lalu simpan untuk mematikan fitur ini; struk PDF tetap bisa dipakai.</li>
+          </ol>
+        </div>
+        @endif
+        <div>
+          <h3 class="{{ $sub }}">Mencetak struk (kasir)</h3>
+          <ol class="hl-steps">
+            <li>Selesaikan pembayaran seperti biasa sampai muncul <i>Pembayaran Berhasil</i>.</li>
+            <li>Dialog cetak browser terbuka otomatis. Bila tidak, tekan <b>Cetak Struk (Thermal)</b>. Tombol ini juga dipakai untuk cetak ulang.</li>
+            <li>Di dialog, pilih <b>printer thermal</b> pada kolom <i>Destination / Printer</i>.</li>
+            <li>Pilih <b>Paper size</b> yang sama dengan kertas printer (80 mm atau 58 mm) dan set <b>Margins</b> ke <i>None</i>.</li>
+            <li>Tekan <b>Print</b>. Struk keluar dan terpotong otomatis bila printer punya pemotong.</li>
+          </ol>
+        </div>
+        <div>
+          <h3 class="{{ $sub }}">Cetak tanpa dialog (opsional)</h3>
+          <p class="{{ $body }}">Jadikan printer thermal sebagai <b>printer default</b> di sistem, lalu buka Chrome atau Edge dengan opsi <code class="px-1.5 py-0.5 rounded-md bg-slate-100 text-[12px] font-mono">--kiosk-printing</code>. Struk langsung tercetak tanpa memilih printer. Opsi ini diatur di shortcut browser kasir, bukan di aplikasi.</p>
+        </div>
+        <div>
+          <h3 class="{{ $sub }}">Mencoba tanpa printer</h3>
+          <p class="{{ $body }}">Di dialog cetak, pilih <b>Save as PDF</b> (Windows: <b>Microsoft Print to PDF</b>) sebagai printer. Struk tersimpan sebagai file PDF. Karena <i>Paper size</i> biasanya A4, struk tampil kecil di pojok kiri atas. Itu normal; di printer thermal asli ukurannya mengikuti kertas.</p>
+        </div>
+      </div>
+      <div class="mt-5 space-y-3">
+        {!! $note('tip', 'Struk thermal memuat data yang sama dengan struk PDF: nama toko, telepon, lokasi, pajak, dan teks bawah struk dari Pengaturan.') !!}
+        {!! $note('warn', 'Dialog cetak tidak muncul? Browser mungkin memblokir. Izinkan jendela pop-up atau cetak untuk situs ini, lalu tekan <b>Cetak Struk (Thermal)</b> lagi.') !!}
       </div>
     </section>
 
@@ -371,7 +422,7 @@
     </section>
 
     {{-- ===== Konfigurasi ===== --}}
-    <section id="konfigurasi" data-help data-group="admin" data-kw="pengaturan konfigurasi pajak struk nama toko alamat telepon shift qris manual gambar" class="{{ $sec }}">
+    <section id="konfigurasi" data-help data-group="admin" data-kw="pengaturan konfigurasi pajak struk cetak printer thermal nama toko alamat telepon shift qris manual gambar" class="{{ $sec }}">
       {!! $head('settings', 'Pengaturan toko', 'Semua ada di menu Pengaturan.') !!}
       <p class="{{ $muted }} mb-5">Buka <a href="{{ route('settings.edit') }}" class="font-bold underline">Pengaturan</a>. Tekan <kbd class="px-1.5 py-0.5 rounded-md bg-slate-100 text-[12px] font-mono">/</kbd> untuk langsung mencari pengaturan.</p>
       <div class="space-y-6">
@@ -383,6 +434,8 @@
             <li>Tulis <b>Teks bawah struk</b> untuk ucapan terima kasih atau info promo.</li>
             <li>Tekan <b>Simpan</b>. Perubahan berlaku untuk transaksi berikutnya.</li>
           </ol>
+          <h3 class="{{ $sub }}">Cetak struk thermal</h3>
+          <p class="{{ $body }}">Aktif/nonaktif, cetak otomatis, dan lebar kertas diatur di kartu <b>Cetak struk (printer thermal)</b>. Langkah lengkap ada di bagian <a href="#thermal" class="font-bold underline">Cetak struk thermal</a>.</p>
         </div>
         <div>
           <h3 class="{{ $sub }}">Shift kasir</h3>
@@ -434,6 +487,9 @@
           $isAdmin ? ['Key Midtrans ditolak saat disimpan', 'Pastikan yang disalin adalah Server Key (bukan Client Key) dan berasal dari akun Midtrans toko ini.'] : null,
           $isAdmin ? ['Key Midtrans tiba-tiba hilang', 'Isi ulang di Pengaturan. Hal ini bisa terjadi setelah ada perubahan pada server, jadi beri tahu teknisi yang mengelola aplikasi.'] : null,
           $shiftOn ? ['Shift tidak bisa ditutup', 'Masih ada pembayaran QRIS yang menunggu. Selesaikan atau batalkan dulu, lalu coba lagi.'] : null,
+          ['Tombol Cetak Struk (Thermal) tidak ada', 'Fitur cetak thermal belum aktif. ' . ($isAdmin ? 'Aktifkan di Pengaturan.' : 'Minta admin mengaktifkannya di Pengaturan.') . ' Sementara itu pakai struk PDF.'],
+          ['Struk tidak tercetak di printer thermal', 'Pastikan printer menyala, terhubung, dan dipilih di dialog cetak. Cek kertas tidak habis, lalu tekan Cetak Struk (Thermal) untuk mencoba lagi.'],
+          ['Struk terpotong atau terlalu kecil saat dicetak', 'Samakan Paper size di dialog cetak dengan kertas printer, set Margins ke None, dan pastikan lebar kertas di Pengaturan sesuai (58 atau 80 mm).'],
           ['Perintah suara tidak merespons', 'Pakai Chrome atau Edge, izinkan akses mikrofon, dan pastikan internet aktif.'],
           ['Tidak bisa login dengan PIN', 'Pastikan Kode Toko benar dan akunnya berperan kasir. Terlalu sering salah akan dikunci sementara; tunggu beberapa menit.'],
           ['Masalah lain', 'Hubungi admin toko atau teknisi yang mengelola aplikasi.'],

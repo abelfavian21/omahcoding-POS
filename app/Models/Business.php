@@ -19,7 +19,8 @@ class Business extends Model
 
     protected function casts(): array
     {
-        return ['trial_ends_at' => 'datetime', 'tax_rate' => 'float', 'midtrans_server_key' => 'encrypted', 'qris_require_ref' => 'boolean', 'shift_enabled' => 'boolean'];
+        return ['trial_ends_at' => 'datetime', 'tax_rate' => 'float', 'midtrans_server_key' => 'encrypted', 'qris_require_ref' => 'boolean', 'shift_enabled' => 'boolean',
+            'receipt_print_enabled' => 'boolean', 'receipt_auto_print' => 'boolean', 'receipt_paper' => 'integer'];
     }
 
     /** Server Key Midtrans bisnis ini (null bila belum diisi atau tidak bisa didekripsi, mis. APP_KEY berganti). */
@@ -56,6 +57,24 @@ class Business extends Model
     public function requiresShift(): bool
     {
         return (bool) $this->shift_enabled;
+    }
+
+    /** Cetak struk ke printer thermal aktif? Diatur admin di Pengaturan (default nonaktif). */
+    public function receiptPrintEnabled(): bool
+    {
+        return (bool) $this->receipt_print_enabled;
+    }
+
+    /** Cetak otomatis setelah bayar: hanya berlaku bila fitur cetak thermal aktif. */
+    public function receiptAutoPrint(): bool
+    {
+        return $this->receiptPrintEnabled() && (bool) $this->receipt_auto_print;
+    }
+
+    /** Lebar kertas thermal (mm): 58 atau 80; nilai lain jatuh ke 80. */
+    public function receiptPaperMm(): int
+    {
+        return (int) $this->receipt_paper === 58 ? 58 : 80;
     }
 
     /** Gambar QRIS statis milik bisnis ini ada di disk privat? */

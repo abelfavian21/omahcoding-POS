@@ -74,6 +74,7 @@ Route::middleware(['auth', 'account'])->group(function () {
     Route::get('/pos/qris/{payment}/qr', [QrisController::class, 'qr'])->middleware('throttle:60,1')->name('pos.qris.qr');
     Route::post('/pos/qris/{payment}/cancel', [QrisController::class, 'cancel'])->middleware('throttle:30,1')->name('pos.qris.cancel');
     Route::get('/orders/{order}/receipt', [OrderController::class, 'receipt'])->name('orders.receipt');
+    Route::get('/orders/{order}/receipt/thermal', [OrderController::class, 'thermal'])->middleware('throttle:120,1')->name('orders.receipt.thermal');
 
     // Shift kas (kasir: milik sendiri; admin: semua)
     Route::middleware(\App\Http\Middleware\EnsureShiftEnabled::class)->group(function () {
@@ -118,6 +119,7 @@ Route::middleware(['auth', 'account'])->group(function () {
         Route::get('/settings', [SettingsController::class, 'edit'])->name('settings.edit');
         Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
         Route::put('/settings/shift', [SettingsController::class, 'updateShift'])->middleware('throttle:20,1')->name('settings.shift');
+        Route::put('/settings/print', [SettingsController::class, 'updatePrint'])->middleware('throttle:20,1')->name('settings.print');
         Route::put('/settings/qris', [SettingsController::class, 'updateQris'])->middleware('throttle:20,1')->name('settings.qris');
         Route::put('/settings/midtrans', [SettingsController::class, 'updateMidtrans'])->middleware('throttle:10,1')->name('settings.midtrans');
         Route::get('/audit', [AuditController::class, 'index'])->name('audit.index');

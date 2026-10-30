@@ -61,6 +61,31 @@ class SettingsController extends Controller
             : 'Shift kasir dinonaktifkan. Kasir bisa langsung menerima pembayaran tanpa buka shift.');
     }
 
+    /** Cetak struk thermal: aktif/nonaktif, cetak otomatis setelah bayar, dan lebar kertas (58/80 mm). */
+    public function updatePrint(Request $request)
+    {
+        $data = $request->validate([
+            'receipt_paper' => ['required', 'in:58,80'],
+        ]);
+
+        $enable = $request->boolean('receipt_print_enabled');
+        $auto = $request->boolean('receipt_auto_print');
+
+        $request->user()->business->forceFill([
+            'receipt_print_enabled' => $enable,
+            'receipt_auto_print' => $auto,
+            'receipt_paper' => (int) $data['receipt_paper'],
+        ])->save();
+
+        AuditLog::record('settings.receipt_print_' . ($enable ? 'enabled' : 'disabled'), null, [
+            'auto' => $auto, 'paper_mm' => (int) $data['receipt_paper'],
+        ]);
+
+        return redirect()->route('settings.edit')->with('success', $enable
+            ? 'Cetak struk thermal diaktifkan (' . $data['receipt_paper'] . ' mm).' . ($auto ? ' Struk otomatis tercetak setelah pembayaran berhasil.' : ' Kasir mencetak lewat tombol Cetak Struk.')
+            : 'Cetak struk thermal dinonaktifkan. Struk tetap bisa dibuka sebagai PDF.');
+    }
+
     /**
      * QRIS manual: unggah / ganti / hapus gambar QRIS statis bisnis dan atur apakah nomor referensi wajib.
      * Gambar disimpan di disk privat dan hanya disajikan lewat route terautentikasi milik bisnis ini.

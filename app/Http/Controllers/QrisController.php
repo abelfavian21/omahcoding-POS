@@ -118,6 +118,7 @@ class QrisController extends Controller
                 'total' => (float) $order->total,
                 'receipt_url' => route('orders.receipt', $order),
                 'download_url' => route('orders.receipt', [$order, 'download' => 1]),
+                'thermal_url' => route('orders.receipt.thermal', [$order, 'print' => 1]),
             ] : null,
         ];
     }

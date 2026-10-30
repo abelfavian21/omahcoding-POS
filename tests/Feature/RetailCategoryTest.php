@@ -31,7 +31,8 @@ class RetailCategoryTest extends TestCase
         $this->assertTrue($cat->is_active);
         $this->assertEquals('retail', $cat->default_mode);
 
-        $res = $this->post(route('register'), [
+        // registrasi sekarang wajib email terverifikasi OTP (lihat RegisterController::store)
+        $res = $this->withSession(['registration_otp' => ['email' => 'barokah@toko.test', 'verified' => true]])->post(route('register'), [
             'owner_name' => 'Toko Barokah',
             'business_name' => 'Minimarket Barokah',
             'email' => 'barokah@toko.test',

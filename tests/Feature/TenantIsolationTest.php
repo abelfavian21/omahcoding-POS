@@ -106,8 +106,12 @@ class TenantIsolationTest extends TestCase
     public function test_tidak_bisa_menulis_ke_bisnis_lain_saat_ada_konteks(): void
     {
         [$a, $b] = [$this->business('CS-AAA-1111'), $this->business('CS-BBB-2222')];
+        // business_id sengaja tidak fillable (create([... 'business_id' => ..]) diam-diam diabaikan), jadi isi lewat atribut.
+        $cat = new Category(['name' => 'X', 'emoji' => 'x', 'sort_order' => 0]);
+        $cat->business_id = $b->id;
+
         $this->expectException(LogicException::class);
-        $this->ctx()->run($a->id, fn () => Category::create(['name' => 'X', 'emoji' => 'x', 'sort_order' => 0, 'business_id' => $b->id]));
+        $this->ctx()->run($a->id, fn () => $cat->save());
     }
 
     public function test_bypass_isolasi_hanya_di_berkas_yang_diizinkan(): void

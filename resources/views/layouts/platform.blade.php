@@ -58,17 +58,15 @@
   </aside>
 
   <main class="flex-1 min-w-0">
-    {{-- mobile: bilah atas + navigasi bergulir --}}
+    {{-- mobile: bilah atas dengan hamburger; menu ada di drawer (di bawah) --}}
     <div class="md:hidden sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-card-border">
-      <div class="flex items-center justify-between px-4 h-14">
-        <span class="font-extrabold tracking-tight flex items-center gap-1.5"><span class="w-6 h-6 rounded-lg bg-lime-accent text-slate-950 grid place-items-center"><span class="material-symbols-outlined fill-1" style="font-size:16px">shield_person</span></span>Platform</span>
-        <form method="POST" action="{{ route('platform.logout') }}">@csrf<button class="p-2 -mr-2 rounded-xl" aria-label="Keluar"><span class="material-symbols-outlined">logout</span></button></form>
+      <div class="flex items-center justify-between px-2 h-14">
+        <div class="flex items-center gap-1">
+          <button type="button" id="pMenuBtn" class="p-2.5 rounded-xl" aria-label="Buka menu" aria-controls="pDrawer" aria-expanded="false"><span class="material-symbols-outlined">menu</span></button>
+          <span class="font-extrabold tracking-tight flex items-center gap-1.5"><span class="w-6 h-6 rounded-lg bg-lime-accent text-slate-950 grid place-items-center"><span class="material-symbols-outlined fill-1" style="font-size:16px">shield_person</span></span>Platform</span>
+        </div>
+        <form method="POST" action="{{ route('platform.logout') }}">@csrf<button class="p-2.5 rounded-xl" aria-label="Keluar"><span class="material-symbols-outlined">logout</span></button></form>
       </div>
-      <nav class="flex gap-2 overflow-x-auto no-scrollbar px-4 pb-3" aria-label="Navigasi platform">
-        @foreach ($nav as [$route, $match, $icon, $label])
-          <a href="{{ route($route) }}" class="chip {{ request()->routeIs($match) ? 'chip-on' : '' }}">{{ $label }}</a>
-        @endforeach
-      </nav>
     </div>
 
     <div class="p-4 sm:p-6 xl:p-8 max-w-[1400px] mx-auto">
@@ -85,5 +83,52 @@
     </div>
   </main>
 </div>
+
+{{-- mobile: drawer navigasi (hamburger) --}}
+<div id="pBackdrop" class="md:hidden hidden fixed inset-0 z-40 bg-black/50" aria-hidden="true"></div>
+<aside id="pDrawer" inert class="md:hidden fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] -translate-x-full transition-transform duration-200 flex flex-col bg-sidebar-bg text-slate-300 border-r border-slate-800/60" aria-label="Menu platform">
+  <div class="flex items-center justify-between gap-3 px-5 h-16 shrink-0">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-2xl bg-lime-accent text-slate-950 grid place-items-center shrink-0"><span class="material-symbols-outlined fill-1" style="font-size:22px">shield_person</span></div>
+      <div class="leading-tight"><div class="font-extrabold text-white tracking-tight">Cashier<span class="text-lime-accent">.</span>store</div><div class="text-xs font-bold text-slate-400">Platform</div></div>
+    </div>
+    <button type="button" id="pCloseBtn" class="p-2 rounded-xl text-slate-400 hover:bg-white/10 hover:text-white" aria-label="Tutup menu"><span class="material-symbols-outlined">close</span></button>
+  </div>
+  <nav class="flex-1 overflow-y-auto px-4 pb-4 space-y-1.5" aria-label="Navigasi platform">
+    @foreach ($nav as [$route, $match, $icon, $label])
+      @php $on = request()->routeIs($match); @endphp
+      <a href="{{ route($route) }}" @if ($on) aria-current="page" @endif
+         class="flex items-center gap-3.5 h-11 px-4 rounded-2xl text-sm transition-all {{ $on ? 'bg-lime-accent text-slate-950 font-bold' : 'text-slate-400 font-medium hover:text-white hover:bg-white/5' }}">
+        <span class="material-symbols-outlined {{ $on ? 'fill-1' : '' }}">{{ $icon }}</span>
+        <span>{{ $label }}</span>
+      </a>
+    @endforeach
+  </nav>
+  <div class="px-4 pb-2"><button type="button" onclick="toggleTheme()" class="w-full flex items-center gap-3.5 h-11 px-4 rounded-2xl text-sm font-medium text-slate-400 hover:text-white hover:bg-white/5"><span class="material-symbols-outlined">contrast</span><span>Ganti tema</span></button></div>
+  <div class="p-4 border-t border-slate-800/80 safe-b">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 text-lime-accent grid place-items-center text-sm font-bold shrink-0">{{ $me->initials }}</div>
+      <div class="flex-1 min-w-0 leading-tight"><div class="text-sm font-bold truncate text-white">{{ $me->name }}</div><div class="text-xs text-slate-400 truncate">{{ $me->email }}</div></div>
+    </div>
+  </div>
+</aside>
+<script>
+  (() => {
+    const drawer = document.getElementById('pDrawer'), backdrop = document.getElementById('pBackdrop'), btn = document.getElementById('pMenuBtn');
+    const set = (open) => {
+      drawer.classList.toggle('-translate-x-full', !open);
+      drawer.inert = !open;
+      backdrop.classList.toggle('hidden', !open);
+      btn.setAttribute('aria-expanded', String(open));
+      document.body.style.overflow = open ? 'hidden' : '';
+      if (open) document.getElementById('pCloseBtn').focus(); else if (document.activeElement && drawer.contains(document.activeElement)) btn.focus();
+    };
+    btn.addEventListener('click', () => set(true));
+    document.getElementById('pCloseBtn').addEventListener('click', () => set(false));
+    backdrop.addEventListener('click', () => set(false));
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !drawer.inert) set(false); });
+    window.matchMedia('(min-width: 768px)').addEventListener('change', (e) => { if (e.matches && !drawer.inert) set(false); });
+  })();
+</script>
 </body>
 </html>

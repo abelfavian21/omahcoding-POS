@@ -92,10 +92,14 @@ class SecurityTest extends TestCase
         Customer::create(['name' => 'Data B']);
         Auth::forgetGuards();
 
-        $orphan = User::forceCreate([
+        // Insert langsung: User::create() akan memberi business_id dari konteks yang masih terpasang (bisnis B),
+        // sehingga user ini bukan lagi "tanpa bisnis". Dibaca lagi lewat withoutTenant (user-lah yang menentukan bisnisnya).
+        \Illuminate\Support\Facades\DB::table('users')->insert([
             'business_id' => null, 'name' => 'Yatim', 'email' => 'y@t.test', 'password' => bcrypt('x'),
-            'role' => 'admin', 'is_active' => true,
+            'role' => 'admin', 'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
         ]);
+        $orphan = app(\App\Support\TenantContext::class)->withoutTenant(fn () => User::where('email', 'y@t.test')->first());
+        $this->assertNull($orphan->business_id);
         Auth::setUser($orphan);
 
         $this->assertSame(0, Customer::count());

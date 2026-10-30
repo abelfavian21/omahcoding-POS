@@ -13,6 +13,9 @@ class HelpController extends Controller
         return view('help.index', [
             'isAdmin' => $user->isAdmin(),
             'shiftOn' => (bool) ($business?->requiresShift() ?? true),
+            'thermalOn' => (bool) ($business?->receiptPrintEnabled() ?? false),
+            'thermalAuto' => (bool) ($business?->receiptAutoPrint() ?? false),
+            'paperMm' => $business?->receiptPaperMm() ?? 80,
             'storeCode' => $business?->code,
             'taxPct' => round(($business?->taxRate() ?? config('pos.tax_rate')) * 100, 2),
             'cashierMaxDiscount' => (float) config('pos.cashier_max_discount_pct', 10),

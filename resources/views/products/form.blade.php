@@ -106,7 +106,7 @@
 
     if (c > p && p > 0) {
       cost.setCustomValidity('Harga modal/HPP tidak boleh lebih besar dari harga jual.');
-      hint.textContent = 'âš  HPP (' + fmt(c) + ') lebih besar dari harga jual (' + fmt(p) + '). Cek, mungkin typo.';
+      hint.textContent = '⚠ HPP (' + fmt(c) + ') lebih besar dari harga jual (' + fmt(p) + '). Cek, mungkin typo.';
       hint.className = 'text-xs mt-1 text-red-600 font-semibold';
     } else {
       cost.setCustomValidity('');

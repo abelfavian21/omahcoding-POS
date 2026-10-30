@@ -165,7 +165,8 @@
     <div class="text-[32px] tracking-[-0.03em] font-extrabold mt-3" id="doneTotal"></div>
     <div class="text-sm text-slate-600 mt-1" id="doneChange"></div>
     <div class="grid gap-2 mt-5">
-      <a id="doneView" target="_blank" class="btn-secondary"><span class="material-symbols-outlined">receipt_long</span> Lihat / Cetak Struk</a>
+      <button id="doneThermal" type="button" class="btn-primary" style="display:none"><span class="material-symbols-outlined">print</span> Cetak Struk (Thermal)</button>
+      <a id="doneView" target="_blank" class="btn-secondary"><span class="material-symbols-outlined">receipt_long</span> Lihat Struk PDF</a>
       <a id="doneDl" class="btn-ghost">Unduh Struk PDF</a>
       <button id="doneNew" class="btn-primary">Pesanan Baru</button>
     </div>
@@ -244,6 +245,8 @@ function ico(v, size = 20, fb = 'restaurant', cls = '') {
 const QRIS_MANUAL_URL = @json($qrisManualUrl ?? null);   // gambar QRIS statis bisnis (Pengaturan); null = belum diunggah
 const QRIS_NEEDS_REF = @json($qrisNeedsRef ?? false);     // di modal QRIS manual: tampilkan input kode konfirmasi (opsi admin, default mati)
 const QRIS_DYNAMIC = @json($qrisDynamic ?? false);   // true bila MIDTRANS_SERVER_KEY terisi; false = QRIS manual seperti sebelumnya
+const RECEIPT_PRINT = @json($receiptPrint ?? false);          // cetak struk thermal aktif (Pengaturan)
+const RECEIPT_AUTO = @json($receiptAutoPrint ?? false);       // langsung cetak setelah bayar berhasil
 const IS_RETAIL = @json($isRetail ?? false);         // true untuk minimarket / kelontong: tanpa dine-in & nomor meja
 const CSRF = document.querySelector('meta[name=csrf-token]').content;
 
@@ -789,9 +792,29 @@ function showDone(o, changeText) {
   lastDoneInv = o.invoice_no;
   $('doneInv').textContent = o.invoice_no; $('doneTotal').textContent = rp(o.total); $('doneChange').textContent = changeText || '';
   $('doneView').href = o.receipt_url; $('doneDl').href = o.download_url;
+  thermalUrl = RECEIPT_PRINT ? (o.thermal_url || null) : null;
+  $('doneThermal').style.display = thermalUrl ? '' : 'none';
   $('doneModal').classList.remove('hidden');
+  if (thermalUrl && RECEIPT_AUTO) printThermal(thermalUrl);   // satu kali per invoice (dijaga guard lastDoneInv di atas)
   return true;
 }
+
+/* Cetak struk thermal: struk dimuat di iframe tersembunyi (?print=1 memanggil dialog cetak browser).
+   Untuk cetak tanpa dialog, jalankan Chrome/Edge dengan --kiosk-printing dan set printer thermal sebagai default. */
+let thermalUrl = null;
+function printThermal(url) {
+  if (!url) return;
+  let f = $('thermalFrame');
+  if (!f) {
+    f = document.createElement('iframe');
+    f.id = 'thermalFrame'; f.setAttribute('aria-hidden', 'true'); f.tabIndex = -1;
+    f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+    document.body.appendChild(f);
+  }
+  f.src = 'about:blank';                       // paksa muat ulang walau URL sama (cetak ulang)
+  setTimeout(() => { f.src = url; }, 50);
+}
+$('doneThermal').addEventListener('click', () => printThermal(thermalUrl));
 
 /* ---------- Checkout ---------- */
 $('charge').addEventListener('click', () => {
@@ -1126,7 +1149,7 @@ if (window.Voice) {
     // Setelah pembayaran berhasil
     if (!$('doneModal').classList.contains('hidden')) {
       if (/\b(pesanan baru|order baru|transaksi baru|lanjut|tutup)\b/.test(t)) { V.say('Pesanan baru'); $('doneNew').click(); return true; }
-      if (/\b(struk|cetak)\b/.test(t)) { $('doneView').click(); return true; }
+      if (/\b(struk|cetak)\b/.test(t)) { (thermalUrl ? $('doneThermal') : $('doneView')).click(); return true; }
       return false;
     }
     if ($('custModal') && !$('custModal').classList.contains('hidden')) return false;

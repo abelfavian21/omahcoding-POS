@@ -26,6 +26,24 @@ class OrderController extends Controller
         return $request->boolean('download') ? $pdf->download($file) : $pdf->stream($file);
     }
 
+    /**
+     * Struk HTML untuk printer thermal 58/80 mm. Dibuka di iframe tersembunyi oleh POS (?print=1 -> langsung memanggil
+     * dialog cetak browser). Hanya tersedia bila admin mengaktifkan cetak thermal di Pengaturan.
+     */
+    public function thermal(Request $request, Order $order)
+    {
+        abort_unless($request->user()->isAdmin() || $order->user_id === $request->user()->id, 403);
+
+        $business = $order->business;
+        abort_unless($business?->receiptPrintEnabled(), 404);
+
+        $order->load(['items', 'customer', 'cashier']);
+
+        return response()
+            ->view('receipts.thermal', ['order' => $order, 'business' => $business, 'paper' => $business->receiptPaperMm(), 'autoPrint' => $request->boolean('print')])
+            ->header('Cache-Control', 'private, no-store');
+    }
+
     public function void(Request $request, Order $order)
     {
         $data = $request->validate(['reason' => ['required', 'string', 'min:3', 'max:150']]);

@@ -37,6 +37,8 @@ class PosController extends Controller
             'qrisManualUrl' => $request->user()->business?->hasManualQris()
                 ? route('pos.qris.manual', ['v' => substr(md5($request->user()->business->qris_image), 0, 8)]) : null,
             'qrisNeedsRef' => (bool) $request->user()->business?->qrisManualNeedsRef(),
+            'receiptPrint' => (bool) $request->user()->business?->receiptPrintEnabled(),
+            'receiptAutoPrint' => (bool) $request->user()->business?->receiptAutoPrint(),
         ]);
     }
 
@@ -147,6 +149,7 @@ class PosController extends Controller
             'change' => (float) $order->change_amount,
             'receipt_url' => route('orders.receipt', $order),
             'download_url' => route('orders.receipt', [$order, 'download' => 1]),
+            'thermal_url' => route('orders.receipt.thermal', [$order, 'print' => 1]),
         ], 201);
     }
 

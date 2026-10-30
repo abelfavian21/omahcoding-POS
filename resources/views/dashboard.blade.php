@@ -142,7 +142,7 @@
         <a href="{{ route('dashboard', ['dari' => 8, 'sampai' => 20]) }}" class="{{ $hMode === 'work' ? 'on' : '' }}">08&ndash;20</a>
         <a href="{{ route('dashboard', ['dari' => 0, 'sampai' => 23]) }}" class="{{ $hMode === 'full' ? 'on' : '' }}">24 jam</a>
         <details class="hc-custom {{ $hMode === 'custom' ? 'on' : '' }}">
-          <summary>Kustom{{ $hMode === 'custom' ? ' Â· '.sprintf('%02d', $hf).'â€“'.sprintf('%02d', $ht) : '' }}</summary>
+          <summary>Kustom{{ $hMode === 'custom' ? ' · '.sprintf('%02d', $hf).'–'.sprintf('%02d', $ht) : '' }}</summary>
           <form method="GET" action="{{ route('dashboard') }}" class="hc-pop">
             <div><label for="hcFrom">Dari jam</label><select id="hcFrom" name="dari">@for ($i = 0; $i <= 23; $i++)<option value="{{ $i }}" @selected($i === $hf)>{{ sprintf('%02d:00', $i) }}</option>@endfor</select></div>
             <div><label for="hcTo">Sampai jam</label><select id="hcTo" name="sampai">@for ($i = 0; $i <= 23; $i++)<option value="{{ $i }}" @selected($i === $ht)>{{ sprintf('%02d:59', $i) }}</option>@endfor</select></div>

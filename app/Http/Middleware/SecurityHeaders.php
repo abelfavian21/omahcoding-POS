@@ -12,7 +12,9 @@ class SecurityHeaders
         $response = $next($request);
         $h = $response->headers;
 
-        $h->set('X-Frame-Options', 'DENY');
+        // Struk thermal dibuka di iframe milik POS (satu origin) untuk dicetak; semua halaman lain tetap tidak boleh di-frame.
+        $framable = $request->routeIs('orders.receipt.thermal');
+        $h->set('X-Frame-Options', $framable ? 'SAMEORIGIN' : 'DENY');
         $h->set('X-Content-Type-Options', 'nosniff');
         $h->set('Referrer-Policy', 'strict-origin-when-cross-origin');
         $h->set('Cross-Origin-Opener-Policy', 'same-origin');
@@ -38,7 +40,7 @@ class SecurityHeaders
                 "object-src 'none'",
                 "base-uri 'self'",
                 "form-action 'self'",
-                "frame-ancestors 'none'",
+                $framable ? "frame-ancestors 'self'" : "frame-ancestors 'none'",
             ]);
             $h->set($mode === 'enforce' ? 'Content-Security-Policy' : 'Content-Security-Policy-Report-Only', $csp);
         }
