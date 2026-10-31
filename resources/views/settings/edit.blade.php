@@ -28,6 +28,26 @@
     <div class="pt-2"><button class="btn-primary w-full sm:w-auto">Simpan</button></div>
   </form>
 
+  {{-- ===== Bahasa ===== --}}
+  <div class="card p-5 sm:p-6 space-y-4 mt-5" data-setting data-keywords="{{ __('settings.lang_keywords') }}">
+    <div class="flex items-center gap-3">
+      <span class="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 grid place-items-center shrink-0"><span class="material-symbols-outlined">translate</span></span>
+      <div class="min-w-0"><h2 class="font-extrabold text-base">{{ __('settings.lang_title') }}</h2><p class="text-xs text-slate-500">{{ __('settings.lang_desc') }}</p></div>
+    </div>
+    <form method="POST" action="{{ route('settings.language') }}" class="space-y-3">
+      @csrf @method('PUT')
+      <div>
+        <label class="label" for="lang">{{ __('settings.lang_label') }}</label>
+        <select id="lang" name="language" class="input">
+          <option value="id" @selected(old('language', $business->language ?? 'id') === 'id')>{{ __('settings.lang_id') }}</option>
+          <option value="en" @selected(old('language', $business->language ?? 'id') === 'en')>{{ __('settings.lang_en') }}</option>
+        </select>
+        @error('language')<p class="text-xs text-red-600 mt-1">{{ $message }}</p>@enderror
+      </div>
+      <button class="btn-primary w-full sm:w-auto">{{ __('settings.lang_save') }}</button>
+    </form>
+  </div>
+
   {{-- ===== Shift kasir ===== --}}
   <div class="card p-5 sm:p-6 space-y-4 mt-5" data-setting data-keywords="shift kasir buka tutup kas uang modal laci selisih blind close aktif nonaktif">
     <div class="flex items-center gap-3">

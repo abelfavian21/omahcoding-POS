@@ -10,8 +10,8 @@
         <header class="cs-head">
             <span class="cs-avatar" aria-hidden="true"><span class="material-symbols-outlined">support_agent</span></span>
             <div class="cs-title">
-                <strong>Bantuan CashierStore</strong>
-                <span id="cs-status" class="cs-status" role="status" data-state="ai">Dijawab asisten AI</span>
+                <strong>Mirae</strong>
+                <span id="cs-status" class="cs-status" role="status" data-state="ai">AI CashierStore</span>
             </div>
             <button type="button" id="cs-close" class="cs-x" aria-label="Tutup chat"><span class="material-symbols-outlined" aria-hidden="true">close</span></button>
         </header>
@@ -100,7 +100,7 @@
     const SEND_URL = root.dataset.sendUrl, POLL_URL = root.dataset.pollUrl;
     const KEY = 'cs_chat_token', TOKEN_RE = /^[A-Za-z0-9]{40}$/;
     const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
-    const WELCOME = 'Halo! Saya asisten AI CashierStore. Tanya soal fitur, cara mulai, atau pembayaran. Kalau perlu, admin kami bisa ikut membalas di sini.';
+    const WELCOME = 'Halo, aku Mirae, AI CashierStore! Tanya soal fitur, cara mulai, atau pembayaran. Kalau perlu, admin kami bisa ikut membalas di sini.';
 
     // localStorage bisa dimatikan (mode privat / kebijakan browser): semua akses dibungkus try/catch
     const store = {
@@ -110,7 +110,7 @@
     };
 
     let token = store.get(), lastId = 0, status = 'ai';
-    let isOpen = false, sending = false, polling = false, capped = false, firstLoad = false, unread = 0, timer = null;
+    let isOpen = false, sending = false, polling = false, capped = false, firstLoad = false, unread = 0, timer = null, idle = 0;
     const seen = new Set();
     let typingEl = null;
 
@@ -143,7 +143,7 @@
     function applyStatus() {
         const closed = status === 'closed';
         const waitingAi = sending && status === 'ai';
-        statusEl.textContent = closed ? 'Percakapan ditutup' : status === 'human' ? 'Admin sedang menangani' : waitingAi ? 'AI sedang membalas...' : 'Dijawab asisten AI';
+        statusEl.textContent = closed ? 'Percakapan ditutup' : status === 'human' ? 'Admin sedang menangani' : waitingAi ? 'Mirae sedang mengetik...' : 'AI CashierStore';
         statusEl.dataset.state = closed ? 'closed' : status;
         form.hidden = closed || capped;
         newBtn.hidden = !(closed || capped);
@@ -164,7 +164,7 @@
     }
 
     function resetAll() {
-        token = null; lastId = 0; status = 'ai'; capped = false; unread = 0; firstLoad = true;
+        token = null; lastId = 0; status = 'ai'; capped = false; unread = 0; idle = 0; firstLoad = true;
         seen.clear(); typingEl = null; log.replaceChildren();
         badge.hidden = true;
         addToLog(bubble('ai', WELCOME));
@@ -182,6 +182,7 @@
             if (!res.ok) return;
             const data = await res.json();
             const added = render(data.messages);
+            idle = added.length ? 0 : idle + 1;   // makin lama sepi, makin jarang polling
             status = data.status; applyStatus();
             const incoming = added.filter(m => m.role !== 'visitor').length;
             if (firstLoad && !isOpen && incoming) { unread += incoming; badge.textContent = unread > 9 ? '9+' : String(unread); badge.hidden = false; }
@@ -191,7 +192,11 @@
 
     function loop() {
         clearTimeout(timer);
-        timer = setTimeout(async () => { await poll(); loop(); }, isOpen ? 4000 : 20000);   // terbuka: 4 detik; tertutup: 20 detik
+        if (status === 'closed') return;   // percakapan ditutup: tidak ada yang perlu ditunggu
+        // Dasar: terbuka 4 detik, tertutup 20 detik. Tiap 10 poll kosong, jeda ditambah satu kali dasar, maksimal 60 detik.
+        const base = isOpen ? 4000 : 20000;
+        const delay = Math.min(60000, base * (1 + Math.floor(idle / 10)));
+        timer = setTimeout(async () => { await poll(); loop(); }, delay);
     }
 
     function setOpen(v) {
@@ -200,7 +205,7 @@
         panel.hidden = !v;
         toggle.setAttribute('aria-expanded', String(v));
         toggle.setAttribute('aria-label', v ? 'Tutup chat bantuan' : 'Buka chat bantuan');
-        if (v) { unread = 0; badge.hidden = true; scrollDown(); setTimeout(() => input.focus(), 30); poll(); }
+        if (v) { idle = 0; unread = 0; badge.hidden = true; scrollDown(); setTimeout(() => input.focus(), 30); poll(); }
         loop();
     }
 
@@ -223,7 +228,7 @@
     }
 
     async function send(text) {
-        sending = true; sendBtn.disabled = true;
+        sending = true; sendBtn.disabled = true; idle = 0;
         const pending = bubble('visitor', text); pending.classList.add('pending'); addToLog(pending);
         if (status === 'ai') showTyping(true);
         applyStatus();
@@ -236,6 +241,7 @@
             const data = await res.json().catch(() => ({}));
             pending.remove();
             if (res.ok) adopt(data); else fail(res, data, text);
+            loop();   // jadwalkan ulang (loop berhenti saat percakapan ditutup)
         } catch (e) {
             pending.remove(); sys('Koneksi bermasalah. Coba lagi.');
             if (!input.value) { input.value = text; autosize(); }
@@ -264,7 +270,7 @@
     closeBtn.addEventListener('click', () => { setOpen(false); toggle.focus(); });
     panel.addEventListener('keydown', e => { if (e.key === 'Escape') { setOpen(false); toggle.focus(); } });
     newBtn.addEventListener('click', () => { store.clear(); resetAll(); input.focus(); });
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) { idle = 0; poll(); loop(); } });
 
     resetAll();
     firstLoad = false;      // pesan riwayat yang dimuat saat halaman dibuka tidak dihitung "belum dibaca"

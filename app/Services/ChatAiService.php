@@ -23,7 +23,10 @@ class ChatAiService
     {
         $providers = $this->providers();
         if (! $providers) {
-            return null;   // tanpa key: langsung fallback, tanpa panggilan HTTP
+            // Tanpa key/model/https: langsung fallback, tanpa panggilan HTTP. Dicatat supaya tidak gagal diam-diam.
+            Log::error('chat.ai.not_configured', ['hint' => 'isi AI_BASE_URL (https), AI_API_KEY, AI_MODEL di .env lalu php artisan config:clear']);
+
+            return null;
         }
 
         $messages = $this->buildMessages($history);
@@ -51,9 +54,13 @@ class ChatAiService
         $cfg = (array) config('services.ai', []);
         $list = [];
 
-        foreach ([$cfg, (array) ($cfg['fallback'] ?? [])] as $p) {
-            $base = rtrim(trim((string) ($p['base_url'] ?? '')), '/');
-            $key = trim((string) ($p['api_key'] ?? ''));
+        $primaryBase = rtrim(trim((string) ($cfg['base_url'] ?? '')), '/');
+        $primaryKey = trim((string) ($cfg['api_key'] ?? ''));
+
+        foreach ([$cfg, (array) ($cfg['fallback'] ?? [])] as $i => $p) {
+            // Cadangan yang base_url / api_key-nya kosong memakai milik provider utama (mis. Gemini dua model, satu key).
+            $base = rtrim(trim((string) ($p['base_url'] ?? '')), '/') ?: ($i === 1 ? $primaryBase : '');
+            $key = trim((string) ($p['api_key'] ?? '')) ?: ($i === 1 ? $primaryKey : '');
             $model = trim((string) ($p['model'] ?? ''));
 
             // https wajib: API key tidak boleh terkirim lewat http polos.
@@ -123,26 +130,49 @@ class ChatAiService
             $payload['reasoning_effort'] = $effort;
         }
 
-        try {
-            $res = Http::withToken($provider['api_key'])
-                ->acceptJson()->asJson()
-                ->connectTimeout(min(5, $timeout))->timeout($timeout)
-                ->post($provider['base_url'].'/chat/completions', $payload);
-        } catch (Throwable $e) {
-            Log::warning('chat.ai.exception', ['host' => $host, 'error' => class_basename($e)]);
+        $res = null;
+        for ($attempt = 1; $attempt <= 2; $attempt++) {
+            $started = microtime(true);
+            try {
+                $res = Http::withToken($provider['api_key'])
+                    ->acceptJson()->asJson()
+                    ->connectTimeout(min(5, $timeout))->timeout($timeout)
+                    ->post($provider['base_url'].'/chat/completions', $payload);
+            } catch (Throwable $e) {
+                Log::warning('chat.ai.exception', ['host' => $host, 'error' => class_basename($e), 'message' => mb_substr($e->getMessage(), 0, 200)]);   // kode cURL (timeout / DNS); key tidak ikut karena dikirim lewat header
 
-            return null;
+                return null;
+            }
+
+            // Ulang satu kali hanya untuk error server sesaat (5xx) yang gagal cepat. 429 langsung pindah provider.
+            $fast = (microtime(true) - $started) < 3;
+            if ($attempt === 1 && $fast && in_array($res->status(), [500, 502, 503, 504], true)) {
+                usleep(400_000);
+
+                continue;
+            }
+
+            break;
         }
 
         if (! $res->successful()) {
-            Log::warning('chat.ai.http_error', ['host' => $host, 'status' => $res->status()]);   // termasuk 429
+            // Hanya pesan error provider (dipotong). Tidak pernah mencatat API key, header, atau isi percakapan.
+            Log::warning('chat.ai.http_error', [
+                'host' => $host,
+                'status' => $res->status(),
+                'detail' => mb_substr((string) data_get($res->json(), 'error.message', ''), 0, 200),
+            ]);   // termasuk 429
 
             return null;
         }
 
         $text = trim((string) data_get($res->json(), 'choices.0.message.content', ''));
         if ($text === '') {
-            Log::warning('chat.ai.empty_reply', ['host' => $host]);
+            // finish_reason "length" = token habis (model "thinking" memakai jatah max_tokens): naikkan AI_MAX_TOKENS / set AI_REASONING_EFFORT=low
+            Log::warning('chat.ai.empty_reply', [
+                'host' => $host,
+                'finish_reason' => (string) data_get($res->json(), 'choices.0.finish_reason', ''),
+            ]);
 
             return null;
         }

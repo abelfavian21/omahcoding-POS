@@ -25,7 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: ['payments/midtrans/notify']);
 
         // header keamanan di semua respons web
-        $middleware->web(append: [\App\Http\Middleware\SecurityHeaders::class]);
+        $middleware->web(append: [\App\Http\Middleware\SetLocale::class, \App\Http\Middleware\SecurityHeaders::class]);
 
         $middleware->alias([
             'role' => \App\Http\Middleware\RoleMiddleware::class,

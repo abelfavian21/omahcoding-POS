@@ -67,14 +67,14 @@ class ChatWidgetTest extends TestCase
 
     public function test_pengunjung_kirim_pesan_dan_dapat_balasan_ai(): void
     {
-        $this->aiOk('Gratis 14 hari.');
+        $this->aiOk('Gratis selamanya.');
 
         $res = $this->kirim('Apakah gratis?')->assertOk()->assertJsonPath('status', 'ai');
         $token = $res->json('token');
 
         $this->assertMatchesRegularExpression('/^[A-Za-z0-9]{40}$/', $token);
         $this->assertSame(['visitor', 'ai'], collect($res->json('messages'))->pluck('role')->all());
-        $this->assertSame('Gratis 14 hari.', $res->json('messages.1.body'));
+        $this->assertSame('Gratis selamanya.', $res->json('messages.1.body'));
 
         $c = ChatConversation::firstOrFail();
         $this->assertSame($token, $c->token);
@@ -326,5 +326,50 @@ class ChatWidgetTest extends TestCase
         config(['chat.enabled' => false]);
         $this->get(route('landing'))->assertOk()->assertDontSee('id="cs-chat"', false);
         $this->kirim('Halo')->assertNotFound();
+    }
+
+    public function test_token_hanya_dikirim_saat_percakapan_baru(): void
+    {
+        $this->aiOk();
+
+        $token = $this->kirim('Halo')->assertOk()->json('token');
+        $this->assertMatchesRegularExpression('/^[A-Za-z0-9]{40}$/', $token);
+
+        $second = $this->kirim('Lagi', $token)->assertOk();
+        $this->assertArrayNotHasKey('token', $second->json());
+
+        $poll = $this->getJson(route('chat.poll'), ['X-Chat-Token' => $token])->assertOk();
+        $this->assertArrayNotHasKey('token', $poll->json());
+    }
+
+    public function test_error_server_sesaat_diulang_sekali_lalu_berhasil(): void
+    {
+        Http::fake(['primary.test/*' => Http::sequence()
+            ->push(['error' => ['message' => 'sibuk']], 503)
+            ->push(['choices' => [['message' => ['content' => 'Sudah pulih.']]]], 200)]);
+
+        $res = $this->kirim('Halo')->assertOk();
+
+        $this->assertSame('Sudah pulih.', $res->json('messages.1.body'));
+        Http::assertSentCount(2);
+    }
+
+    public function test_cadangan_tanpa_key_dan_url_memakai_milik_utama(): void
+    {
+        config([
+            'services.ai.fallback.base_url' => null,
+            'services.ai.fallback.api_key' => null,
+            'services.ai.fallback.model' => 'model-cadangan',
+        ]);
+        Http::fake(['primary.test/*' => Http::sequence()
+            ->push([], 429)
+            ->push(['choices' => [['message' => ['content' => 'Dari cadangan.']]]], 200)]);
+
+        $res = $this->kirim('Halo')->assertOk();
+
+        $this->assertSame('Dari cadangan.', $res->json('messages.1.body'));
+        Http::assertSentCount(2);
+        Http::assertSent(fn ($r) => ($r['model'] ?? null) === 'model-cadangan'
+            && $r->hasHeader('Authorization', 'Bearer key-utama'));
     }
 }

@@ -1,51 +1,51 @@
 @extends('layouts.app')
-@section('title', 'Order Line')
+@section('title', __('pos.title'))
 @section('content')
 @if (! $shiftOpen && ($shiftRequired ?? true))
   <div class="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 text-sm font-semibold">
-    <span>Shift kasir belum dibuka — pembayaran akan ditolak sampai shift dibuka.</span>
-    <a href="{{ route('shifts.index') }}" class="btn-dark !h-9 !px-4 text-xs text-lime-accent">Buka shift</a>
+    <span>{{ __('pos.shift_warn') }}</span>
+    <a href="{{ route('shifts.index') }}" class="btn-dark !h-9 !px-4 text-xs text-lime-accent">{{ __('pos.open_shift') }}</a>
   </div>
 @endif
 <div class="grid grid-cols-[minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_390px] gap-5 items-start">
 
   {{-- ============ MENU ============ --}}
   <div class="pb-24 xl:pb-0 min-w-0">
-    <div class="text-xs text-slate-400 font-semibold mb-1">Order Line › <span class="text-slate-700">{{ ($isRetail ?? false) ? 'Katalog Produk' : 'Pilih Menu' }}</span></div>
+    <div class="text-xs text-slate-400 font-semibold mb-1">{{ __('pos.title') }} › <span class="text-slate-700">{{ ($isRetail ?? false) ? __('pos.catalog') : __('pos.pick_menu') }}</span></div>
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-      <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">{{ (auth()->user()?->business?->name ?? config('pos.store_name')) }} {{ ($isRetail ?? false) ? 'Katalog' : 'Menu' }}</h1>
+      <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">{{ (auth()->user()?->business?->name ?? config('pos.store_name')) }} {{ ($isRetail ?? false) ? __('pos.catalog_short') : __('pos.menu') }}</h1>
       <div class="relative w-full sm:w-72">
         <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" style="font-size:19px">search</span>
-        <input id="search" class="input input-pill" placeholder="{{ ($isRetail ?? false) ? 'Cari produk / barcode…' : 'Cari menu…' }}" autocomplete="off">
+        <input id="search" class="input input-pill" placeholder="{{ ($isRetail ?? false) ? __('pos.search_product') : __('pos.search_menu') }}" autocomplete="off">
       </div>
     </div>
     <div id="cats" class="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-4 -mx-4 px-4 sm:mx-0 sm:px-0"></div>
     <div id="grid" class="grid grid-cols-1 min-[560px]:grid-cols-2 md:grid-cols-3 2xl:grid-cols-4 gap-2.5 sm:gap-4"></div>
-    <p id="empty" class="hidden text-center text-slate-500 py-16">{{ ($isRetail ?? false) ? 'Produk tidak ditemukan.' : 'Menu tidak ditemukan.' }}</p>
+    <p id="empty" class="hidden text-center text-slate-500 py-16">{{ ($isRetail ?? false) ? __('pos.no_product') : __('pos.no_menu') }}</p>
   </div>
 
   {{-- ============ KERANJANG ============ --}}
   <div id="cartBackdrop" class="hidden fixed inset-0 z-[35] bg-slate-950/50 backdrop-blur-sm xl:hidden"></div>
-  <aside id="cartPanel" role="dialog" aria-label="Keranjang"
+  <aside id="cartPanel" role="dialog" aria-label="{{ __('pos.cart') }}"
          class="card flex flex-col fixed inset-x-0 bottom-0 z-40 max-h-[92dvh] overflow-y-auto overscroll-contain !rounded-b-none translate-y-full transition-transform duration-300 ease-out
                 sm:inset-x-0 sm:mx-auto sm:max-w-lg
                 xl:static xl:translate-y-0 xl:max-w-none xl:mx-0 xl:z-auto xl:!rounded-3xl xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)] xl:overflow-hidden">
     <div class="xl:hidden sticky top-0 z-10 flex items-center justify-between gap-2 px-4 pt-3 pb-2 border-b border-slate-100" style="background: var(--surface)">
       <div class="flex items-center gap-2">
         <span class="w-9 h-1 rounded-full bg-slate-300 absolute left-1/2 -translate-x-1/2 top-1.5"></span>
-        <span class="font-extrabold text-base mt-1">Keranjang</span>
-        <span id="sheetCount" class="pill pill-slate mt-1">0 item</span>
+        <span class="font-extrabold text-base mt-1">{{ __('pos.cart') }}</span>
+        <span id="sheetCount" class="pill pill-slate mt-1">{{ __('pos.items', ['n' => 0]) }}</span>
       </div>
-      <button type="button" id="sheetClose" class="p-2 -mr-2 rounded-xl" aria-label="Tutup keranjang"><span class="material-symbols-outlined">close</span></button>
+      <button type="button" id="sheetClose" class="p-2 -mr-2 rounded-xl" aria-label="{{ __('pos.close_cart') }}"><span class="material-symbols-outlined">close</span></button>
     </div>
     <div class="p-4 sm:p-5 border-b border-slate-100">
       <div class="flex items-center justify-between gap-2">
         <div>
-          <div class="text-lg font-extrabold" id="custName">Walk-in Customer</div>
-          <div class="text-xs text-slate-500" id="custMeta">Belum memilih pelanggan</div>
+          <div class="text-lg font-extrabold" id="custName">{{ __('pos.walkin') }}</div>
+          <div class="text-xs text-slate-500" id="custMeta">{{ __('pos.no_customer') }}</div>
         </div>
         <div class="flex gap-1">
-          <button id="custBtn" class="btn-secondary !h-10 !px-4 text-xs"><span class="material-symbols-outlined">person_search</span> Pelanggan</button>
+          <button id="custBtn" class="btn-secondary !h-10 !px-4 text-xs"><span class="material-symbols-outlined">person_search</span> {{ __('pos.customer') }}</button>
         </div>
       </div>
       <div id="allergy" class="hidden mt-3 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold px-3 py-2"></div>
@@ -53,53 +53,53 @@
       @if (! ($isRetail ?? false))
       <div class="flex items-center gap-2 mt-3">
         <div class="inline-flex p-1 rounded-full bg-slate-100 flex-1" id="typeTabs">
-          <button data-t="dine_in" class="flex-1 h-10 sm:h-9 rounded-full text-sm font-semibold">Dine-in</button>
-          <button data-t="takeaway" class="flex-1 h-10 sm:h-9 rounded-full text-sm font-semibold">Takeaway</button>
+          <button data-t="dine_in" class="flex-1 h-10 sm:h-9 rounded-full text-sm font-semibold">{{ __('pos.dine_in') }}</button>
+          <button data-t="takeaway" class="flex-1 h-10 sm:h-9 rounded-full text-sm font-semibold">{{ __('pos.takeaway') }}</button>
         </div>
-        <input id="table" class="input !w-24 shrink-0 text-center" placeholder="No. meja" inputmode="numeric" aria-label="Nomor meja">
+        <input id="table" class="input !w-24 shrink-0 text-center" placeholder="{{ __('pos.table_no') }}" inputmode="numeric" aria-label="{{ __('pos.table_aria') }}">
       </div>
       @endif
     </div>
 
     <div class="p-4 sm:p-5 xl:flex-1 xl:overflow-y-auto xl:min-h-[120px]">
       <div class="flex items-center justify-between text-xs font-bold text-slate-500 mb-3">
-        <span>Pesanan <span id="invNo" class="text-slate-900">{{ $nextInvoice }}</span></span>
+        <span>{{ __('pos.order') }} <span id="invNo" class="text-slate-900">{{ $nextInvoice }}</span></span>
         @if ($isRetail ?? false)
           <span class="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-400">
-            <span class="material-symbols-outlined !text-[14px]">storefront</span> Ritel
+            <span class="material-symbols-outlined !text-[14px]">storefront</span> {{ __('pos.retail') }}
           </span>
         @endif
       </div>
       <div id="lines" class="space-y-3"></div>
-      <p id="noLines" class="text-sm text-slate-400 text-center py-8">Keranjang kosong.<br>{{ ($isRetail ?? false) ? 'Pilih produk untuk menambah.' : 'Ketuk menu untuk menambah.' }}</p>
+      <p id="noLines" class="text-sm text-slate-400 text-center py-8">{{ __('pos.cart_empty') }}<br>{{ ($isRetail ?? false) ? __('pos.add_product') : __('pos.add_menu') }}</p>
     </div>
 
     <div class="p-4 sm:p-5 border-t border-slate-100 space-y-3 text-sm xl:shrink-0">
-      <div class="font-bold">Ringkasan Pembayaran</div>
-      <div class="flex justify-between text-slate-600"><span>Subtotal</span><span id="sSub">Rp 0</span></div>
-      <div class="flex justify-between items-center text-slate-600"><span>Diskon (Rp)</span>
+      <div class="font-bold">{{ __('pos.pay_summary') }}</div>
+      <div class="flex justify-between text-slate-600"><span>{{ __('pos.subtotal') }}</span><span id="sSub">Rp 0</span></div>
+      <div class="flex justify-between items-center text-slate-600"><span>{{ __('pos.discount') }}</span>
         <input id="discount" type="number" min="0" step="1000" value="0" class="input !h-9 !w-28 text-right"></div>
       <div class="flex justify-between text-slate-600"><span>{{ $taxLabel }} ({{ rtrim(rtrim(number_format($taxRate * 100, 1), '0'), '.') }}%)</span><span id="sTax">Rp 0</span></div>
-      <div class="flex justify-between items-end border-t border-dashed border-slate-200 pt-3"><span class="font-bold">Total</span><span class="text-[28px] leading-[34px] tracking-[-0.03em] font-extrabold" id="sTotal">Rp 0</span></div>
+      <div class="flex justify-between items-end border-t border-dashed border-slate-200 pt-3"><span class="font-bold">{{ __('pos.total') }}</span><span class="text-[28px] leading-[34px] tracking-[-0.03em] font-extrabold" id="sTotal">Rp 0</span></div>
 
       <div class="grid grid-cols-3 gap-2" id="payTabs">
-        <button data-m="cash" class="h-10 rounded-2xl text-sm font-semibold">Tunai</button>
+        <button data-m="cash" class="h-10 rounded-2xl text-sm font-semibold">{{ __('pos.cash') }}</button>
         <button data-m="qris" class="h-10 rounded-2xl text-sm font-semibold">QRIS</button>
-        <button data-m="card" class="h-10 rounded-2xl text-sm font-semibold">Kartu</button>
+        <button data-m="card" class="h-10 rounded-2xl text-sm font-semibold">{{ __('pos.card') }}</button>
       </div>
       <div id="cashBox">
-        <input id="paid" type="number" min="0" inputmode="numeric" class="input" placeholder="Uang diterima">
+        <input id="paid" type="number" min="0" inputmode="numeric" class="input" placeholder="{{ __('pos.paid_ph') }}">
         <div class="flex flex-wrap gap-2 mt-2" id="quick"></div>
-        <div class="flex justify-between mt-2"><span class="text-slate-600">Kembalian</span><b id="sChange">Rp 0</b></div>
+        <div class="flex justify-between mt-2"><span class="text-slate-600">{{ __('pos.change') }}</span><b id="sChange">Rp 0</b></div>
       </div>
       <div id="refBox" class="hidden">
-        <input id="ref" maxlength="60" class="input" placeholder="No. referensi / approval code">
+        <input id="ref" maxlength="60" class="input" placeholder="{{ __('pos.ref_ph') }}">
       </div>
 
       <div class="sticky bottom-0 -mx-4 sm:-mx-5 -mb-4 sm:-mb-5 px-4 sm:px-5 pt-3 border-t border-slate-100 space-y-2 xl:static xl:m-0 xl:p-0 xl:border-0" style="background: var(--surface); padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px))">
         <p id="err" class="hidden text-xs font-semibold text-red-600"></p>
-        <button id="charge" class="btn-primary w-full !h-12 text-base disabled:opacity-50 disabled:cursor-not-allowed" disabled>Bayar Rp 0</button>
-        <button id="clear" class="btn-ghost w-full !h-9 text-xs">Kosongkan keranjang</button>
+        <button id="charge" class="btn-primary w-full !h-12 text-base disabled:opacity-50 disabled:cursor-not-allowed" disabled>{{ __('pos.pay') }} Rp 0</button>
+        <button id="clear" class="btn-ghost w-full !h-9 text-xs">{{ __('pos.clear_cart') }}</button>
       </div>
     </div>
   </aside>
@@ -112,9 +112,9 @@
       <div>
         <div class="flex items-center gap-2">
           <span class="w-2.5 h-2.5 rounded-full bg-lime-accent"></span>
-          <h3 class="font-extrabold text-xl tracking-tight text-white" id="varModalTitle">Pilih Varian</h3>
+          <h3 class="font-extrabold text-xl tracking-tight text-white" id="varModalTitle">{{ __('pos.choose_variant') }}</h3>
         </div>
-        <p class="text-xs text-slate-400 mt-1" id="varModalBasePrice">Harga dasar: Rp 0</p>
+        <p class="text-xs text-slate-400 mt-1" id="varModalBasePrice">{{ __('pos.base_price') }}: Rp 0</p>
       </div>
       <button type="button" id="varModalClose" class="p-2 -mr-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 transition"><span class="material-symbols-outlined">close</span></button>
     </div>
@@ -123,32 +123,32 @@
 
     <div class="pt-4 border-t border-slate-800 flex items-center justify-between gap-3 bg-[#181928]" style="padding-bottom:calc(1.25rem + env(safe-area-inset-bottom,0px))">
       <div>
-        <div class="text-[11px] uppercase tracking-wider text-slate-400 font-bold">Total per item</div>
+        <div class="text-[11px] uppercase tracking-wider text-slate-400 font-bold">{{ __('pos.total_per_item') }}</div>
         <div class="text-2xl font-black text-lime-accent tracking-tight" id="varModalTotal">Rp 0</div>
       </div>
       <button type="button" id="varModalConfirm" class="btn-primary !h-12 !px-6 text-sm font-bold shadow-lime inline-flex items-center gap-2">
-        <span class="material-symbols-outlined !text-lg">add_shopping_cart</span> Tambahkan
+        <span class="material-symbols-outlined !text-lg">add_shopping_cart</span> {{ __('pos.add') }}
       </button>
     </div>
   </div>
 </div>
 
 {{-- Tombol keranjang untuk layar kecil --}}
-<button id="jump" class="hidden xl:hidden fixed left-4 right-4 z-30 btn-dark !h-14 !justify-between shadow-2xl text-lime-accent sm:left-auto sm:right-6 sm:w-80" style="bottom: calc(1rem + env(safe-area-inset-bottom, 0px))" aria-label="Lihat keranjang"><span class="inline-flex items-center gap-2"><span class="material-symbols-outlined">shopping_bag</span><span><span id="jumpCount">0</span> item</span></span><span class="inline-flex items-center gap-1"><span id="jumpTotal">Rp 0</span><span class="material-symbols-outlined">expand_less</span></span></button>
+<button id="jump" class="hidden xl:hidden fixed left-4 right-4 z-30 btn-dark !h-14 !justify-between shadow-2xl text-lime-accent sm:left-auto sm:right-6 sm:w-80" style="bottom: calc(1rem + env(safe-area-inset-bottom, 0px))" aria-label="{{ __('pos.view_cart') }}"><span class="inline-flex items-center gap-2"><span class="material-symbols-outlined">shopping_bag</span><span><span id="jumpCount">{{ __('pos.items', ['n' => 0]) }}</span></span></span><span class="inline-flex items-center gap-1"><span id="jumpTotal">Rp 0</span><span class="material-symbols-outlined">expand_less</span></span></button>
 
 {{-- Modal pilih pelanggan --}}
 <div id="custModal" class="hidden fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm grid items-end sm:place-items-center sm:p-4">
   <div class="card w-full max-w-md p-5 !rounded-b-none sm:!rounded-3xl max-h-[92vh] overflow-y-auto">
-    <div class="flex justify-between items-center mb-3"><h3 class="font-bold text-lg">Pilih Pelanggan</h3><button data-close class="p-1"><span class="material-symbols-outlined">close</span></button></div>
-    <input id="custSearch" class="input" placeholder="Cari nama / telepon / kode…" autocomplete="off">
+    <div class="flex justify-between items-center mb-3"><h3 class="font-bold text-lg">{{ __('pos.choose_customer') }}</h3><button data-close class="p-1"><span class="material-symbols-outlined">close</span></button></div>
+    <input id="custSearch" class="input" placeholder="{{ __('pos.cust_search_ph') }}" autocomplete="off">
     <div id="custResults" class="mt-3 space-y-1 max-h-60 overflow-y-auto"></div>
     <div class="border-t border-slate-100 mt-4 pt-4">
-      <div class="text-xs font-bold text-slate-500 mb-2">Atau tambah pelanggan baru</div>
-      <div class="grid grid-cols-2 gap-2"><input id="newName" class="input" placeholder="Nama"><input id="newPhone" class="input" placeholder="No. telepon"></div>
+      <div class="text-xs font-bold text-slate-500 mb-2">{{ __('pos.or_new') }}</div>
+      <div class="grid grid-cols-2 gap-2"><input id="newName" class="input" placeholder="{{ __('pos.name') }}"><input id="newPhone" class="input" placeholder="{{ __('pos.phone') }}"></div>
       <p id="newErr" class="text-xs text-red-600 mt-1 hidden"></p>
-      <button id="newBtn" class="btn-secondary w-full mt-2">Simpan & pilih</button>
+      <button id="newBtn" class="btn-secondary w-full mt-2">{{ __('pos.save_pick') }}</button>
     </div>
-    <button id="walkin" class="btn-ghost w-full mt-2 text-sm">Lanjut sebagai Walk-in</button>
+    <button id="walkin" class="btn-ghost w-full mt-2 text-sm">{{ __('pos.continue_walkin') }}</button>
   </div>
 </div>
 
@@ -160,15 +160,15 @@
 <div id="doneModal" class="hidden fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm grid place-items-center p-4 overflow-y-auto">
   <div class="done-pop card w-full max-w-sm p-6 text-center !rounded-3xl my-auto shadow-2xl">
     <div class="w-14 h-14 mx-auto rounded-full bg-lime-accent text-slate-950 grid place-items-center mb-3"><span class="material-symbols-outlined fill-1" style="font-size:32px">check_circle</span></div>
-    <h3 class="text-xl font-extrabold">Pembayaran Berhasil</h3>
+    <h3 class="text-xl font-extrabold">{{ __('pos.pay_success') }}</h3>
     <div class="text-sm text-slate-500 mt-1" id="doneInv"></div>
     <div class="text-[32px] tracking-[-0.03em] font-extrabold mt-3" id="doneTotal"></div>
     <div class="text-sm text-slate-600 mt-1" id="doneChange"></div>
     <div class="grid gap-2 mt-5">
-      <button id="doneThermal" type="button" class="btn-primary" style="display:none"><span class="material-symbols-outlined">print</span> Cetak Struk (Thermal)</button>
-      <a id="doneView" target="_blank" class="btn-secondary"><span class="material-symbols-outlined">receipt_long</span> Lihat Struk PDF</a>
-      <a id="doneDl" class="btn-ghost">Unduh Struk PDF</a>
-      <button id="doneNew" class="btn-primary">Pesanan Baru</button>
+      <button id="doneThermal" type="button" class="btn-primary" style="display:none"><span class="material-symbols-outlined">print</span> {{ __('pos.print_thermal') }}</button>
+      <a id="doneView" target="_blank" class="btn-secondary"><span class="material-symbols-outlined">receipt_long</span> {{ __('pos.view_pdf') }}</a>
+      <a id="doneDl" class="btn-ghost">{{ __('pos.dl_pdf') }}</a>
+      <button id="doneNew" class="btn-primary">{{ __('pos.new_order') }}</button>
     </div>
   </div>
 </div>
@@ -177,27 +177,27 @@
 <div id="qrisModal" class="hidden fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm grid items-end sm:place-items-center sm:p-4">
   <div class="card w-full max-w-sm p-5 sm:p-6 text-center !rounded-b-none sm:!rounded-3xl max-h-[94vh] overflow-y-auto" style="padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px))">
     <div class="flex items-center justify-between gap-2">
-      <h3 class="font-extrabold text-lg">Bayar dengan QRIS</h3>
-      <span id="qrisBadge" class="pill pill-amber">Menunggu</span>
+      <h3 class="font-extrabold text-lg">{{ __('pos.qris_title') }}</h3>
+      <span id="qrisBadge" class="pill pill-amber">{{ __('pos.waiting') }}</span>
     </div>
     <div class="text-[32px] tracking-[-0.03em] font-extrabold mt-2" id="qrisTotal">Rp 0</div>
     <div class="relative mx-auto mt-3 w-60 h-60 rounded-2xl border border-slate-200 overflow-hidden grid place-items-center" style="background:#fff">
-      <img id="qrisImg" alt="Kode QRIS" class="w-full h-full object-contain p-2" style="background:#fff">
+      <img id="qrisImg" alt="{{ __('pos.qris_alt') }}" class="w-full h-full object-contain p-2" style="background:#fff">
       <div id="qrisOverlay" class="hidden absolute inset-0 grid place-items-center text-sm font-extrabold px-4" style="background:rgba(255,255,255,.92);color:#181829"></div>
     </div>
-    <div id="qrisTimer" class="mt-3 text-sm font-bold text-slate-500">Menyiapkan QR…</div>
-    <p id="qrisMsg" class="text-xs text-slate-500 mt-1">Minta pelanggan scan dengan aplikasi e-wallet atau m-banking apa pun. Halaman ini otomatis berubah saat pembayaran diterima.</p>
+    <div id="qrisTimer" class="mt-3 text-sm font-bold text-slate-500">{{ __('pos.preparing_qr') }}</div>
+    <p id="qrisMsg" class="text-xs text-slate-500 mt-1">{{ __('pos.qris_scan_msg') }}</p>
     <div id="qrisSandbox" class="hidden mt-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 text-left text-xs px-3 py-2.5">
-      <b>Mode sandbox.</b> Tidak ada uang sungguhan. Simulasikan pembayaran di
-      <a href="https://simulator.sandbox.midtrans.com/qris/index" target="_blank" rel="noopener" class="underline font-bold">simulator Midtrans</a>
-      dengan URL QR ini:
+      <b>{{ __('pos.sandbox_title') }}</b> {{ __('pos.sandbox_a') }}
+      <a href="https://simulator.sandbox.midtrans.com/qris/index" target="_blank" rel="noopener" class="underline font-bold">{{ __('pos.sandbox_link') }}</a>
+      {{ __('pos.sandbox_b') }}
       <div class="mt-1.5 flex items-center gap-2"><code id="qrisGwUrl" class="flex-1 min-w-0 truncate rounded-lg bg-white/60 px-2 py-1 text-[11px]"></code>
-      <button type="button" id="qrisCopy" class="shrink-0 rounded-lg bg-white/70 px-2.5 py-1 font-bold">Salin</button></div>
+      <button type="button" id="qrisCopy" class="shrink-0 rounded-lg bg-white/70 px-2.5 py-1 font-bold">{{ __('pos.copy') }}</button></div>
     </div>
     <div class="grid gap-2 mt-4">
-      <button id="qrisRegen" class="btn-primary hidden">Buat ulang QR</button>
-      <button id="qrisCancel" class="btn-secondary">Batalkan pembayaran</button>
-      <button id="qrisClose" class="btn-secondary hidden">Tutup</button>
+      <button id="qrisRegen" class="btn-primary hidden">{{ __('pos.regen') }}</button>
+      <button id="qrisCancel" class="btn-secondary">{{ __('pos.cancel_pay') }}</button>
+      <button id="qrisClose" class="btn-secondary hidden">{{ __('pos.close') }}</button>
     </div>
   </div>
 </div>
@@ -205,22 +205,22 @@
 {{-- Modal QRIS manual (gambar QRIS toko dari Pengaturan) --}}
 <div id="qrisManualModal" class="hidden fixed inset-0 z-50 bg-slate-950/50 backdrop-blur-sm grid items-end sm:place-items-center sm:p-4">
   <div class="card w-full max-w-sm p-5 sm:p-6 text-center !rounded-b-none sm:!rounded-3xl max-h-[94vh] overflow-y-auto" style="padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px))">
-    <h3 class="font-extrabold text-lg">Bayar dengan QRIS</h3>
+    <h3 class="font-extrabold text-lg">{{ __('pos.qris_title') }}</h3>
     <div class="mx-auto mt-3 w-60 max-w-full rounded-2xl border border-slate-200 overflow-hidden grid place-items-center" style="background:#fff;aspect-ratio:1/1">
-      <img id="mqImg" alt="QRIS toko" class="w-full h-full object-contain p-2" style="background:#fff">
+      <img id="mqImg" alt="{{ __('pos.qris_store_alt') }}" class="w-full h-full object-contain p-2" style="background:#fff">
     </div>
-    <a id="mqOpen" target="_blank" rel="noopener" class="inline-block text-xs font-bold underline mt-2">Buka layar penuh</a>
-    <div class="text-xs text-slate-500 mt-3">Total yang harus dibayar</div>
+    <a id="mqOpen" target="_blank" rel="noopener" class="inline-block text-xs font-bold underline mt-2">{{ __('pos.open_full') }}</a>
+    <div class="text-xs text-slate-500 mt-3">{{ __('pos.amount_due') }}</div>
     <div class="text-[32px] tracking-[-0.03em] font-extrabold" id="mqTotal">Rp 0</div>
-    <p class="text-xs text-slate-500 mt-1">Minta pelanggan scan dan pastikan nominalnya sesuai. Tekan konfirmasi setelah uang masuk.</p>
+    <p class="text-xs text-slate-500 mt-1">{{ __('pos.manual_msg') }}</p>
     <div id="mqRefBox" class="hidden mt-3 text-left">
-      <label class="label" for="mqRef">Kode konfirmasi / approval code</label>
-      <input id="mqRef" maxlength="60" class="input" placeholder="Masukkan kode dari bukti pembayaran" autocomplete="off">
+      <label class="label" for="mqRef">{{ __('pos.confirm_code') }}</label>
+      <input id="mqRef" maxlength="60" class="input" placeholder="{{ __('pos.confirm_ph') }}" autocomplete="off">
     </div>
     <p id="mqErr" class="hidden text-xs font-semibold text-red-600 mt-2"></p>
     <div class="grid gap-2 mt-4">
-      <button id="mqConfirm" class="btn-primary !h-12 text-base disabled:opacity-50">Konfirmasi Pembayaran</button>
-      <button id="mqCancel" class="btn-secondary">Batal</button>
+      <button id="mqConfirm" class="btn-primary !h-12 text-base disabled:opacity-50">{{ __('pos.confirm_pay') }}</button>
+      <button id="mqCancel" class="btn-secondary">{{ __('pos.cancel') }}</button>
     </div>
   </div>
 </div>
@@ -249,6 +249,10 @@ const RECEIPT_PRINT = @json($receiptPrint ?? false);          // cetak struk the
 const RECEIPT_AUTO = @json($receiptAutoPrint ?? false);       // langsung cetak setelah bayar berhasil
 const IS_RETAIL = @json($isRetail ?? false);         // true untuk minimarket / kelontong: tanpa dine-in & nomor meja
 const CSRF = document.querySelector('meta[name=csrf-token]').content;
+const LANG = @json(__('pos'));   // terjemahan sesuai bahasa yang dipilih di Pengaturan
+/** Terjemahan dengan placeholder :nama, mis. tr('left_n', { n: 3 }). */
+const tr = (k, r = {}) => String(LANG[k] ?? k).replace(/:(\w+)/g, (m, n) => r[n] ?? m);
+const itemsText = n => tr(n === 1 ? 'item_one' : 'items', { n });
 
 const $ = id => document.getElementById(id);
 const rp = n => 'Rp ' + Math.round(n).toLocaleString('id-ID');
@@ -277,7 +281,7 @@ function getProductTotalQty(productId) {
 
 /* ---------- Menu ---------- */
 function renderCats() {
-  const all = [{id: 0, name: IS_RETAIL ? 'Semua Produk' : 'Semua Menu', emoji: IS_RETAIL ? 'inventory_2' : 'restaurant_menu'}, ...CATEGORIES];
+  const all = [{id: 0, name: IS_RETAIL ? tr('all_products') : tr('all_menu'), emoji: IS_RETAIL ? 'inventory_2' : 'restaurant_menu'}, ...CATEGORIES];
   $('cats').innerHTML = all.map(c => `<button data-c="${c.id}" class="chip shrink-0 inline-flex items-center gap-1.5 ${cat === c.id ? 'chip-on' : ''}">${ico(c.emoji, 18)}${esc(c.name)}</button>`).join('');
 }
 function renderGrid() {
@@ -292,11 +296,11 @@ function renderGrid() {
     
     let badge = '';
     if (hasRecipe) {
-      badge = '<span class="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider bg-slate-950/90 text-lime-accent border border-lime-accent/50 shadow-md backdrop-blur-sm"><span class="material-symbols-outlined" style="font-size:13px;text-transform:none;letter-spacing:normal">receipt_long</span><span class="hidden sm:block">Resep BOM</span></span>';
+      badge = '<span class="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider bg-slate-950/90 text-lime-accent border border-lime-accent/50 shadow-md backdrop-blur-sm"><span class="material-symbols-outlined" style="font-size:13px;text-transform:none;letter-spacing:normal">receipt_long</span><span class="hidden sm:block">' + tr('recipe_badge') + '</span></span>';
     } else if (out) {
-      badge = '<span class="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 pill pill-red !text-[10px] shadow-sm">Habis</span>';
+      badge = '<span class="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 pill pill-red !text-[10px] shadow-sm">' + tr('sold_out') + '</span>';
     } else if (p.stock <= 5) {
-      badge = `<span class="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 pill pill-amber !text-[10px] shadow-sm">Sisa ${p.stock}</span>`;
+      badge = `<span class="absolute top-1.5 left-1.5 sm:top-2 sm:left-2 pill pill-amber !text-[10px] shadow-sm">${tr('left_n', { n: p.stock })}</span>`;
     }
 
     const hasVars = p.variants && p.variants.length > 0;
@@ -309,13 +313,13 @@ function renderGrid() {
           <b class="text-sm sm:text-base">${rp(p.price)}</b>
           <div class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-1 h-11 sm:h-9 shrink-0">
             @if (true)
-            <button data-dec="${p.id}" aria-label="Kurangi ${esc(p.name)}" class="w-10 h-10 sm:w-7 sm:h-7 rounded-full text-lg sm:text-base text-slate-500 disabled:opacity-40" ${totalQty ? '' : 'disabled'}>−</button>
+            <button data-dec="${p.id}" aria-label="${esc(tr('dec_aria', { name: p.name }))}" class="w-10 h-10 sm:w-7 sm:h-7 rounded-full text-lg sm:text-base text-slate-500 disabled:opacity-40" ${totalQty ? '' : 'disabled'}>−</button>
             <span class="w-6 text-center text-sm font-bold">${totalQty}</span>
-            <button data-inc="${p.id}" aria-label="Tambah ${esc(p.name)}" class="w-10 h-10 sm:w-7 sm:h-7 rounded-full text-lg sm:text-base bg-lime-accent text-slate-950 font-bold disabled:opacity-40" ${out || max ? 'disabled' : ''}>+</button>
+            <button data-inc="${p.id}" aria-label="${esc(tr('inc_aria', { name: p.name }))}" class="w-10 h-10 sm:w-7 sm:h-7 rounded-full text-lg sm:text-base bg-lime-accent text-slate-950 font-bold disabled:opacity-40" ${out || max ? 'disabled' : ''}>+</button>
             @endif
           </div>
         </div>
-        ${hasVars ? `<div class="mt-2 text-center sm:text-left"><button data-var="${p.id}" class="text-[11px] font-bold text-brand-600 hover:underline inline-flex items-center gap-1"><span class="material-symbols-outlined !text-sm">tune</span> ${p.variants.length} Varian</button></div>` : ''}
+        ${hasVars ? `<div class="mt-2 text-center sm:text-left"><button data-var="${p.id}" class="text-[11px] font-bold text-brand-600 hover:underline inline-flex items-center gap-1"><span class="material-symbols-outlined !text-sm">tune</span> ${tr('variants_n', { n: p.variants.length })}</button></div>` : ''}
       </div></div>`;
   }).join('');
 }
@@ -343,30 +347,30 @@ function renderCart() {
         <div class="text-xs text-slate-500">${rp(item.unit_price)} × ${item.qty} = <b class="text-slate-700">${rp(item.unit_price * item.qty)}</b></div>
       </div>
       <div class="inline-flex items-center gap-1 rounded-full bg-slate-100 px-1 h-10 shrink-0">
-        <button data-ldec="${item.key}" aria-label="Kurangi" class="w-8 h-8 rounded-full text-lg text-slate-500">−</button>
+        <button data-ldec="${item.key}" aria-label="${tr('decrease')}" class="w-8 h-8 rounded-full text-lg text-slate-500">−</button>
         <span class="w-5 text-center text-sm font-bold">${item.qty}</span>
-        <button data-linc="${item.key}" aria-label="Tambah" class="w-8 h-8 rounded-full text-lg bg-lime-accent text-slate-950 font-bold disabled:opacity-40" ${max ? 'disabled' : ''}>+</button>
+        <button data-linc="${item.key}" aria-label="${tr('increase')}" class="w-8 h-8 rounded-full text-lg bg-lime-accent text-slate-950 font-bold disabled:opacity-40" ${max ? 'disabled' : ''}>+</button>
       </div></div>`;
   }).join('');
 
   const t = totals();
   $('sSub').textContent = rp(t.sub); $('sTax').textContent = rp(t.tax); $('sTotal').textContent = rp(t.total);
-  $('charge').textContent = 'Bayar ' + rp(t.total); $('jumpTotal').textContent = rp(t.total);
+  $('charge').textContent = LANG.pay + ' ' + rp(t.total); $('jumpTotal').textContent = rp(t.total);
   const qtyAll = cart.reduce((a, b) => a + b.qty, 0);
-  $('jumpCount').textContent = qtyAll; $('sheetCount').textContent = qtyAll + ' item';
+  $('jumpCount').textContent = itemsText(qtyAll); $('sheetCount').textContent = itemsText(qtyAll);
   if (!cart.length && sheetIsOpen()) setSheet(false);
   else if (!sheetIsOpen()) $('jump').classList.toggle('hidden', !cart.length);
 
   const paid = +$('paid').value || 0;
   $('sChange').textContent = rp(Math.max(0, paid - t.total));
-  $('quick').innerHTML = t.total > 0 ? [t.total, ...[20000, 50000, 100000].filter(v => v > t.total)].map((v, i) => `<button data-q="${v}" class="px-3 h-9 rounded-full bg-slate-100 text-slate-700 hover:bg-lime-accent hover:text-slate-950 text-xs font-bold transition">${i === 0 ? 'Uang pas' : rp(v)}</button>`).join('') : '';
+  $('quick').innerHTML = t.total > 0 ? [t.total, ...[20000, 50000, 100000].filter(v => v > t.total)].map((v, i) => `<button data-q="${v}" class="px-3 h-9 rounded-full bg-slate-100 text-slate-700 hover:bg-lime-accent hover:text-slate-950 text-xs font-bold transition">${i === 0 ? tr('exact') : rp(v)}</button>`).join('') : '';
 
   const ok = t.total > 0 && (method === 'cash' ? paid >= t.total : !needsRef() || $('ref').value.trim() !== '');
   $('charge').disabled = !ok;
 }
 function renderMeta() {
-  $('custName').textContent = customer ? customer.name : 'Walk-in Customer';
-  $('custMeta').textContent = customer ? `${customer.code} · ${customer.tier.toUpperCase()} · ${customer.points} poin` : 'Belum memilih pelanggan';
+  $('custName').textContent = customer ? customer.name : tr('walkin');
+  $('custMeta').textContent = customer ? tr('cust_meta', { code: customer.code, tier: customer.tier.toUpperCase(), points: customer.points }) : tr('no_customer');
   const a = $('allergy'); a.classList.toggle('hidden', !(customer && customer.allergy));
   if (customer && customer.allergy) a.innerHTML = ico('warning', 16) + ' ' + esc(customer.allergy);
   document.querySelectorAll('#typeTabs button').forEach(b => { const on = b.dataset.t === orderType; b.className = `flex-1 h-9 rounded-full text-sm font-semibold ${on ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`; });
@@ -382,7 +386,7 @@ function openVariantModal(product) {
   modalProduct = product;
   selectedVariants = {};
   $('varModalTitle').textContent = product.name;
-  $('varModalBasePrice').textContent = 'Harga dasar: ' + rp(product.price);
+  $('varModalBasePrice').textContent = tr('base_price') + ': ' + rp(product.price);
 
   const groups = {};
   (product.variants || []).forEach(v => {
@@ -401,7 +405,7 @@ function openVariantModal(product) {
     html += `<div class="space-y-2.5">
       <div class="flex items-center justify-between">
         <span class="text-xs font-bold text-slate-300 uppercase tracking-wider">${esc(groupName)}</span>
-        <button type="button" onclick="clearVarGroup('${esc(groupName)}')" class="text-[11px] text-slate-400 hover:text-lime-accent transition">Reset / Tanpa varian</button>
+        <button type="button" onclick="clearVarGroup('${esc(groupName)}')" class="text-[11px] text-slate-400 hover:text-lime-accent transition">${tr('reset_var')}</button>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         ${vars.map(v => {
@@ -413,7 +417,7 @@ function openVariantModal(product) {
             <div class="min-w-0 pr-2">
               <div class="text-sm font-bold text-white tracking-tight truncate">${esc(v.name)}</div>
               <div class="text-xs font-semibold ${v.price > 0 ? 'text-lime-accent' : 'text-slate-400'} mt-0.5">
-                ${v.price > 0 ? '+ ' + rp(v.price) : 'Tanpa biaya tambahan'}${varNote(v, product)}
+                ${v.price > 0 ? '+ ' + rp(v.price) : tr('no_extra')}${varNote(v, product)}
               </div>
             </div>
             <div id="var_check_${v.id}" class="w-6 h-6 rounded-full border flex items-center justify-center shrink-0 transition-all ${isSelected ? 'border-lime-accent bg-lime-accent text-slate-950 font-black' : 'border-slate-700 bg-slate-800/80 text-transparent'}">
@@ -611,7 +615,7 @@ let timer;
 async function searchCustomers() {
   const r = await fetch(URLS.customers + '?q=' + encodeURIComponent($('custSearch').value), { headers: { Accept: 'application/json' } });
   const list = await r.json();
-  $('custResults').innerHTML = list.length ? list.map(c => `<button data-pick='${esc(JSON.stringify(c))}' class="w-full text-left px-3 py-2.5 rounded-2xl hover:bg-slate-50"><b>${esc(c.name)}</b> <span class="pill pill-slate !py-0 !text-[10px]">${esc(c.tier)}</span><div class="text-xs text-slate-500">${esc(c.phone || '-')} · ${esc(c.code)}</div></button>`).join('') : '<p class="text-sm text-slate-500 px-3 py-2">Tidak ada hasil.</p>';
+  $('custResults').innerHTML = list.length ? list.map(c => `<button data-pick='${esc(JSON.stringify(c))}' class="w-full text-left px-3 py-2.5 rounded-2xl hover:bg-slate-50"><b>${esc(c.name)}</b> <span class="pill pill-slate !py-0 !text-[10px]">${esc(c.tier)}</span><div class="text-xs text-slate-500">${esc(c.phone || '-')} · ${esc(c.code)}</div></button>`).join('') : '<p class="text-sm text-slate-500 px-3 py-2">' + tr('no_results') + '</p>';
 }
 const pick = c => { customer = c; modal.classList.add('hidden'); renderMeta(); };
 $('custBtn').addEventListener('click', () => { modal.classList.remove('hidden'); $('custSearch').value = ''; searchCustomers(); $('custSearch').focus(); });
@@ -623,7 +627,7 @@ $('newBtn').addEventListener('click', async () => {
   const err = $('newErr'); err.classList.add('hidden');
   const r = await fetch(URLS.newCustomer, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': CSRF }, body: JSON.stringify({ name: $('newName').value, phone: $('newPhone').value }) });
   const d = await r.json();
-  if (!r.ok) { err.textContent = d.errors ? Object.values(d.errors)[0][0] : (d.message || 'Gagal menyimpan'); err.classList.remove('hidden'); return; }
+  if (!r.ok) { err.textContent = d.errors ? Object.values(d.errors)[0][0] : (d.message || tr('save_failed')); err.classList.remove('hidden'); return; }
   $('newName').value = $('newPhone').value = ''; pick(d);
 });
 
@@ -688,7 +692,7 @@ function stockBadge(p) {
   const a = p.stock_alert;
   if (!a) return '';
   const red = a.level === 'habis';
-  return `<span class="pill ${red ? 'pill-red' : 'pill-amber'} !text-[10px] shadow-sm" style="position:absolute;bottom:.375rem;left:.375rem;display:inline-flex;align-items:center;gap:.25rem"><span class="material-symbols-outlined" style="font-size:13px;text-transform:none;letter-spacing:normal">${red ? 'error' : 'warning'}</span><span class="hidden sm:block">${red ? 'Bahan habis' : 'Bahan menipis'}</span></span>`;
+  return `<span class="pill ${red ? 'pill-red' : 'pill-amber'} !text-[10px] shadow-sm" style="position:absolute;bottom:.375rem;left:.375rem;display:inline-flex;align-items:center;gap:.25rem"><span class="material-symbols-outlined" style="font-size:13px;text-transform:none;letter-spacing:normal">${red ? 'error' : 'warning'}</span><span class="hidden sm:block">${red ? tr('ing_out') : tr('ing_low')}</span></span>`;
 }
 (function () {
   const host = document.createElement('div');
@@ -723,7 +727,7 @@ function trackStockToasts() {
     for (const id in now) {
       if (now[id] > (prevQty[id] || 0)) {
         const p = byId[id], a = p && p.stock_alert;
-        if (a) toast(a.level, a.level === 'habis' ? p.name + ' tidak bisa dibuat' : p.name + ': bahan menipis', a.text);
+        if (a) toast(a.level, a.level === 'habis' ? tr('toast_cant', { name: p.name }) : tr('toast_low', { name: p.name }), a.text);
       }
     }
   }
@@ -737,7 +741,7 @@ function toastShortage(messages) {
   const first = messages && messages[0] ? messages[0] : '';
   if (first && first !== lastShortage) {
     const informed = cart.some(i => byId[i.product_id]?.stock_alert?.level === 'habis');
-    if (!informed) toast('habis', 'Stok tidak cukup', first);
+    if (!informed) toast('habis', tr('stock_short'), first);
   }
   lastShortage = first;
 }
@@ -767,7 +771,7 @@ selectVar = function (groupName, variantId) {
   if (!modalProduct || selectedVariants[groupName] !== variantId) return;
   const v = (modalProduct.variants || []).find(x => x.id === variantId);
   const a = v && varAlert(v, modalProduct);
-  if (a) toast(a.level, a.level === 'habis' ? modalProduct.name + ' (' + v.name + ') tidak bisa dibuat' : modalProduct.name + ' (' + v.name + '): bahan menipis', a.text);
+  if (a) toast(a.level, a.level === 'habis' ? tr('toast_cant_var', { name: modalProduct.name, variant: v.name }) : tr('toast_low_var', { name: modalProduct.name, variant: v.name }), a.text);
 };
 
 /* ---------- Sembunyikan tombol voice & bantuan saat modal varian terbuka ---------- */
@@ -827,7 +831,7 @@ async function runCheckout(refValue, err, btn) {
   if (btn.disabled) return;   // sedang diproses: abaikan klik/perintah suara ganda
   err.classList.add('hidden');
   const label = btn.textContent;
-  btn.disabled = true; btn.textContent = 'Memproses…';
+  btn.disabled = true; btn.textContent = tr('processing');
   const t = totals();
   try {
     const r = await fetch(URLS.checkout, {
@@ -846,10 +850,10 @@ async function runCheckout(refValue, err, btn) {
     });
     const d = await r.json();
     if (!r.ok) { idemKey = null; }   // server menolak -> percobaan berikutnya adalah transaksi baru
-    if (!r.ok) throw new Error(d.errors ? Object.values(d.errors)[0][0] : (d.message || 'Transaksi gagal'));
+    if (!r.ok) throw new Error(d.errors ? Object.values(d.errors)[0][0] : (d.message || tr('tx_failed')));
     idemKey = null; $('ref').value = ''; $('mqRef').value = '';
     $('qrisManualModal').classList.add('hidden'); setSheet(false);
-    showDone(d, d.change > 0 ? 'Kembalian ' + rp(d.change) : '');
+    showDone(d, d.change > 0 ? tr('change_text', { amount: rp(d.change) }) : '');
   } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
   btn.textContent = label; btn.disabled = false;
   renderCart();
@@ -867,7 +871,7 @@ function openManualQris() {
 }
 $('mqConfirm').addEventListener('click', () => {
   const ref = $('mqRef').value.trim(), err = $('mqErr');
-  if (QRIS_NEEDS_REF && !ref) { err.textContent = 'Isi kode konfirmasi / approval code.'; err.classList.remove('hidden'); return; }
+  if (QRIS_NEEDS_REF && !ref) { err.textContent = tr('enter_code'); err.classList.remove('hidden'); return; }
   runCheckout(QRIS_NEEDS_REF ? ref : null, err, $('mqConfirm'));
 });
 $('mqCancel').addEventListener('click', () => { if (!$('mqConfirm').disabled) $('qrisManualModal').classList.add('hidden'); });
@@ -879,7 +883,7 @@ const qrisClock = s => String(Math.floor(s / 60)).padStart(2, '0') + ':' + Strin
 
 async function startQris() {
   const btn = $('charge'), err = $('err'); err.classList.add('hidden');
-  btn.disabled = true; btn.textContent = 'Membuat QRIS…';
+  btn.disabled = true; btn.textContent = tr('making_qris');
   const t = totals();
   try {
     const r = await fetch(URLS.qris, { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({
@@ -892,7 +896,7 @@ async function startQris() {
       customer_id: customer?.id ?? null, order_type: orderType, table_no: $('table') ? ($('table').value || null) : null, discount: t.disc,
     }) });
     const d = await r.json();
-    if (!r.ok) { idemKey = null; throw new Error(d.errors ? Object.values(d.errors)[0][0] : (d.message || 'Gagal membuat QRIS')); }
+    if (!r.ok) { idemKey = null; throw new Error(d.errors ? Object.values(d.errors)[0][0] : (d.message || tr('qris_failed'))); }
     renderQris(d);
   } catch (e) { err.textContent = e.message; err.classList.remove('hidden'); }
   renderCart();
@@ -906,16 +910,16 @@ function renderQris(d) {
   $('qrisTotal').textContent = rp(d.total);
   if (d.qr && qrisImgFor !== d.id) { $('qrisImg').src = d.qr; qrisImgFor = d.id; }
 
-  const BADGE = { pending: ['pill-amber', 'Menunggu'], expired: ['pill-red', 'Kedaluwarsa'], cancelled: ['pill-slate', 'Dibatalkan'], failed: ['pill-red', 'Gagal'], review: ['pill-red', 'Perlu dicek admin'] }[st] || ['pill-slate', st];
+  const BADGE = { pending: ['pill-amber', tr('waiting')], expired: ['pill-red', tr('st_expired')], cancelled: ['pill-slate', tr('st_cancelled')], failed: ['pill-red', tr('st_failed')], review: ['pill-red', tr('st_review')] }[st] || ['pill-slate', st];
   $('qrisBadge').className = 'pill ' + BADGE[0]; $('qrisBadge').textContent = BADGE[1];
 
   qrisLeft = d.seconds_left;
   const over = $('qrisOverlay');
   over.classList.toggle('hidden', pending && qrisLeft > 0);
-  over.textContent = { expired: 'QR kedaluwarsa', cancelled: 'Dibatalkan', failed: 'Pembayaran gagal', review: 'Perlu dicek admin' }[st] || (pending ? 'QR kedaluwarsa' : '');
-  $('qrisMsg').textContent = st === 'review' ? (d.message || 'Pembayaran diterima tetapi pesanan belum bisa diproses.') + ' Jangan minta pelanggan membayar lagi; hubungi admin (lihat Audit Log).'
-    : st === 'failed' ? (d.message || 'Pembayaran ditolak.') : st === 'cancelled' ? 'Pembayaran dibatalkan.' : st === 'expired' ? 'Waktu habis. Buat QR baru untuk melanjutkan.'
-    : 'Minta pelanggan scan dengan aplikasi e-wallet atau m-banking apa pun. Halaman ini otomatis berubah saat pembayaran diterima.';
+  over.textContent = { expired: tr('qr_expired'), cancelled: tr('st_cancelled'), failed: tr('pay_failed'), review: tr('st_review') }[st] || (pending ? tr('qr_expired') : '');
+  $('qrisMsg').textContent = st === 'review' ? (d.message || tr('review_msg')) + ' ' + tr('review_tail')
+    : st === 'failed' ? (d.message || tr('rejected')) : st === 'cancelled' ? tr('pay_cancelled') : st === 'expired' ? tr('time_up')
+    : tr('qris_scan_msg');
 
   const expiredNow = pending && qrisLeft <= 0;
   $('qrisRegen').classList.toggle('hidden', !(st === 'expired' || st === 'failed' || expiredNow));
@@ -925,7 +929,7 @@ function renderQris(d) {
   $('qrisGwUrl').textContent = d.gateway_qr_url || '';
 
   if (!pending) { stopQris(); $('qrisTimer').textContent = ''; return; }
-  const paintClock = () => { $('qrisTimer').textContent = qrisLeft > 0 ? 'Berlaku ' + qrisClock(qrisLeft) : 'Waktu habis, menunggu konfirmasi gateway…'; };
+  const paintClock = () => { $('qrisTimer').textContent = qrisLeft > 0 ? tr('valid_for', { time: qrisClock(qrisLeft) }) : tr('waiting_gw'); };
   paintClock();
   if (!qrisTick) qrisTick = setInterval(() => { if (qrisLeft > 0) { qrisLeft--; paintClock(); if (qrisLeft === 0) renderQris({ ...qris, seconds_left: 0 }); } }, 1000);
   if (!qrisPoll) qrisPoll = setInterval(pollQris, 3000);
@@ -962,7 +966,7 @@ $('qrisCancel').addEventListener('click', async () => {
 });
 $('qrisRegen').addEventListener('click', () => { stopQris(); $('qrisModal').classList.add('hidden'); startQris(); });
 $('qrisClose').addEventListener('click', () => { stopQris(); qris = null; $('qrisModal').classList.add('hidden'); });
-$('qrisCopy').addEventListener('click', () => { navigator.clipboard?.writeText($('qrisGwUrl').textContent).then(() => { $('qrisCopy').textContent = 'Tersalin'; setTimeout(() => $('qrisCopy').textContent = 'Salin', 1500); }); });
+$('qrisCopy').addEventListener('click', () => { navigator.clipboard?.writeText($('qrisGwUrl').textContent).then(() => { $('qrisCopy').textContent = tr('copied'); setTimeout(() => $('qrisCopy').textContent = tr('copy'), 1500); }); });
 
 /* Pesanan baru TANPA reload: kosongkan form, lalu ambil stok & nomor invoice segar di latar belakang. */
 async function newOrder() {

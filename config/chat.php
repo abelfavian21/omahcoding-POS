@@ -22,6 +22,6 @@ return [
     'system_prompt_path' => resource_path('prompts/customer-service.md'),
 
     // Dikirim ke pengunjung saat AI tidak bisa menjawab (tanpa key, kuota habis, atau semua provider gagal).
-    'fallback_message' => 'Maaf, asisten kami sedang tidak bisa menjawab. Pesan Anda sudah kami terima dan tim kami akan segera membalas di chat ini.',
+    'fallback_message' => 'Maaf, Mirae sedang tidak bisa menjawab. Pesan kamu sudah kami terima dan tim kami akan segera membalas di chat ini.',
 
 ];

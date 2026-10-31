@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
+use App\Models\Business;
 use App\Models\CashShift;
 use App\Models\QrisPayment;
 use App\Services\MidtransClient;
@@ -59,6 +60,18 @@ class SettingsController extends Controller
         return redirect()->route('settings.edit')->with('success', $enable
             ? 'Shift kasir diaktifkan. Kasir wajib membuka shift sebelum menerima pembayaran.'
             : 'Shift kasir dinonaktifkan. Kasir bisa langsung menerima pembayaran tanpa buka shift.');
+    }
+
+    /** Bahasa tampilan (id / en). Default id. */
+    public function updateLanguage(Request $request)
+    {
+        $data = $request->validate(['language' => ['required', 'in:' . implode(',', Business::LANGUAGES)]]);
+
+        $request->user()->business->forceFill(['language' => $data['language']])->save();
+        AuditLog::record('settings.language_changed', null, ['language' => $data['language']]);
+        app()->setLocale($data['language']);   // pesan sukses langsung memakai bahasa baru
+
+        return redirect()->route('settings.edit')->with('success', __('settings.lang_saved'));
     }
 
     /** Cetak struk thermal: aktif/nonaktif, cetak otomatis setelah bayar, dan lebar kertas (58/80 mm). */

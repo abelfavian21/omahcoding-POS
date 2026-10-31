@@ -119,6 +119,7 @@ Route::middleware(['auth', 'account'])->group(function () {
         Route::get('/settings', [SettingsController::class, 'edit'])->name('settings.edit');
         Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
         Route::put('/settings/shift', [SettingsController::class, 'updateShift'])->middleware('throttle:20,1')->name('settings.shift');
+        Route::put('/settings/language', [SettingsController::class, 'updateLanguage'])->middleware('throttle:20,1')->name('settings.language');
         Route::put('/settings/print', [SettingsController::class, 'updatePrint'])->middleware('throttle:20,1')->name('settings.print');
         Route::put('/settings/qris', [SettingsController::class, 'updateQris'])->middleware('throttle:20,1')->name('settings.qris');
         Route::put('/settings/midtrans', [SettingsController::class, 'updateMidtrans'])->middleware('throttle:10,1')->name('settings.midtrans');

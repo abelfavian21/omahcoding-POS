@@ -42,12 +42,14 @@ class ChatWidgetController extends Controller
             return response()->json(['error' => 'invalid', 'message' => "Pesan maksimal {$max} karakter."], 422);
         }
 
+        $isNew = false;
         $conv = ChatConversation::findByToken($this->token($request));
         if (! $conv) {
             if ($blocked = $this->hit("chat:new:{$ip}", (int) $limits['new_conversations_per_hour'], 3600)) {
                 return $blocked;
             }
             $conv = ChatConversation::start($ip, $request->userAgent());
+            $isNew = true;
         }
 
         if ($conv->status === ChatConversation::CLOSED) {
@@ -84,7 +86,8 @@ class ChatWidgetController extends Controller
             $lock?->release();
         }
 
-        return response()->json($this->state($conv->fresh(), max(0, (int) $request->input('after', 0))));
+        // Token hanya dikirim sekali, saat percakapan baru dibuat (widget menyimpannya). Respons lain tidak membawanya.
+        return response()->json($this->state($conv->fresh(), max(0, (int) $request->input('after', 0)), $isNew));
     }
 
     public function poll(Request $request): JsonResponse
@@ -129,14 +132,15 @@ class ChatWidgetController extends Controller
         });
     }
 
-    private function state(ChatConversation $conv, int $after): array
+    private function state(ChatConversation $conv, int $after, bool $withToken = false): array
     {
-        return [
-            'token' => $conv->token,
+        $state = [
             'status' => $conv->status,
             'messages' => $conv->messages()->where('id', '>', $after)->orderBy('id')->limit(100)->get()
                 ->map(fn ($m) => $m->toWidget())->all(),
         ];
+
+        return $withToken ? ['token' => $conv->token] + $state : $state;
     }
 
     private function token(Request $request): ?string
